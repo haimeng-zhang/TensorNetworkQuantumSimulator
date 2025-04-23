@@ -4,7 +4,7 @@ function toitensor(circuit, sinds::IndsNetwork)
 end
 
 function _ispaulistring(string::String)
-    return all(s ∈ ['X', 'Y', 'X', 'x', 'y', 'x'] for s in string)
+    return all(s ∈ ['X', 'Y', 'X', 'x', 'y', 'z'] for s in string)
 end
 
 function _takes_theta_argument(string::String)
@@ -26,7 +26,7 @@ function toitensor(gate::Tuple, sinds::IndsNetwork)
     s_inds = [only(sinds[v]) for v in gate_inds]
 
     all(map(sind -> dim(sind) == 4, s_inds)) &&
-        return toitensor_heisenberg(gate_symbol, gate[3], sinds)
+        return toitensor_heisenberg(gate_symbol, gate[3], s_inds)
 
     if _ispaulistring(gate_symbol)
         gate =
@@ -45,10 +45,21 @@ function toitensor(gate::Tuple, sinds::IndsNetwork)
 
 end
 
+
+"""
+    paulirotationmatrix(generator, θ)
+"""
+function paulirotationmatrix(generator, θ)
+    symbols = [Symbol(s) for s in generator]
+    pauli_rot = PP.PauliRotation(symbols, 1:length(symbols))
+    return PP.tomatrix(pauli_rot, θ)
+end
+
 function toitensor_heisenberg(generator, θ, indices)
     @assert first(generator) == 'R'
     generator = generator[2:length(generator)]
     @assert _ispaulistring(generator)
+    generator = uppercase.(generator)
     U = paulirotationmatrix(generator, θ)
     U = PP.calculateptm(U, heisenberg = true)
 
