@@ -20,7 +20,8 @@ function main()
     s = ITN.siteinds(4, g)
     #Initial operator is Z on the designated site
     vz = first(center(g))
-    ψ0 = ITensorNetwork(v -> v == vz ? [0.0, 0.0, 0.0, 1.0] : [1.0, 0.0, 0.0, 0.0], s)
+    init_state = ("Z", [vz])
+    ψ0 = TN.topaulitensornetwork(init_state, s)
 
     maxdim, cutoff = 4, 1e-14
     apply_kwargs = (; maxdim, cutoff, normalize = true)
@@ -68,7 +69,7 @@ function main()
         println("Frobenius norm of O(t) is $(scalar(ψψ))")
         
         #Take traces
-        tr_ψt = inner(ψ, ITensorNetwork(v -> [1.0, 0.0, 0.0, 0.0], s); alg = "bp")
+        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp")
         tr_ψtψ0 = inner(ψ, ψ0; alg = "bp")
         println("Trace(O(t)) is $(tr_ψt)")
         println("Trace(O(t)O(0)) is $(tr_ψtψ0)")

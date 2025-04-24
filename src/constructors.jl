@@ -81,3 +81,7 @@ function topaulitensornetwork(op, tninds::IndsNetwork)
 
     return ITensorNetwork(map_f, tninds)
 end
+
+function identitytensornetwork(tninds::IndsNetwork)
+    return topaulitensornetwork(("I", [first(vertices(tninds))]), tninds)
+end
