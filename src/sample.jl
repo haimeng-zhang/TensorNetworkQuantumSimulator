@@ -7,23 +7,18 @@ function StatsBase.sample(
     left_message_rank::Int64 = maxlinkdim(ψ),
     right_message_rank::Int64,
     message_update_kwargs = (; niters = 40, tolerance = 1e-12),
-    use_symmetric_gauge = true,
+    bp_update_kwargs = get_global_bp_update_kwargs(),
+    set_bp_norm_to_one = true,
+    transform_to_symmetric_gauge = true,
     kwargs...,
 )
-    #WARMUP: Run boundary MPS from the right to the left with right_mps_rank dimensions messages
-    bp_update_kwargs = (;
-        maxiter = 40,
-        tol = 1e-12,
-        message_update_kwargs = (;
-            message_update_function = ms -> make_eigs_real.(default_message_update(ms))
-        ),
-    )
-    if use_symmetric_gauge
-        ψ, ψIψ_bpc = symmetric_gauge(ψ; cache_update_kwargs = bp_update_kwargs)
-    else
-        ψIψ_bpc = build_bp_cache(ψ; bp_update_kwargs...)
+    ψIψ_bpc = build_bp_cache(ψ; bp_update_kwargs...)
+    if transform_to_symmetric_gauge
+        ψ, ψIψ_bpc = symmetric_gauge(ψ; cache! = Ref(ψIψ_bpc), update_cache = false)
     end
-    ψ, ψIψ_bpc = normalize(ψ, ψIψ_bpc; update_cache = false)
+    if set_bp_norm_to_one
+        ψ, ψIψ_bpc = normalize(ψ, ψIψ_bpc; update_cache = false)
+    end
     ψIψ = BoundaryMPSCache(ψIψ_bpc; message_rank = right_message_rank)
     sorted_partitions = sort(ITensorNetworks.partitions(ψIψ))
     seq = [
@@ -70,9 +65,9 @@ function StatsBase.sample(
         end
         push!(bit_strings, ((p_over_q), bit_string))
     end
-    norm = sum(first.(bit_strings)) / length(bit_strings)
-    bit_strings =
-        [((p_over_q) / norm, bit_string) for (p_over_q, bit_string) in bit_strings]
+    #norm = sum(first.(bit_strings)) / length(bit_strings)
+    #bit_strings =
+    #    [((p_over_q) / norm, bit_string) for (p_over_q, bit_string) in bit_strings]
     return bit_strings
 end
 
