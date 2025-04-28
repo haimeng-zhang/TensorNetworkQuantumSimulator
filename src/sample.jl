@@ -7,19 +7,8 @@ function StatsBase.sample(
     left_message_rank::Int64=maxlinkdim(ψ),
     right_message_rank::Int64,
     boundary_mps_kwargs=get_global_boundarymps_update_kwargs(),
-    bp_update_kwargs=get_global_bp_update_kwargs(),
-    # set_bp_norm_to_one = true,
-    # transform_to_symmetric_gauge = true, # TODO: do we even want control over this?
     kwargs...,
 )
-    ψIψ_bpc = build_bp_cache(ψ; bp_update_kwargs...)
-    # if transform_to_symmetric_gauge
-    #     ψ, ψIψ_bpc = symmetric_gauge(ψ; (cache!)=Ref(ψIψ_bpc), update_cache=false)
-    # end
-    # if set_bp_norm_to_one
-    #     ψ, ψIψ_bpc = normalize(ψ, ψIψ_bpc; update_cache=false)
-    # end
-
     ψ, ψIψ_bpc = symmetric_gauge(ψ)
     ψ, ψIψ_bpc = normalize(ψ, ψIψ_bpc; update_cache=false)
 
@@ -29,7 +18,7 @@ function StatsBase.sample(
         sorted_partitions[i] => sorted_partitions[i-1] for
         i = length(sorted_partitions):-1:2
     ]
-    right_MPScache = updatecache(right_MPScache; boundary_mps_kwargs...) # update(Algorithm("orthogonal"), right_MPScache, seq; message_update_kwargs...)
+    right_MPScache = updatecache(right_MPScache; boundary_mps_kwargs...)
 
     left_MPScache = BoundaryMPSCache(ψ; message_rank=left_message_rank)
 
@@ -58,7 +47,6 @@ function get_one_sample(
     left_message_update_kwargs = (; boundary_mps_kwargs[:message_update_kwargs]..., normalize=false)
 
     right_MPScache = copy(right_MPScache)
-    # left_incoming_message = nothing
 
     bit_string = Dictionary{keytype(vertices(left_MPScache)),Int}()
     p_over_q = nothing
@@ -95,6 +83,15 @@ function get_one_sample(
             end
         end
 
+        delete_partition_messages!(right_MPScache, partition)
+        if i != 1 && i != length(sorted_partitions) 
+            delete_partition_messages!(left_MPScache, partition)
+            delete_partitionpair_messages!(left_MPScache, sorted_partitions[i-1] => sorted_partitions[i])
+            if i > 2
+                delete_partitionpair_messages!(right_MPScache, sorted_partitions[i-2] => sorted_partitions[i-1])
+            end
+        end
+
     end
 
     return p_over_q, bit_string
@@ -114,7 +111,9 @@ function sample_partition(
         ψIψ =
             !isnothing(prev_v) ? partition_update(ψIψ, [prev_v], [v]) :
             partition_update(ψIψ, [v])
-        ρ = contract(environment(bp_cache(ψIψ), [(v, "operator")]); sequence="automatic")
+        env = environment(bp_cache(ψIψ), [(v, "operator")])
+        seq = contraction_sequence(env; alg = "optimal")
+        ρ = contract(env; sequence=seq)
         ρ_tr = tr(ρ)
         push!(traces, ρ_tr)
         ρ /= ρ_tr
@@ -127,7 +126,7 @@ function sample_partition(
         q = diag(ρ)[config]
         ψv = only(factors(ψIψ, [(v, "ket")])) / sqrt(q)
         ψv = P * ψv
-        ψIψ = rem_vertex(ψIψ, (v, "operator"))
+        ψIψ = update_factor(ψIψ, (v, "operator"), ITensor(one(Bool)))
         ψIψ = update_factor(ψIψ, (v, "ket"), ψv)
         ψIψ = update_factor(ψIψ, (v, "bra"), dag(prime(ψv)))
         prev_v = v

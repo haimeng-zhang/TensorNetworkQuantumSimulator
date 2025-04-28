@@ -267,3 +267,15 @@ function make_eigs_positive(A::ITensor, tol::Real = 1e-14)
         ishermitian = true,
     )
 end
+
+function delete_message!(bpc::AbstractBeliefPropagationCache, pe::PartitionEdge)
+    return delete_messages!(bpc, [pe])
+end
+
+function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector{<:PartitionEdge})
+    ms = messages(bpc)
+    for pe in pes
+        haskey(ms, pe) && delete!(ms, pe)
+    end
+    return bpc
+end
