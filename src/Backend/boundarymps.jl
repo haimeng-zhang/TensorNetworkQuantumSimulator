@@ -811,3 +811,15 @@ function insert_pseudo_planar_edges(
 end
 
 pair(pe::PartitionEdge) = parent(src(pe)) => parent(dst(pe))
+
+function delete_partition_messages!(bmpsc::BoundaryMPSCache, partition)
+    vs = sort(planargraph_vertices(bmpsc, partition))
+    pes = partition_update_sequence(bmpsc, [first(vs)])
+    pes = vcat(pes, reverse.(pes))
+    return delete_messages!(bmpsc, pes)
+end
+
+function delete_partitionpair_messages!(bmpsc::BoundaryMPSCache, partitionpair::Pair)
+    pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
+    return delete_messages!(bmpsc, pes)
+end
