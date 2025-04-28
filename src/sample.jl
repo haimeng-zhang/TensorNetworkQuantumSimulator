@@ -26,9 +26,9 @@ function _sample(
     #Generate the bit_strings moving left to right through the network
     bit_strings = []
     for j = 1:nsamples
-        p_over_q_approx, logq, logp, bit_string = get_one_sample(
+        p_over_q_approx, p_over_q_exact, bit_string = get_one_sample(
             right_MPScache, left_MPScache, sorted_partitions; compute_independent_logp, boundary_mps_kwargs, kwargs...)
-        push!(bit_strings, ((p_over_q_approx, logq, logp), bit_string))
+        push!(bit_strings, ((p_over_q_approx, p_over_q_exact), bit_string))
     end
     #norm = sum(first.(bit_strings)) / length(bit_strings)
     #bit_strings =
@@ -48,7 +48,7 @@ end
 
 function indirect_importance_sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     bitstrings = _sample(ψ::ITensorNetwork, nsamples::Int64; compute_independent_logp = true, kwargs...)
-    return [(exp(scalars[3] / scalars[2]), bitstring) for (scalars, bitstring) in bitstrings]
+    return [(scalars[2], bitstring) for (scalars, bitstring) in bitstrings]
 end
 
 function get_one_sample(
@@ -65,13 +65,11 @@ function get_one_sample(
     right_MPScache = copy(right_MPScache)
 
     bit_string = Dictionary{keytype(vertices(left_MPScache)),Int}()
-    p_over_q = nothing
-    logq = 0
+    p_over_q_approx = nothing
     for (i, partition) in enumerate(sorted_partitions)
 
-        right_MPScache, p_over_q, _logq, bit_string, =
+        right_MPScache, p_over_q_approx, bit_string, =
             sample_partition(right_MPScache, partition, bit_string; kwargs...)
-        logq += _logq
         vs = planargraph_vertices(right_MPScache, partition)
 
         left_MPScache = update_factors(
@@ -111,15 +109,15 @@ function get_one_sample(
 
     end
 
-    !compute_independent_logp && return p_over_q, logq, 0, bit_string
+    !compute_independent_logp && return p_over_q_approx, nothing, bit_string
 
     ψproj = tensornetwork(left_MPScache)
     left_MPScache = BoundaryMPSCache(ψproj; message_rank = maxlinkdim(ψproj))
     left_MPScache = updatecache(left_MPScache)
-    logp = logscalar(left_MPScache)
-    logp += conj(logp)
+    p_over_q_exact = scalar(left_MPScache)
+    p_over_q_exact *= conj(p_over_q_exact)
 
-    return p_over_q, logq, logp, bit_string
+    return p_over_q_approx, p_over_q_exact, bit_string
 end
 
 
@@ -132,7 +130,6 @@ function sample_partition(
 )
     vs = sort(planargraph_vertices(ψIψ, partition))
     prev_v, traces = nothing, []
-    logq = 0
     for v in vs
         ψIψ =
             !isnothing(prev_v) ? partition_update(ψIψ, [prev_v], [v]) :
@@ -145,7 +142,6 @@ function sample_partition(
         ρ /= ρ_tr
         # the usual case of single-site
         config = StatsBase.sample(1:length(diag(ρ)), Weights(real.(diag(ρ))))
-        logq += log(real.(diag(ρ))[config])
         # config is 1 or 2, but we want 0 or 1 for the sample itself
         set!(bit_string, v, config - 1)
         s_ind = only(filter(i -> plev(i) == 0, inds(ρ)))
@@ -159,5 +155,5 @@ function sample_partition(
         prev_v = v
     end
 
-    return ψIψ, first(traces), logq, bit_string
+    return ψIψ, first(traces), bit_string
 end
