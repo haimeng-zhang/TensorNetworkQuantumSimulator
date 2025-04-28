@@ -88,6 +88,7 @@ using ITensorNetworks:
     partitionedge,
     messages,
     update_factor,
+    logscalar,
     partitioned_tensornetwork,
     tensornetwork,
     operator_vertex,
