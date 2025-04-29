@@ -10,16 +10,17 @@ function _sample(
     compute_independent_logp = false,
     kwargs...,
 )
-    ψ, ψIψ_bpc = symmetric_gauge(ψ)
-    ψ, ψIψ_bpc = normalize(ψ, ψIψ_bpc; update_cache=false)
+    ψ, ψψ = symmetric_gauge(ψ)
+    ψ, ψψ = normalize(ψ, ψψ)
 
-    right_MPScache = BoundaryMPSCache(ψIψ_bpc; message_rank=right_message_rank)
+    right_MPScache = BoundaryMPSCache(ψψ; message_rank=right_message_rank)
     sorted_partitions = sort(ITensorNetworks.partitions(right_MPScache))
     seq = [
         sorted_partitions[i] => sorted_partitions[i-1] for
         i = length(sorted_partitions):-1:2
     ]
-    right_MPScache = updatecache(right_MPScache; boundary_mps_kwargs...)
+    right_message_update_kwargs = (; boundary_mps_kwargs[:message_update_kwargs]..., normalize = false)
+    right_MPScache = update(Algorithm("orthogonal"), right_MPScache, seq; right_message_update_kwargs...)
 
     left_MPScache = BoundaryMPSCache(ψ; message_rank=left_message_rank)
 
@@ -41,7 +42,7 @@ function StatsBase.sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     return last.(bitstrings)
 end
 
-function direct_importance_sample(ψ::ITensorNetwork, nsamples::Int64; left_message_rank = maxlinkdim(ψ), kwargs...)
+function direct_importance_sample(ψ::ITensorNetwork, nsamples::Int64; left_message_rank = 3*maxlinkdim(ψ), kwargs...)
     bitstrings = _sample(ψ::ITensorNetwork, nsamples::Int64; left_message_rank, kwargs...)
     return [(scalars[1], bitstring) for (scalars, bitstring) in bitstrings]
 end
@@ -112,9 +113,14 @@ function get_one_sample(
     !compute_independent_logp && return p_over_q_approx, nothing, bit_string
 
     ψproj = tensornetwork(left_MPScache)
-    left_MPScache = BoundaryMPSCache(ψproj; message_rank = maxlinkdim(ψproj))
-    left_MPScache = updatecache(left_MPScache)
-    p_over_q_exact = scalar(left_MPScache)
+    left_MPScache = BoundaryMPSCache(ψproj; message_rank =3*maxlinkdim(ψproj))
+    sorted_partitions = sort(ITensorNetworks.partitions(left_MPScache))
+    seq = [
+        sorted_partitions[i] => sorted_partitions[i-1] for
+        i = length(sorted_partitions):-1:2
+    ]
+    left_MPScache = update(Algorithm("orthogonal"), left_MPScache, seq; left_message_update_kwargs...)
+    p_over_q_exact = region_scalar(left_MPScache, last(last(seq)))
     p_over_q_exact *= conj(p_over_q_exact)
 
     return p_over_q_approx, p_over_q_exact, bit_string

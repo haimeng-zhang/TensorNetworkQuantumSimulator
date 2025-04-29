@@ -44,12 +44,12 @@ end
 
 ## Frontend functions
 
-function updatecache(bp_cache::BoundaryMPSCache; boundarymps_update_kwargs...)
+function updatecache(bp_cache::BoundaryMPSCache, args...; boundarymps_update_kwargs...)
     # merge provided kwargs with the defaults
     boundarymps_update_kwargs =
         merge(get_global_boundarymps_update_kwargs(), boundarymps_update_kwargs)
 
-    return update(bp_cache; boundarymps_update_kwargs...)
+    return update(bp_cache, args...; boundarymps_update_kwargs...)
 end
 
 function build_boundarymps_cache(
@@ -523,7 +523,7 @@ function default_inserter(
     inserter_transform = default_inserter_transform(alg),
     region_transform = default_region_transform(alg),
     nsites::Int64 = 1,
-    cutoff = nothing,
+    cutoff = 1e-12,
     normalize = true,
 )
     update_pe_region = region_transform.(update_pe_region)
