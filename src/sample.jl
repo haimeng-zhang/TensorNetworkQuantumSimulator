@@ -9,16 +9,17 @@ function StatsBase.sample(
     boundary_mps_kwargs=get_global_boundarymps_update_kwargs(),
     kwargs...,
 )
-    ψ, ψIψ_bpc = symmetric_gauge(ψ)
-    ψ, ψIψ_bpc = normalize(ψ, ψIψ_bpc; update_cache=false)
+    ψ, ψψ = symmetric_gauge(ψ)
+    ψ, ψψ = normalize(ψ, ψψ)
 
-    right_MPScache = BoundaryMPSCache(ψIψ_bpc; message_rank=right_message_rank)
+    right_MPScache = BoundaryMPSCache(ψψ; message_rank=right_message_rank)
     sorted_partitions = sort(ITensorNetworks.partitions(right_MPScache))
     seq = [
         sorted_partitions[i] => sorted_partitions[i-1] for
         i = length(sorted_partitions):-1:2
     ]
-    right_MPScache = updatecache(right_MPScache; boundary_mps_kwargs...)
+    right_message_update_kwargs = (; boundary_mps_kwargs[:message_update_kwargs]..., normalize = false)
+    right_MPScache = update(Algorithm("orthogonal"), right_MPScache, seq; right_message_update_kwargs...)
 
     left_MPScache = BoundaryMPSCache(ψ; message_rank=left_message_rank)
 

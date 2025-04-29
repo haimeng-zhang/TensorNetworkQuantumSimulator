@@ -171,8 +171,6 @@ function normalize_messages(bp_cache::BeliefPropagationCache, pes::Vector{<:Part
     mts = messages(bp_cache)
     for pe in pes
         me, mer = only(mts[pe]), only(mts[reverse(pe)])
-        set!(mts, pe, ITensor[me/norm(me)])
-        set!(mts, reverse(pe), ITensor[mer/norm(mer)])
         n = region_scalar(bp_cache, pe)
         set!(mts, pe, ITensor[(1/(sign(n)*sqrt(abs(n))))*me])
         set!(mts, reverse(pe), ITensor[(1/(sqrt(abs(n))))*mer])
