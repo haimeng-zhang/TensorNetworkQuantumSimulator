@@ -6,8 +6,8 @@ end
 
 ## Utilities to globally set boundary MPS_update_kwargs 
 const _default_boundarymps_update_alg = "orthogonal"
-const _default_boundarymps_update_niters = 25
-const _default_boundarymps_update_tolerance = 1e-10
+const _default_boundarymps_update_niters = 40
+const _default_boundarymps_update_tolerance = 1e-12
 
 
 # we make this a Dict that it can be pushed to with kwargs that we haven't thought of
@@ -653,6 +653,7 @@ function default_cache_prep_function(
     bmpsc::BoundaryMPSCache,
     partitionpair,
 )
+    bmpsc = delete_partition_messages!(bmpsc, first(partitionpair))
     return bmpsc
 end
 function default_cache_prep_function(
@@ -660,6 +661,8 @@ function default_cache_prep_function(
     bmpsc::BoundaryMPSCache,
     partitionpair,
 )
+    bmpsc = copy(bmpsc)
+    bmpsc = delete_partition_messages!(bmpsc, first(partitionpair))
     return switch_messages(bmpsc, partitionpair)
 end
 
@@ -708,6 +711,57 @@ function update_sequence(
     end
 end
 
+function merge_internal_tensors(O::Union{MPS, MPO})
+    internal_inds = filter(i -> isempty(ITensorMPS.siteinds(O, i)), [i for i in 1:length(O)])
+
+    while !isempty(internal_inds)
+        site = first(internal_inds)
+        tensors = [O[i] for i in setdiff([i for i in 1:length(O)], [site])]
+        if site != length(O)
+            tensors[site] = tensors[site] * O[site]
+        else
+            tensors[site - 1] = tensors[site - 1] * O[site]
+        end
+
+        O = typeof(O)(tensors)
+
+        internal_inds = filter(i -> isempty(ITensorMPS.siteinds(O, i)), [i for i in 1:length(O)])
+    end
+    return O
+end
+
+function ITensorMPS.MPO(bmpsc::BoundaryMPSCache, partition)
+    sorted_vs = sort(planargraph_vertices(bmpsc, partition))
+    ts = [only(factors(bmpsc, [v])) for v in sorted_vs]
+    O = ITensorMPS.MPO(ts)
+    #O = merge_internal_tensors(O)
+    return O
+end
+
+function ITensorMPS.MPS(bmpsc::BoundaryMPSCache, partitionpair::Pair)
+    sorted_pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
+    ms = [only(message(bmpsc, pe)) for pe in sorted_pes]
+    return ITensorMPS.MPS(ms)
+end
+
+function ITensorNetworks.truncate(bmpsc::BoundaryMPSCache, partitionpair::Pair; truncate_kwargs...)
+    bmpsc = copy(bmpsc)
+    M = ITensorMPS.MPS(bmpsc, partitionpair)
+    M = ITensorMPS.truncate(M; truncate_kwargs...)
+    return set_interpartition_message(bmpsc, M, partitionpair)
+end
+
+function set_interpartition_message(bmpsc::BoundaryMPSCache, M::Union{MPS, MPO}, partitionpair::Pair)
+    bmpsc = copy(bmpsc)
+    sorted_pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
+    ms = messages(bmpsc)
+    for i in 1:length(M)
+        set!(ms, sorted_pes[i], ITensor[M[i]])
+    end
+    return bmpsc
+end
+
+
 #Update all the message tensors on an interpartition via an n-site fitting procedure 
 function ITensorNetworks.update(
     alg::Algorithm,
@@ -721,6 +775,8 @@ function ITensorNetworks.update(
     niters::Int64,
     tolerance,
     normalize = true,
+    truncate_at_end = false,
+    truncate_kwargs = (;),
     nsites::Int64 = 1,
 )
     bmpsc = cache_prep_function(alg, bmpsc, partitionpair)
@@ -737,12 +793,70 @@ function ITensorNetworks.update(
         end
         epsilon = abs(cf - prev_cf) / length(update_seq)
         if !isnothing(tolerance) && epsilon < tolerance
-            return cache_prep_function(alg, bmpsc, partitionpair)
+            bmpsc = cache_prep_function(alg, bmpsc, partitionpair)
+            if truncate_at_end
+                bmpsc = truncate(bmpsc, partitionpair; truncate_kwargs...)
+            end
+            return bmpsc
         else
             prev_cf = cf
         end
     end
-    return cache_prep_function(alg, bmpsc, partitionpair)
+    bmpsc = cache_prep_function(alg, bmpsc, partitionpair)
+    if truncate_at_end
+        bmpsc = truncate(bmpsc, partitionpair; truncate_kwargs...)
+    end
+    return bmpsc
+end
+
+function prev_partitionpair(bmpsc::BoundaryMPSCache, partitionpair::Pair)
+    pppg = partitioned_graph(ppg(bmpsc))
+    vns = neighbors(pppg, first(partitionpair))
+    length(vns) == 1 && return nothing
+
+    @assert length(vns) == 2
+    v1, v2 = first(vns), last(vns)
+    last(partitionpair) == v1 && return v2 => first(partitionpair)
+    last(partitionpair) == v2 && return v1 => first(partitionpair)
+end
+
+function generic_apply(O::MPO, M::MPS; kwargs...)
+    length(O) == length(M) && return ITensorMPS.apply(O, M; kwargs...)
+
+    O_tensors = ITensor[]
+    for i in 1:length(O)
+        m_ind = filter(j -> !isempty(ITensors.commoninds(O[i], M[j])), [j for j in 1:length(M)])
+        if isempty(m_ind)
+            push!(O_tensors, O[i])
+        else
+            m_ind = only(m_ind)
+            push!(O_tensors, O[i] * M[m_ind])
+        end
+    end
+    O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
+    O = ITensorNetworks.combine_linkinds(O)
+    O = ITensorMPS.MPS([O[v] for v in vertices(O)])
+    O = merge_internal_tensors(O)
+    return truncate(O; kwargs...)
+end
+
+#Update all the message tensors on an interpartition via the ITensorMPS apply function
+function ITensorNetworks.update(
+    alg::Algorithm"ITensorMPS",
+    bmpsc::BoundaryMPSCache,
+    partitionpair::Pair;
+    cutoff::Number, 
+    maxdim::Int,
+    kwargs...
+)
+    prev_pp = prev_partitionpair(bmpsc, partitionpair)
+    O = ITensorMPS.MPO(bmpsc, first(partitionpair))
+    O = ITensorMPS.truncate(O; cutoff, maxdim)
+    isnothing(prev_pp) && return set_interpartition_message(bmpsc, merge_internal_tensors(O), partitionpair)
+    
+    M = ITensorMPS.MPS(bmpsc, prev_pp)
+    M_out = generic_apply(O, M; cutoff, maxdim)
+    return set_interpartition_message(bmpsc, M_out, partitionpair)
 end
 
 #Environment support, assume all vertices live in the same partition for now
