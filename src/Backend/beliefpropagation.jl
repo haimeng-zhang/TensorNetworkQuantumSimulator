@@ -280,7 +280,7 @@ function delete_message!(bpc::AbstractBeliefPropagationCache, pe::PartitionEdge)
     return delete_messages!(bpc, [pe])
 end
 
-function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector{<:PartitionEdge})
+function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector)
     ms = messages(bpc)
     for pe in pes
         haskey(ms, pe) && delete!(ms, pe)
