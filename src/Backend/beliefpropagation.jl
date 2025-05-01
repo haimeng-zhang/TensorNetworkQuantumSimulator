@@ -94,6 +94,16 @@ function ITensors.scalar(bp_cache::AbstractBeliefPropagationCache)
     return prod(numers) / prod(denoms)
 end
 
+function ITensorNetworks.logscalar(bp_cache::AbstractBeliefPropagationCache)
+    numers, denoms = scalar_factors_quotient(bp_cache)
+
+    if isempty(denoms)
+        return sum(log.(numers))
+    end
+
+    return sum(log.(numers)) - sum(log.(denoms))
+end
+
 
 function LinearAlgebra.normalize(
     ψ::ITensorNetwork;
@@ -270,7 +280,7 @@ function delete_message!(bpc::AbstractBeliefPropagationCache, pe::PartitionEdge)
     return delete_messages!(bpc, [pe])
 end
 
-function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector{<:PartitionEdge})
+function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector)
     ms = messages(bpc)
     for pe in pes
         haskey(ms, pe) && delete!(ms, pe)
