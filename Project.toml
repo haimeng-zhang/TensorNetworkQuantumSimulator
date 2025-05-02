@@ -1,7 +1,7 @@
 name = "TensorNetworkQuantumSimulator"
 uuid = "4de3b72a-362e-43dd-83ff-3f381eda9f9c"
 authors = ["JoeyT1994 <jtindall@flatironinstitute.org>", "MSRudolph <manuel.rudolph@web.de>"]
-version = "0.0.0"
+version = "0.0.1"
 
 [deps]
 Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
@@ -28,7 +28,7 @@ EinExprs = "0.6.4"
 GraphRecipes = "0.5.13"
 Graphs = "1.8.0"
 ITensorMPS = "0.3.17"
-ITensorNetworks = "0.13.3"
+ITensorNetworks = "0.13.6"
 ITensors = "0.9"
 JSON = "0.21.4"
 LinearAlgebra = "1.11.0"
