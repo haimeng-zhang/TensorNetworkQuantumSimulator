@@ -31,7 +31,7 @@ function main()
         ψ = ITN.random_tensornetwork(ComplexF64, s; link_space = χ)
         s = ITN.siteinds(ψ)
 
-        ψ, ψIψ = normalize(ψ)
+        ψ = normalize(ψ; alg = "bp")
 
         norm_sqr_bp = inner(ψ, ψ; alg = "loopcorrections", max_configuration_size = 0)
         norm_sqr = inner(

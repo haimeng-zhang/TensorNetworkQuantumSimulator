@@ -8,7 +8,8 @@ function _sample(
     nsamples::Int64;
     left_message_rank::Int64,
     right_message_rank::Int64,
-    boundary_mps_kwargs=(; message_update_kwargs=(; niters=75, tolerance=1e-12)),
+    right_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
+    left_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = left_message_rank),
     kwargs...,
 )
     ψ, ψψ = symmetric_gauge(ψ)
@@ -20,7 +21,7 @@ function _sample(
         sorted_partitions[i] => sorted_partitions[i-1] for
         i = length(sorted_partitions):-1:2
     ]
-    right_message_update_kwargs = (; boundary_mps_kwargs[:message_update_kwargs]..., normalize=false)
+    right_message_update_kwargs = (; right_message_update_kwargs..., normalize=false)
     right_MPScache = update(Algorithm("orthogonal"), right_MPScache, seq; right_message_update_kwargs...)
 
     left_MPScache = BoundaryMPSCache(ψ; message_rank=left_message_rank)
@@ -29,7 +30,7 @@ function _sample(
     probs_and_bitstrings = NamedTuple[]
     for j = 1:nsamples
         p_over_q_approx, logq, bitstring = _get_one_sample(
-            right_MPScache, left_MPScache, sorted_partitions; boundary_mps_kwargs, kwargs...)
+            right_MPScache, left_MPScache, sorted_partitions; left_message_update_kwargs, kwargs...)
         push!(probs_and_bitstrings, (poverq=p_over_q_approx, logq=logq, bitstring=bitstring))
     end
 
@@ -51,22 +52,21 @@ function sample_directly_certified(ψ::ITensorNetwork, nsamples::Int64; left_mes
 end
 
 #Compute bitstrings and independently computed p/qs : a sufficiently large certification message rank should be used
-function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank=5 * maxlinkdim(ψ), boundary_mps_kwargs=(; message_update_kwargs=(; niters=75, tolerance=1e-12)), kwargs...)
-    probs_and_bitstrings, ψ = _sample(ψ::ITensorNetwork, nsamples::Int64; boundary_mps_kwargs, kwargs...)
+function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank=5 * maxlinkdim(ψ), certification_message_update_kwargs = (; maxdim = certification_message_rank, cutoff = _default_boundarymps_update_cutoff), kwargs...)
+    probs_and_bitstrings, ψ = _sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     # send the bitstrings and the logq to the certification function
-    return certify_samples(ψ, probs_and_bitstrings; boundary_mps_kwargs, certification_message_rank, symmetrize_and_normalize=false)
+    return certify_samples(ψ, probs_and_bitstrings; certification_message_rank, certification_message_update_kwargs, symmetrize_and_normalize=false)
 end
 
 function _get_one_sample(
     right_MPScache::BoundaryMPSCache,
     left_MPScache::BoundaryMPSCache,
     sorted_partitions;
-    boundary_mps_kwargs=(; message_update_kwargs=(; niters=75, tolerance=1e-12)),
-    kwargs...
+    left_message_update_kwargs= (; cutoff = _default_boundarymps_update_cutoff, maxdim = maximum_virtual_dimension(left_MPScache)),
+    kwargs...,
 )
 
-    # TODO: this is not used?
-    left_message_update_kwargs = (; boundary_mps_kwargs[:message_update_kwargs]..., truncate_at_end=true, truncate_kwargs=(; cutoff=1e-10), normalize=false)
+    left_message_update_kwargs = (; left_message_update_kwargs..., normalize=false)
 
     right_MPScache = copy(right_MPScache)
 
@@ -91,19 +91,11 @@ function _get_one_sample(
 
             ms = messages(right_MPScache)
 
-            # left_MPScache = update(
-            #     Algorithm("orthogonal"),
-            #     left_MPScache,
-            #     partition => next_partition;
-            #     left_message_update_kwargs...,
-            # )
-
             #Alternate fitting procedure here which is faster for small bond dimensions but slower for large
-            left_MPScache = update(
-                Algorithm("ITensorMPS"),
+            left_MPScache = update(Algorithm("ITensorMPS"),
                 left_MPScache,
                 partition => next_partition;
-                cutoff=1e-10, maxdim=maximum_virtual_dimension(left_MPScache))
+                left_message_update_kwargs...)
 
             pes = planargraph_sorted_partitionedges(right_MPScache, partition => next_partition)
 
@@ -123,12 +115,12 @@ end
 function certify_sample(
     ψ::ITensorNetwork, bitstring, logq::Number;
     certification_message_rank::Int64,
-    boundary_mps_kwargs=(; message_update_kwargs=(; niters=75, tolerance=1e-12)),
+    certification_message_update_kwargs = (; maxdim = certification_message_rank, cutoff = _default_boundarymps_update_cutoff),
     symmetrize_and_normalize=true,
 )
     if symmetrize_and_normalize
         ψ, ψψ = symmetric_gauge(ψ)
-        ψ, _ = normalize(ψ, ψψ)
+        ψ = normalize(ψ, cache! = Ref(ψψ))
     end
 
     ψproj = copy(ψ)
@@ -138,18 +130,13 @@ function certify_sample(
         ψproj[v] = ψ[v] * onehot(only(s[v]) => bitstring[v] + 1) / qv
     end
 
-    # TODO: this is not used?
-    message_update_kwargs = (; boundary_mps_kwargs[:message_update_kwargs]..., truncate_at_end=true, truncate_kwargs=(; cutoff=1e-12), normalize=false)
     bmpsc = BoundaryMPSCache(ψproj; message_rank=certification_message_rank)
 
     pg = partitioned_graph(ppg(bmpsc))
     partition = first(center(pg))
     seq = [src(e) => dst(e) for e in post_order_dfs_edges(pg, partition)]
 
-    #bmpsc = update(Algorithm("orthogonal"), bmpsc, seq; message_update_kwargs...)
-
-    #Alternate fitting procedure here which is faster for small bond dimensions but may be bad for large
-    bmpsc = update(Algorithm("ITensorMPS"), bmpsc, seq; cutoff=1e-10, maxdim=certification_message_rank)
+    bmpsc = update(Algorithm("ITensorMPS"), bmpsc, seq; certification_message_update_kwargs...)
 
     p_over_q = region_scalar(bmpsc, partition)
     p_over_q *= conj(p_over_q)
