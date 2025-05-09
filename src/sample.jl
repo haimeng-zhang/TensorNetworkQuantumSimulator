@@ -6,31 +6,31 @@ using StatsBase
 function _sample(
     ψ::ITensorNetwork,
     nsamples::Int64;
-    left_message_rank::Int64,
-    right_message_rank::Int64,
-    right_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
-    left_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = left_message_rank),
+    projected_message_rank::Int64,
+    norm_message_rank::Int64,
+    norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
+    projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
     kwargs...,
 )
     ψ, ψψ = symmetric_gauge(ψ)
     ψ, ψψ = normalize(ψ, ψψ)
 
-    right_MPScache = BoundaryMPSCache(ψψ; message_rank=right_message_rank)
-    sorted_partitions = sort(ITensorNetworks.partitions(right_MPScache))
+    norm_MPScache = BoundaryMPSCache(ψψ; message_rank=norm_message_rank)
+    sorted_partitions = sort(ITensorNetworks.partitions(norm_MPScache))
     seq = [
         sorted_partitions[i] => sorted_partitions[i-1] for
         i = length(sorted_partitions):-1:2
     ]
-    right_message_update_kwargs = (; right_message_update_kwargs..., normalize=false)
-    right_MPScache = update(Algorithm("orthogonal"), right_MPScache, seq; right_message_update_kwargs...)
+    norm_message_update_kwargs = (; norm_message_update_kwargs..., normalize=false)
+    norm_MPScache = update(Algorithm("orthogonal"), norm_MPScache, seq; norm_message_update_kwargs...)
 
-    left_MPScache = BoundaryMPSCache(ψ; message_rank=left_message_rank)
+    projected_MPScache = BoundaryMPSCache(ψ; message_rank=projected_message_rank)
 
     #Generate the bit_strings moving left to right through the network
     probs_and_bitstrings = NamedTuple[]
     for j = 1:nsamples
         p_over_q_approx, logq, bitstring = _get_one_sample(
-            right_MPScache, left_MPScache, sorted_partitions; left_message_update_kwargs, kwargs...)
+            norm_MPScache, projected_MPScache, sorted_partitions; projected_message_update_kwargs, kwargs...)
         push!(probs_and_bitstrings, (poverq=p_over_q_approx, logq=logq, bitstring=bitstring))
     end
 
@@ -45,8 +45,8 @@ function sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
 end
 
 #Compute bitstrings and corresponding p/qs : a sufficiently large left message rank should be used
-function sample_directly_certified(ψ::ITensorNetwork, nsamples::Int64; left_message_rank=5 * maxlinkdim(ψ), kwargs...)
-    probs_and_bitstrings, _ = _sample(ψ::ITensorNetwork, nsamples::Int64; left_message_rank, kwargs...)
+function sample_directly_certified(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank=5 * maxlinkdim(ψ), kwargs...)
+    probs_and_bitstrings, _ = _sample(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank, kwargs...)
     # returns the self-certified p/q, logq and bitstrings
     return probs_and_bitstrings
 end
@@ -59,54 +59,54 @@ function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_mes
 end
 
 function _get_one_sample(
-    right_MPScache::BoundaryMPSCache,
-    left_MPScache::BoundaryMPSCache,
+    norm_MPScache::BoundaryMPSCache,
+    projected_MPScache::BoundaryMPSCache,
     sorted_partitions;
-    left_message_update_kwargs= (; cutoff = _default_boundarymps_update_cutoff, maxdim = maximum_virtual_dimension(left_MPScache)),
+    projected_message_update_kwargs= (; cutoff = _default_boundarymps_update_cutoff, maxdim = maximum_virtual_dimension(projected_MPScache)),
     kwargs...,
 )
 
-    left_message_update_kwargs = (; left_message_update_kwargs..., normalize=false)
+    projected_message_update_kwargs = (; projected_message_update_kwargs..., normalize=false)
 
-    right_MPScache = copy(right_MPScache)
+    norm_MPScache = copy(norm_MPScache)
 
-    bit_string = Dictionary{keytype(vertices(left_MPScache)),Int}()
+    bit_string = Dictionary{keytype(vertices(projected_MPScache)),Int}()
     p_over_q_approx = nothing
     logq = 0
     for (i, partition) in enumerate(sorted_partitions)
 
-        right_MPScache, p_over_q_approx, _logq, bit_string, =
-            sample_partition(right_MPScache, partition, bit_string; kwargs...)
-        vs = planargraph_vertices(right_MPScache, partition)
+        norm_MPScache, p_over_q_approx, _logq, bit_string, =
+            sample_partition(norm_MPScache, partition, bit_string; kwargs...)
+        vs = planargraph_vertices(norm_MPScache, partition)
         logq += _logq
 
-        left_MPScache = update_factors(
-            left_MPScache,
-            Dict(zip(vs, [only(factors(right_MPScache, [(v, "ket")])) for v in vs])),
+        projected_MPScache = update_factors(
+            projected_MPScache,
+            Dict(zip(vs, [only(factors(norm_MPScache, [(v, "ket")])) for v in vs])),
         )
 
 
         if i < length(sorted_partitions)
             next_partition = sorted_partitions[i+1]
 
-            ms = messages(right_MPScache)
+            ms = messages(norm_MPScache)
 
             #Alternate fitting procedure here which is faster for small bond dimensions but slower for large
-            left_MPScache = update(Algorithm("ITensorMPS"),
-                left_MPScache,
+            projected_MPScache = update(Algorithm("ITensorMPS"),
+                projected_MPScache,
                 partition => next_partition;
-                left_message_update_kwargs...)
+                projected_message_update_kwargs...)
 
-            pes = planargraph_sorted_partitionedges(right_MPScache, partition => next_partition)
+            pes = planargraph_sorted_partitionedges(norm_MPScache, partition => next_partition)
 
             for pe in pes
-                m = only(message(left_MPScache, pe))
+                m = only(message(projected_MPScache, pe))
                 set!(ms, pe, [m, dag(prime(m))])
             end
         end
 
-        i > 1 && delete_partitionpair_messages!(left_MPScache, sorted_partitions[i-1] => sorted_partitions[i])
-        i > 2 && delete_partitionpair_messages!(right_MPScache, sorted_partitions[i-2] => sorted_partitions[i-1])
+        i > 1 && delete_partitionpair_messages!(projected_MPScache, sorted_partitions[i-1] => sorted_partitions[i])
+        i > 2 && delete_partitionpair_messages!(norm_MPScache, sorted_partitions[i-2] => sorted_partitions[i-1])
     end
 
     return p_over_q_approx, logq, bit_string

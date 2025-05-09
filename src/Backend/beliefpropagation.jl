@@ -14,8 +14,7 @@ function default_nonposdef_bp_update_kwargs()
 end
 
 function default_bp_update_kwargs(bp_cache::BeliefPropagationCache)
-    is_flat(bp_cache) && return default_nonposdef_bp_update_kwargs()
-    return default_posdef_bp_update_kwargs()
+    return default_nonposdef_bp_update_kwargs()
 end
 
 function updatecache(bp_cache::BeliefPropagationCache; kwargs...)
@@ -37,21 +36,6 @@ function build_bp_cache(
     return bp_cache
 end
 
-# BP cache for the inner product of two state networks
-function build_bp_cache(
-    ψ::AbstractITensorNetwork,
-    ϕ::AbstractITensorNetwork;
-    update_cache = true,
-    cache_update_kwargs = default_nonposdef_bp_update_kwargs(),
-)
-    ψϕ = BeliefPropagationCache(inner_network(ψ, ϕ))
-
-    if update_cache
-        ψϕ = updatecache(ψϕ; cache_update_kwargs...)
-    end
-    return ψϕ
-end
-
 function is_flat(bpc::BeliefPropagationCache)
     pg = partitioned_tensornetwork(bpc)
     return all([length(vertices(pg, pv)) == 1 for pv in partitionvertices(pg)])
@@ -68,7 +52,7 @@ end
 function LinearAlgebra.normalize(
     ψ::ITensorNetwork,
     ψψ_bpc::BeliefPropagationCache;
-    cache_update_kwargs = default_bp_update_kwargs(ψψ_bpc),
+    cache_update_kwargs = default_posdef_bp_update_kwargs(),
     update_cache = false,
 )
     ψψ_bpc_ref = Ref(copy(ψψ_bpc))
@@ -116,9 +100,9 @@ function entanglement(
     ψ::ITensorNetwork,
     e::NamedEdge;
     (cache!) = nothing,
-    kwargs...,
+    cache_update_kwargs = default_posdef_bp_update_kwargs(),
 )
-    cache = isnothing(cache!) ? build_bp_cache(ψ; kwargs...) : cache![]
+    cache = isnothing(cache!) ? build_bp_cache(ψ; cache_update_kwargs) : cache![]
     ψ_vidal = VidalITensorNetwork(ψ; cache)
     bt = ITensorNetworks.bond_tensor(ψ_vidal, e)
     ee = 0

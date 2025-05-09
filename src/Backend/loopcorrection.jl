@@ -13,6 +13,7 @@ function ITensors.scalar(
     return zbp*(1 + sum(ws))
 end
 
+#TODO: What to do with norm case?
 function ITensors.scalar(
     alg::Algorithm"loopcorrections",
     tn::AbstractITensorNetwork;
