@@ -5,6 +5,9 @@ using Dictionaries: Dictionary, set!
 
 using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree
 
+using SimpleGraphConverter
+using SimpleGraphAlgorithms: edge_color
+
 using NamedGraphs
 using NamedGraphs:
     AbstractNamedGraph,
@@ -45,10 +48,6 @@ using NamedGraphs.PartitionedGraphs:
     which_partition
 
 using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_graph
-
-using SimpleGraphConverter: UG
-using SimpleGraphAlgorithms
-using SimpleGraphAlgorithms: edge_color
 
 using TensorOperations
 
