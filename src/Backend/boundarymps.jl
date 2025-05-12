@@ -23,10 +23,21 @@ ITensorNetworks.default_cache_update_kwargs(alg::Algorithm"boundarymps") = defau
 
 ## Frontend functions
 
+"""
+    updatecache(bmpsc::BoundaryMPSCache; alg, message_update_kwargs = (; niters, tolerance))
+
+Update the MPS messages inside a boundaryMPS-cache. 
+"""
 function updatecache(bmpsc::BoundaryMPSCache, args...; kwargs...)
     return update(bmpsc, args...; kwargs...)
 end
 
+
+"""
+    build_boundarymps_cache(ψ::AbstractITensorNetwork, message_rank::Int64; cache_construction_kwargs = (;), cache_update_kwargs = default_posdef_boundarymps_update_kwargs())
+
+Build the Boundary MPS cache for ψIψ  and update it appropriately
+"""
 function build_boundarymps_cache(
     ψ::AbstractITensorNetwork,
     message_rank::Int64;
@@ -61,20 +72,6 @@ function build_boundarymps_cache(
     end
 
     return ψIψ
-end
-
-# a version for the inner product of two state networks
-function build_boundarymps_cache(
-    ψ::AbstractITensorNetwork,
-    ϕ::AbstractITensorNetwork,
-    message_rank::Int64;
-    kwargs...,
-)
-
-    ψϕ = build_bp_cache(ψ, ϕ; update_cache = false)
-
-    # convert BP cache to boundary MPS cache, no further update needed
-    return build_boundarymps_cache(ψϕ, message_rank; kwargs...)
 end
 
 is_flat(bmpsc::BoundaryMPSCache) = is_flat(bp_cache(bmpsc))
