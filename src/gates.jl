@@ -3,20 +3,22 @@ function toitensor(circuit, sinds::IndsNetwork)
     return [toitensor(gate, sinds) for gate in circuit]
 end
 
+#Determine if a string represents a pauli string
 function _ispaulistring(string::String)
     return all(s ∈ ['X', 'Y', 'X', 'x', 'y', 'z'] for s in string)
 end
 
+#Gates which take a single theta argument (rotation argument)
 function _takes_theta_argument(string::String)
     return string ∈ ["Rx", "Ry", "Rz", "CRx", "CRy", "CRz", "Rxxyy", "Rxxyyzz"]
 end
 
-
+#Gates which take a single phi argument (rotation argument)
 function _takes_phi_argument(string::String)
     return string ∈ ["Rxx", "Ryy", "Rzz", "P", "CPHASE"]
 end
 
-# conversion of the tuple gate to an ITensor
+#Convert a gate to the corrresponding ITensor
 function toitensor(gate::Tuple, sinds::IndsNetwork)
 
     gate_symbol = gate[1]
@@ -55,6 +57,7 @@ function paulirotationmatrix(generator, θ)
     return PP.tomatrix(pauli_rot, θ)
 end
 
+#Convert a gate that's in the Heisenberg picture to an ITensor for the Pauli Transfer Matrix
 function toitensor_heisenberg(generator, θ, indices)
     @assert first(generator) == 'R'
     generator = generator[2:length(generator)]
@@ -73,20 +76,26 @@ function toitensor_heisenberg(generator, θ, indices)
     return itensor(transpose(U), legs)
 end
 
-# conversion retruns the gate itself if it is already
+#Return itself as the type is already correct
 function toitensor(gate::ITensor, sinds::IndsNetwork)
     return gate
 end
 
-# conversion of the gate indices to a tuple
+#Conversion of the gate indices to a tuple
 function _ensuretuple(gate_inds::Union{Tuple,AbstractArray})
     return gate_inds
 end
 
+#Conversion of a NamedEdge to a tuple
 function _ensuretuple(gate_inds::NamedEdge)
     return (gate_inds.src, gate_inds.dst)
 end
 
+"""
+    ITensors.op(::OpName"Rxxyy", ::SiteType"S=1/2"; θ::Float64)
+
+Gate for rotation by XXYY at a given angle
+"""
 function ITensors.op(
     ::OpName"Rxxyy", ::SiteType"S=1/2"; θ::Float64
   )
@@ -100,6 +109,11 @@ function ITensors.op(
     return mat
 end
 
+"""
+    ITensors.op(::OpName"Rxxyyzz", ::SiteType"S=1/2"; θ::Float64)
+
+Gate for rotation by XXYYZZ at a given angle
+"""
 function ITensors.op(
     ::OpName"Rxxyyzz", ::SiteType"S=1/2"; θ::Float64
   )

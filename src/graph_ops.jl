@@ -1,4 +1,8 @@
-"""Create heavy-hex lattice geometry"""
+"""
+    heavy_hexagonal_lattice(nx::Int64, ny::Int64)
+
+Create heavy-hexagonal lattice geometry with nx columns of heavy-hexes and ny rows
+"""
 function heavy_hexagonal_lattice(nx::Int64, ny::Int64)
     g = named_hexagonal_lattice_graph(nx, ny)
     # create some space for inserting the new vertices
@@ -13,6 +17,11 @@ function heavy_hexagonal_lattice(nx::Int64, ny::Int64)
     return g
 end
 
+"""
+    lieb_lattice(nx::Int64, ny::Int64; periodic = false)
+
+Create Lieb lattice geometry with nx columns of decorated squared and ny rows
+"""
 function lieb_lattice(nx::Int64, ny::Int64; periodic = false)
     @assert (!periodic && isodd(nx) && isodd(ny)) || (periodic && iseven(nx) && iseven(ny))
     g = named_grid((nx, ny); periodic)
@@ -42,20 +51,4 @@ end
 
 function graphtotopology(g)
     return [[edge.src, edge.dst] for edge in edges(g)]
-end
-
-function NamedGraphs.GraphsExtensions.rem_vertex(bpc::AbstractBeliefPropagationCache, v)
-    return rem_vertices(bpc, [v])
-end
-
-function NamedGraphs.GraphsExtensions.rem_vertices(bpc::BeliefPropagationCache, vs::Vector)
-    pg = partitioned_tensornetwork(bpc)
-    pg = rem_vertices(pg, vs)
-    return BeliefPropagationCache(pg, messages(bpc))
-end
-
-function NamedGraphs.GraphsExtensions.rem_vertices(bmpsc::BoundaryMPSCache, vs::Vector)
-    bpc = bp_cache(bmpsc)
-    bpc = rem_vertices(bpc, vs)
-    return BoundaryMPSCache(bpc, ppg(bmpsc), maximum_virtual_dimension(bmpsc))
 end

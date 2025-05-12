@@ -1,5 +1,10 @@
 default_expect_alg() = "bp"
 
+"""
+    ITensorNetworks.expect(alg::Algorithm"exact", ψ::AbstractITensorNetwork, observables::Vector{<:Tuple}, contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy()))
+
+Function for computing expectation values for any vector of pauli strings via exact contraction
+"""
 function ITensorNetworks.expect(
     alg::Algorithm"exact",
     ψ::AbstractITensorNetwork,
@@ -40,7 +45,14 @@ function ITensorNetworks.expect(
     return only(expect(alg, ψ, [obs]; kwargs...))
 end
 
+"""
+    ITensorNetworks.expect(alg::Algorithm,ψ::AbstractITensorNetwork,observables::Vector{<:Tuple}; (cache!) = nothing,
+    update_cache = isnothing(cache!), cache_update_kwargs = alg == Algorithm("bp") ? default_posdef_bp_update_kwargs() : ITensorNetworks.default_cache_update_kwargs(alg),
+    cache_construction_kwargs = default_cache_construction_kwargs(alg, QuadraticFormNetwork(ψ), ), kwargs...)
 
+Function for computing expectation values for any vector of pauli strings via different cached based algorithms. 
+Support: alg = "bp" and alg = "boundarymps". The latter takes cache_construction_kwargs = (; message_rank::Int) as a constructor
+"""
 function ITensorNetworks.expect(
     alg::Algorithm,
     ψ::AbstractITensorNetwork,
@@ -80,6 +92,7 @@ end
     expect(ψ::AbstractITensorNetwork, obs; kwargs...)
 
 Calculate the expectation value of an `ITensorNetwork` `ψ` with an observable or vector of observables `obs` using the desired algorithm.
+Currently supported: alg = "bp", "boundarymps" or "exact".
 """
 function ITensorNetworks.expect(
     ψ::AbstractITensorNetwork,
@@ -123,7 +136,11 @@ function ITensorNetworks.expect(
     return map(obs -> expect(ψIψ, obs; kwargs...), observables)
 end
 
-## utilites
+"""
+    insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
+
+Insert an obervable O into ψIψ to create the cache containing ψOψ
+"""
 function insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
     op_strings, verts, _ = collectobservable(obs)
 
@@ -139,6 +156,7 @@ function insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
     return ψOψ
 end
 
+#Process an observable into more readable form
 function collectobservable(obs::Tuple)
     # unpack
     op = obs[1]

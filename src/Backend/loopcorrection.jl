@@ -1,3 +1,8 @@
+"""
+    ITensors.scalar(alg::Algorithm"loopcorrections", bp_cache::AbstractBeliefPropagationCache; max_configuration_size::Int64)
+
+Compute the contraction of the tensor network in the bp cache with loop corrections, up to configurations of a specific size
+"""
 function ITensors.scalar(
     alg::Algorithm"loopcorrections",
     bp_cache::AbstractBeliefPropagationCache;
@@ -13,7 +18,7 @@ function ITensors.scalar(
     return zbp*(1 + sum(ws))
 end
 
-#TODO: What to do with norm case?
+#Function for allowing ITensorNetwork scalar() and inner()  to work with alg = "loopcorrections"
 function ITensors.scalar(
     alg::Algorithm"loopcorrections",
     tn::AbstractITensorNetwork;
@@ -34,6 +39,7 @@ function ITensors.scalar(
     return scalar(cache![]; alg, max_configuration_size)
 end
 
+#Transform the indices in the given subgraph of the tensornetwork so that antiprojectors can be inserted without duplicate indices appearing
 function sim_edgeinduced_subgraph(bpc::BeliefPropagationCache, eg)
     bpc = copy(bpc)
     pvs = PartitionVertex.(collect(vertices(eg)))
@@ -77,6 +83,7 @@ function sim_edgeinduced_subgraph(bpc::BeliefPropagationCache, eg)
     return bpc, antiprojectors
 end
 
+#Get the all edges incident to the region specified by the vector of edges passed
 function ITensorNetworks.boundary_partitionedges(
     bpc::BeliefPropagationCache,
     pes::Vector{<:PartitionEdge},
@@ -91,7 +98,7 @@ function ITensorNetworks.boundary_partitionedges(
     return bpes
 end
 
-#Return weight of term with anti projectors on all edges in the edge induced subgraph and messages everywhere else
+#Compute the contraction of the bp configuration specified by the edge induced subgraph eg
 function weight(bpc::BeliefPropagationCache, eg)
     pvs = PartitionVertex.(collect(vertices(eg)))
     pes = PartitionEdge.(collect(edges(eg)))
@@ -104,6 +111,7 @@ function weight(bpc::BeliefPropagationCache, eg)
     return contract(ts; sequence = seq)[]
 end
 
+#Vectorized version of weight
 function weights(bpc, egs, args...)
     return [weight(bpc, eg, args...) for eg in egs]
 end

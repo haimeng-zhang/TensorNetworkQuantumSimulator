@@ -17,10 +17,20 @@ function default_bp_update_kwargs(bp_cache::BeliefPropagationCache)
     return default_nonposdef_bp_update_kwargs()
 end
 
+"""
+    updatecache(bp_cache::BeliefPropagationCache; maxiter::Int64, tolerance::Number)
+
+Update the message tensors inside a bp-cache, running over the graph up to maxiter times until convergence to the desired tolerance
+"""
 function updatecache(bp_cache::BeliefPropagationCache; kwargs...)
     return update(bp_cache; kwargs...)
 end
 
+"""
+    build_bp_cache(ψ::ITensorNetwork, args...; kwargs...)
+
+Build the tensornetwork and cache of message tensors for the norm square network ψIψ
+"""
 function build_bp_cache(
     ψ::AbstractITensorNetwork,
     args...;
@@ -36,11 +46,21 @@ function build_bp_cache(
     return bp_cache
 end
 
+"""
+    is_flat(bpc::BeliefPropagationCache)
+
+Is the network inside bpc `flat', i.e. does every partition contain only one tensor
+"""
 function is_flat(bpc::BeliefPropagationCache)
     pg = partitioned_tensornetwork(bpc)
     return all([length(vertices(pg, pv)) == 1 for pv in partitionvertices(pg)])
 end
 
+"""
+    symmetric_gauge(ψ::AbstractITensorNetwork; cache_update_kwargs = default_posdef_bp_update_kwargs(), kwargs...)
+
+Transform a tensor netework into the symmetric gauge, where the BP message tensors are all diagonal
+"""
 function symmetric_gauge(ψ::AbstractITensorNetwork; cache_update_kwargs = default_posdef_bp_update_kwargs(), kwargs...)
     ψ_vidal = VidalITensorNetwork(ψ; cache_update_kwargs, kwargs...)
     cache_ref = Ref{BeliefPropagationCache}()
@@ -49,6 +69,11 @@ function symmetric_gauge(ψ::AbstractITensorNetwork; cache_update_kwargs = defau
     return ψ_symm, bp_cache
 end
 
+"""
+    LinearAlgebra.normalize(ψ::ITensorNetwork, ψψ_bpc::BeliefPropagationCache; cache_update_kwargs = default_posdef_bp_update_kwargs(), update_cache = false)
+
+Scale a tensor netework and its norm_sqr cache such that ψIψ = 1 under the BP approximation
+"""
 function LinearAlgebra.normalize(
     ψ::ITensorNetwork,
     ψψ_bpc::BeliefPropagationCache;
@@ -61,6 +86,11 @@ function LinearAlgebra.normalize(
     return ψ, ψψ_bpc_ref[]
 end
 
+"""
+    ITensors.scalar(bp_cache::AbstractBeliefPropagationCache; alg = "bp", cache_update_kwargs)
+
+Compute the contraction of the tensor network inside the bp_cache with different algorithm choices
+"""
 function ITensors.scalar(
     bp_cache::AbstractBeliefPropagationCache,
     args...;
@@ -74,6 +104,11 @@ function ITensors.scalar(alg::Algorithm"bp", bp_cache::AbstractBeliefPropagation
     return scalar(bp_cache)
 end
 
+"""
+    ITensorNetworks.region_scalar(bpc::BeliefPropagationCache, verts::Vector)
+
+Compute contraction involving incoming messages to the contiguous set of tensors on the given vertices
+"""
 function ITensorNetworks.region_scalar(bpc::BeliefPropagationCache, verts::Vector)
     partitions = partitionvertices(bpc, verts)
     length(partitions) == 1 && return region_scalar(bpc, only(partitions))
@@ -95,7 +130,11 @@ function ITensorNetworks.region_scalar(bpc::BeliefPropagationCache, verts::Vecto
 end
 
 
-"""Bipartite entanglement entropy, estimated as the spectrum of the bond tensor on the bipartition edge."""
+"""
+    entanglement(ψ::ITensorNetwork, e::NamedEdge; (cache!) = nothing, cache_update_kwargs = default_posdef_bp_update_kwargs())
+
+Bipartite Von-Neumann entanglement entropy, estimated, via BP, using the spectrum of the bond tensor on the given edge.
+"""
 function entanglement(
     ψ::ITensorNetwork,
     e::NamedEdge;
@@ -112,11 +151,12 @@ function entanglement(
     return abs(ee)
 end
 
-
+#Make the eigenvalues of a tensor with two indices real
 function make_eigs_real(A::ITensor)
     return map_eigvals(x -> real(x), A, first(inds(A)), last(inds(A)); ishermitian = true)
 end
 
+#Make the eigenvalues of a tensor with two indices positive
 function make_eigs_positive(A::ITensor, tol::Real = 1e-14)
     return map_eigvals(
         x -> max(x, tol),
@@ -127,10 +167,12 @@ function make_eigs_positive(A::ITensor, tol::Real = 1e-14)
     )
 end
 
+#Delete the message tensor on partition edge pe from the cache
 function delete_message!(bpc::AbstractBeliefPropagationCache, pe::PartitionEdge)
     return delete_messages!(bpc, [pe])
 end
 
+#Delete the message tensors on the vector of partition edges pes from the cache
 function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector)
     ms = messages(bpc)
     for pe in pes

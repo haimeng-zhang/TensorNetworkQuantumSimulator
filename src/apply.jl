@@ -1,11 +1,15 @@
 const _default_apply_kwargs =
-    (maxdim = Inf, cutoff = 1e-10, normalize = true, use_relative_cutoff = true)
+    (maxdim = Inf, cutoff = 1e-10, normalize = true)
 
 # import ITensorNetworks.apply for less clutter down below
 # import ITensors.apply
 # import ITensorNetworks.apply
 
-# apply a circuit to a tensor network without BP cache being passed
+"""
+    ITensors.apply(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
+
+Apply a circuit to a tensor network with the cache built and updated internally
+"""
 function ITensors.apply(
     circuit::AbstractVector,
     ψ::ITensorNetwork;
@@ -14,11 +18,10 @@ function ITensors.apply(
 )
     ψψ = build_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs)
     ψ, ψψ, truncation_errors = apply(circuit, ψ, ψψ; kwargs...)
-    # given that people used this function, we assume they don't want the cache
     return ψ, truncation_errors
 end
 
-# convert the circuit to a vector of itensors
+#Convert a circuit in (gate_str, sites_to_act_on, params) form to ITensors and then apply it
 function ITensors.apply(
     circuit::AbstractVector,
     ψ::ITensorNetwork,
@@ -29,7 +32,11 @@ function ITensors.apply(
     return apply(circuit, ψ, ψψ; kwargs...)
 end
 
-# the main simulation function
+"""
+    ITensors.apply(circuit::AbstractVector{<:ITensor}, ψ::ITensorNetwork, ψψ::BeliefPropagationCache; apply_kwargs = _default_apply_kwargs, bp_update_kwargs = default_posdef_bp_update_kwargs(), update_cache = true, verbose = false)
+
+Apply a sequence of itensors to the network with its corresponding cache. Apply kwargs should be a NamedTuple containing desired maxdim and cutoff. Update the cache every time an overlapping gate is encountered.
+"""
 function ITensors.apply(
     circuit::AbstractVector{<:ITensor},
     ψ::ITensorNetwork,
@@ -89,7 +96,7 @@ function ITensors.apply(
     return ψ, ψψ, truncation_errors
 end
 
-# for convenience an apply function for a single gate
+#Apply function for a single gate
 function ITensors.apply(
     gate::Tuple,
     ψ::ITensorNetwork;
@@ -102,7 +109,7 @@ function ITensors.apply(
     return ψ, truncation_error
 end
 
-# gate apply function for tuple gates. The gate gets converted to an ITensor first.
+#Apply function for a single gate
 function ITensors.apply(
     gate::Tuple,
     ψ::ITensorNetwork,
@@ -118,7 +125,7 @@ function ITensors.apply(
     )
 end
 
-
+#Apply function for a single gate. All apply functions will pass through here
 function ITensors.apply(
     gate::ITensor,
     ψ::AbstractITensorNetwork,
@@ -168,7 +175,7 @@ function ITensors.apply(
     return ψ, ψψ, err
 end
 
-
+#Checker for whether the cache needs updating (overlapping gate encountered)
 function _cacheupdate_check(affected_indices::Set, gate::ITensor)
     indices = inds(gate)
 

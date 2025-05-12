@@ -1,6 +1,11 @@
 getnqubits(g::NamedGraph) = length(g.vertices)
 getnqubits(tninds::IndsNetwork) = length(tninds.data_graph.vertex_data)
 
+"""
+    trace(Q::ITensorNetwork) 
+
+Take the trace of an ITensorNetwork. In the Pauli basis this is the direct trace. In Schrodinger this is the sum of coefficients
+"""
 function trace(Q::ITensorNetwork)
     d = getphysicaldim(siteinds(Q))
     if d == 2
@@ -15,7 +20,6 @@ function trace(Q::ITensorNetwork)
     return val
 end
 
-## Truncate a tensor network down to a maximum bond dimension
 """
     truncate(ψ::ITensorNetwork; maxdim, cutoff=nothing, bp_update_kwargs= (...))
 
