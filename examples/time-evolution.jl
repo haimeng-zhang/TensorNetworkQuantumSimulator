@@ -10,7 +10,7 @@ function main()
     nx = 5
     ny = 5
 
-    # the graph is your main friend in working with the TNs
+    # the graph is your main friend. This will be the geometry of the TN you wull work with
     g = named_grid((nx, ny))
     nq = length(vertices(g))
 
@@ -20,7 +20,7 @@ function main()
     hz = 0.8
     J = 0.5
 
-    # pauli rotations are tuples like `(pauli_string, [site_labels], parameter)`
+    #Build a layer of the circuit. Pauli rotations are tuples like `(pauli_string, [site_labels], parameter)`
     layer = []
     append!(layer, ("Rx", [v], 2*hx*dt) for v in vertices(g))
     append!(layer, ("Rz", [v], 2*hz*dt) for v in vertices(g))
