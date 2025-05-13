@@ -144,13 +144,10 @@ Insert an obervable O into ψIψ to create the cache containing ψOψ
 function insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
     op_strings, verts, _ = collectobservable(obs)
 
-
-    ψIψ_tn = tensornetwork(ψIψ)
-    ψIψ_vs = [ψIψ_tn[operator_vertex(ψIψ_tn, v)] for v in verts]
+    ψIψ_vs = [ψIψ[(v, "operator")] for v in verts]
     sinds =
-        [commonind(ψIψ_tn[ket_vertex(ψIψ_tn, v)], ψIψ_vs[i]) for (i, v) in enumerate(verts)]
+        [commonind(ψIψ[(v, "ket")], ψIψ_vs[i]) for (i, v) in enumerate(verts)]
     operators = [ITensors.op(op_strings[i], sinds[i]) for i in eachindex(op_strings)]
-
 
     ψOψ = update_factors(ψIψ, Dictionary([(v, "operator") for v in verts], operators))
     return ψOψ

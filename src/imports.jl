@@ -78,6 +78,8 @@ using ITensorNetworks:
     update,
     updated_message,
     set_message,
+    set_message!,
+    set_messages!,
     siteinds,
     vertices,
     dim,

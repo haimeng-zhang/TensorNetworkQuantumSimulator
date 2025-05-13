@@ -82,7 +82,7 @@ function _get_one_sample(
 
         projected_MPScache = update_factors(
             projected_MPScache,
-            Dict(zip(vs, [only(factors(norm_MPScache, [(v, "ket")])) for v in vs])),
+            Dict(zip(vs, [copy(norm_MPScache[(v, "ket")]) for v in vs])),
         )
 
 
@@ -182,11 +182,11 @@ function sample_partition(
         P = onehot(s_ind => config)
         q = diag(ρ)[config]
         logq += log(q)
-        ψv = only(factors(ψIψ, [(v, "ket")])) / sqrt(q)
+        ψv = copy(ψIψ[(v, "ket")]) / sqrt(q)
         ψv = P * ψv
-        ψIψ = update_factor(ψIψ, (v, "operator"), ITensor(one(Bool)))
-        ψIψ = update_factor(ψIψ, (v, "ket"), ψv)
-        ψIψ = update_factor(ψIψ, (v, "bra"), dag(prime(ψv)))
+        setindex_preserve_graph!(ψIψ, ITensor(one(Bool)), (v, "operator"))
+        setindex_preserve_graph!(ψIψ, copy(ψv), (v, "ket"))
+        setindex_preserve_graph!(ψIψ, dag(prime(copy(ψv))), (v, "bra"))
         prev_v = v
     end
 

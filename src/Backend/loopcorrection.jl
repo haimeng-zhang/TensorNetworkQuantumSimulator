@@ -57,13 +57,13 @@ function sim_edgeinduced_subgraph(bpc::BeliefPropagationCache, eg)
             set!(ms, reverse(pe), ITensor[mer])
             verts = vertices(bpc, src(pe))
             for v in verts
-                t = only(factors(bpc, [v]))
+                t = bpc[v]
                 t_inds = filter(i -> i ∈ linds, inds(t))
                 if !isempty(t_inds)
                     t_ind = only(t_inds)
                     t_ind_pos = findfirst(x -> x == t_ind, linds)
                     t = replaceind(t, t_ind, linds_sim[t_ind_pos])
-                    bpc = update_factor(bpc, v, t)
+                    setindex_preserve_graph!(bpc, t, v)
                 end
             end
             push!(updated_pes, pe)

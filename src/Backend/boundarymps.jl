@@ -1,4 +1,4 @@
-struct BoundaryMPSCache{BPC,PG} <: AbstractBeliefPropagationCache
+struct BoundaryMPSCache{V, PV, BPC<:AbstractBeliefPropagationCache{V, PV},PG} <: AbstractBeliefPropagationCache{V, PV}
     bp_cache::BPC
     partitionedplanargraph::PG
     maximum_virtual_dimension::Int64
@@ -497,13 +497,14 @@ function default_inserter(
     cutoff = 1e-12,
     normalize = true,
 )
+    bmpsc = copy(bmpsc)
     update_pe_region = region_transform.(update_pe_region)
     m = contract(ms; sequence = "automatic")
     if normalize
         m /= norm(m)
     end
     if nsites == 1
-        bmpsc = set_message(bmpsc, only(update_pe_region), ITensor[inserter_transform(m)])
+        set_message!(bmpsc, only(update_pe_region), ITensor[inserter_transform(m)])
     elseif nsites == 2
         pe1, pe2 = first(update_pe_region), last(update_pe_region)
         me1, me2 = only(message(bmpsc, pe1)), only(message(bmpsc, pe2))
@@ -515,8 +516,8 @@ function default_inserter(
             cutoff,
             maxdim = maximum_virtual_dimension(bmpsc),
         )
-        bmpsc = set_message(bmpsc, pe1, ITensor[inserter_transform(me1)])
-        bmpsc = set_message(bmpsc, pe2, ITensor[inserter_transform(me2)])
+        set_message!(bmpsc, pe1, ITensor[inserter_transform(me1)])
+        set_message!(bmpsc, pe2, ITensor[inserter_transform(me2)])
     else
         error("Nsites > 2 not supported at the moment for Boundary MPS updating")
     end
@@ -703,7 +704,7 @@ end
 
 function ITensorMPS.MPO(bmpsc::BoundaryMPSCache, partition)
     sorted_vs = sort(planargraph_vertices(bmpsc, partition))
-    ts = [only(factors(bmpsc, [v])) for v in sorted_vs]
+    ts = [copy(bmpsc[v]) for v in sorted_vs]
     O = ITensorMPS.MPO(ts)
     #O = merge_internal_tensors(O)
     return O

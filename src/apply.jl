@@ -120,7 +120,6 @@ function ITensors.apply(
         toitensor(gate, siteinds(ψ)),
         ψ,
         ψψ;
-        reset_all_messages = false,
         apply_kwargs,
     )
 end
@@ -130,7 +129,6 @@ function ITensors.apply(
     gate::ITensor,
     ψ::AbstractITensorNetwork,
     ψψ::BeliefPropagationCache;
-    reset_all_messages = false,
     apply_kwargs = _default_apply_kwargs,
 )
     # TODO: document each line
@@ -155,22 +153,17 @@ function ITensors.apply(
     if length(vs) == 2
         v1, v2 = vs
         pe = partitionedge(ψψ, (v1, "bra") => (v2, "bra"))
-        mts = messages(ψψ)
         ind2 = commonind(s_values, ψ[v1])
         δuv = dag(copy(s_values))
         δuv = replaceind(δuv, ind2, ind2')
         map_diag!(sign, δuv, δuv)
         s_values = denseblocks(s_values) * denseblocks(δuv)
-        if !reset_all_messages
-            set!(mts, pe, dag.(ITensor[s_values]))
-            set!(mts, reverse(pe), ITensor[s_values])
-        else
-            ψψ = BeliefPropagationCache(partitioned_tensornetwork(ψψ))
-        end
+        set_message!(ψψ, pe, dag.(ITensor[s_values]))
+        set_message!(ψψ, reverse(pe), ITensor[s_values])
     end
     for v in vs
-        ψψ = update_factor(ψψ, (v, "ket"), ψ[v])
-        ψψ = update_factor(ψψ, (v, "bra"), ψdag[v])
+        setindex_preserve_graph!(ψψ, copy(ψ[v]), (v, "ket"))
+        setindex_preserve_graph!(ψψ, copy(ψdag[v]), (v, "bra"))
     end
     return ψ, ψψ, err
 end
