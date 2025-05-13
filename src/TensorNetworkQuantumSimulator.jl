@@ -33,7 +33,7 @@ export
     fidelity,
     fidelity_boundarymps,
     fidelity_loopcorrect,
-    make_eigs_real,
+    make_hermitian,
     build_boundarymps_cache,
     truncate,
     maxlinkdim,

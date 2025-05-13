@@ -4,7 +4,7 @@ const _default_bp_update_tol = 1e-10
 ## Frontend functions
 
 function default_posdef_bp_update_kwargs()
-    message_update_function = ms -> make_eigs_real.(default_message_update(ms))
+    message_update_function = ms -> make_hermitian.(default_message_update(ms))
     return (; maxiter = _default_bp_update_maxiter, tol = _default_bp_update_tol, message_update_kwargs = (; message_update_function))
 end
 
@@ -151,20 +151,10 @@ function entanglement(
     return abs(ee)
 end
 
-#Make the eigenvalues of a tensor with two indices real
-function make_eigs_real(A::ITensor)
-    return map_eigvals(x -> real(x), A, first(inds(A)), last(inds(A)); ishermitian = true)
-end
-
-#Make the eigenvalues of a tensor with two indices positive
-function make_eigs_positive(A::ITensor, tol::Real = 1e-14)
-    return map_eigvals(
-        x -> max(x, tol),
-        A,
-        first(inds(A)),
-        last(inds(A));
-        ishermitian = true,
-    )
+function make_hermitian(A::ITensor)
+    A_inds = inds(A)
+    @assert length(A_inds) == 2
+    return (A + ITensors.swapind(conj(A), first(A_inds), last(A_inds)))/2
 end
 
 #Delete the message tensor on partition edge pe from the cache
