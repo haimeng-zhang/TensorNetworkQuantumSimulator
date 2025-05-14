@@ -27,6 +27,7 @@ Truncate the ITensorNetwork `ψ` to a maximum bond dimension `maxdim` using the 
 """
 function ITensorNetworks.truncate(
     ψ::ITensorNetwork;
+    cache_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     kwargs...,
 )
     ψ_vidal = VidalITensorNetwork(ψ; kwargs...)
