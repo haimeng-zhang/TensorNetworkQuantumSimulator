@@ -3,7 +3,10 @@ using StatsBase
 
 using Dictionaries: Dictionary, set!
 
-using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree
+using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree
+
+using SimpleGraphConverter
+using SimpleGraphAlgorithms: edge_color
 
 using NamedGraphs
 using NamedGraphs:
@@ -46,10 +49,6 @@ using NamedGraphs.PartitionedGraphs:
 
 using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_graph
 
-using SimpleGraphConverter: UG
-using SimpleGraphAlgorithms
-using SimpleGraphAlgorithms: edge_color
-
 using TensorOperations
 
 using ITensors
@@ -79,6 +78,8 @@ using ITensorNetworks:
     update,
     updated_message,
     set_message,
+    set_message!,
+    set_messages!,
     siteinds,
     vertices,
     dim,
@@ -96,9 +97,9 @@ using ITensorNetworks:
     ket_vertex,
     update_factors,
     scalar_factors_quotient,
-    default_cache_update_kwargs,
     partitionedges,
     region_scalar,
+    rescale,
     partitionvertices,
     partitioned_graph,
     powerset,
@@ -115,7 +116,6 @@ using ITensorNetworks:
     default_edge_sequence,
     default_bp_maxiter,
     default_message_update,
-    # update_message,
     tree_orthogonalize,
     gauge_walk,
     maxlinkdim,
