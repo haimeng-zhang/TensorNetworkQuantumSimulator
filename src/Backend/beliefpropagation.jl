@@ -6,18 +6,19 @@ const _default_bp_update_tol = 1e-10
 # `default_message_update` lives in ITensorNetworks.jl
 default_posdef_message_update_function(ms) = make_hermitian.(default_message_update(ms))
 
-function default_posdef_bp_update_kwargs()
+function default_posdef_bp_update_kwargs(; cache_is_tree = false)
     message_update_function = default_posdef_message_update_function
-    return (; maxiter=_default_bp_update_maxiter, tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function))
+    return (; maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function))
 end
 
-function default_nonposdef_bp_update_kwargs()
+function default_nonposdef_bp_update_kwargs(; cache_is_tree = false)
     message_update_function = default_message_update
-    return (; maxiter=_default_bp_update_maxiter, tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function))
+    return (;  maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function))
 end
 
-function default_bp_update_kwargs(bp_cache::BeliefPropagationCache)
-    return default_nonposdef_bp_update_kwargs()
+function default_bp_update_maxiter(cache_is_tree::Bool = false)
+    !cache_is_tree && return _default_bp_update_maxiter
+    return 1
 end
 
 """
@@ -26,7 +27,7 @@ end
 Update the message tensors inside a bp-cache, running over the graph up to maxiter times until convergence to the desired tolerance `tol`.
 If the cache is positive definite, the message update function can
 """
-function updatecache(bp_cache; maxiter=_default_bp_update_maxiter, tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function=default_message_update))
+function updatecache(bp_cache; maxiter=default_bp_update_maxiter(is_tree(partitioned_graph(bp_cache))), tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function=default_message_update))
     return update(bp_cache; maxiter, tol, message_update_kwargs)
 end
 
@@ -39,7 +40,7 @@ function build_bp_cache(
     ψ::AbstractITensorNetwork,
     args...;
     update_cache=true,
-    cache_update_kwargs=default_posdef_bp_update_kwargs(),
+    cache_update_kwargs=default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
 )
     bp_cache = BeliefPropagationCache(QuadraticFormNetwork(ψ), args...)
     # TODO: QuadraticFormNetwork() builds ψIψ network, but for Pauli picture `norm_sqr_network()` is enough
@@ -65,7 +66,7 @@ end
 
 Transform a tensor netework into the symmetric gauge, where the BP message tensors are all diagonal
 """
-function symmetric_gauge(ψ::AbstractITensorNetwork; cache_update_kwargs=default_posdef_bp_update_kwargs(), kwargs...)
+function symmetric_gauge(ψ::AbstractITensorNetwork; cache_update_kwargs=default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)), kwargs...)
     ψ_vidal = VidalITensorNetwork(ψ; cache_update_kwargs, kwargs...)
     cache_ref = Ref{BeliefPropagationCache}()
     ψ_symm = ITensorNetwork(ψ_vidal; (cache!)=cache_ref)
@@ -81,7 +82,7 @@ Scale a tensor netework and its norm_sqr cache such that ψIψ = 1 under the BP 
 function LinearAlgebra.normalize(
     ψ::ITensorNetwork,
     ψψ_bpc::BeliefPropagationCache;
-    cache_update_kwargs=default_posdef_bp_update_kwargs(),
+    cache_update_kwargs=default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     update_cache=false,
 )
     ψψ_bpc_ref = Ref(copy(ψψ_bpc))
@@ -143,7 +144,7 @@ function entanglement(
     ψ::ITensorNetwork,
     e::NamedEdge;
     (cache!)=nothing,
-    cache_update_kwargs=default_posdef_bp_update_kwargs(),
+    cache_update_kwargs=default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
 )
     cache = isnothing(cache!) ? build_bp_cache(ψ; cache_update_kwargs) : cache![]
     ψ_vidal = VidalITensorNetwork(ψ; cache)

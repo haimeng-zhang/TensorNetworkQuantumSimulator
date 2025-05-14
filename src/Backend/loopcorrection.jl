@@ -26,7 +26,7 @@ function ITensors.scalar(
     (cache!) = nothing,
     cache_construction_kwargs = default_cache_construction_kwargs(Algorithm("bp"), tn),
     update_cache = isnothing(cache!),
-    cache_update_kwargs = default_nonposdef_bp_update_kwargs(),
+    cache_update_kwargs = default_nonposdef_bp_update_kwargs(; cache_is_tree = is_tree(tn)),
 )
     if isnothing(cache!)
         cache! = Ref(cache(Algorithm("bp"), tn; cache_construction_kwargs...))

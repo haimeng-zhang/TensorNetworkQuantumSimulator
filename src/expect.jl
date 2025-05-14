@@ -9,7 +9,7 @@ This will be infeasible for larger networks with high bond dimension.
 function ITensorNetworks.expect(
     alg::Algorithm"exact",
     ψ::AbstractITensorNetwork,
-    observables::Vector{<:Tuple},
+    observables::Vector{<:Tuple};
     contraction_sequence_kwargs=(; alg="einexpr", optimizer=Greedy()),
 )
 
@@ -37,6 +37,14 @@ function ITensorNetworks.expect(
     return out
 end
 
+function ITensorNetworks.expect(alg::Algorithm"exact",
+    ψ::AbstractITensorNetwork,
+    observable::Tuple;
+    kwargs...
+)
+    return expect(alg, ψ, [observable]; kwargs...)
+end
+
 
 """
     ITensorNetworks.expect(alg::Algorithm, ψ::AbstractITensorNetwork, observables::Vector{<:Tuple}; (cache!) = nothing,
@@ -52,13 +60,18 @@ function ITensorNetworks.expect(
     observables::Vector{<:Tuple};
     (cache!)=nothing,
     update_cache=isnothing(cache!),
-    cache_update_kwargs=alg == Algorithm("bp") ? default_posdef_bp_update_kwargs() : ITensorNetworks.default_cache_update_kwargs(alg),
+    cache_update_kwargs=alg == Algorithm("bp") ? default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)) : ITensorNetworks.default_cache_update_kwargs(alg),
     cache_construction_kwargs=default_cache_construction_kwargs(
         alg,
         QuadraticFormNetwork(ψ),
     ),
+    message_rank = nothing,
     kwargs...,
 )
+
+    if alg == Algorithm("boundarymps") && !isnothing(message_rank)
+        cache_construction_kwargs = merge(cache_construction_kwargs, (; message_rank))
+    end
     ψIψ = QuadraticFormNetwork(ψ)
     if isnothing(cache!)
         cache! = Ref(cache(alg, ψIψ; cache_construction_kwargs...))
@@ -71,7 +84,7 @@ function ITensorNetworks.expect(
     return expect(cache![], observables; alg, kwargs...)
 end
 
-# Here we turna  single tuple observable into a vector of tuples -- the expected format in ITensorNetworks
+# Here we turn a single tuple observable into a vector of tuples -- the expected format in ITensorNetworks
 function ITensorNetworks.expect(
     alg::Algorithm,
     ψ::AbstractITensorNetwork,
@@ -93,7 +106,7 @@ Currently supported: alg = "bp", "boundarymps" or "exact".
 """
 function ITensorNetworks.expect(
     ψ::AbstractITensorNetwork,
-    obs;
+    obs::Union{Tuple, Vector{<:Tuple}};
     alg=default_expect_alg(),
     kwargs...,
 )

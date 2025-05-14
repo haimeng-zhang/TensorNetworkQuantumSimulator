@@ -13,7 +13,7 @@ Apply a circuit to a tensor network with the cache built and updated internally
 function ITensors.apply(
     circuit::AbstractVector,
     ψ::ITensorNetwork;
-    bp_update_kwargs = default_posdef_bp_update_kwargs(),
+    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     kwargs...,
 )
     ψψ = build_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs)
@@ -42,7 +42,7 @@ function ITensors.apply(
     ψ::ITensorNetwork,
     ψψ::BeliefPropagationCache;
     apply_kwargs = _default_apply_kwargs,
-    bp_update_kwargs = default_posdef_bp_update_kwargs(),
+    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     update_cache = true,
     verbose = false,
 )
@@ -101,7 +101,7 @@ function ITensors.apply(
     gate::Tuple,
     ψ::ITensorNetwork;
     apply_kwargs = _default_apply_kwargs,
-    bp_update_kwargs = default_posdef_bp_update_kwargs(),
+    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
 )
     ψ, ψψ, truncation_error =
         apply(gate, ψ, build_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs); apply_kwargs)
@@ -115,13 +115,16 @@ function ITensors.apply(
     ψ::ITensorNetwork,
     ψψ::BeliefPropagationCache;
     apply_kwargs = _default_apply_kwargs,
+    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ))
 )
-    return apply(
+    ψ, ψψ, truncation_error = apply(
         toitensor(gate, siteinds(ψ)),
         ψ,
         ψψ;
         apply_kwargs,
     )
+    ψψ = updatecache(ψψ; bp_update_kwargs...)
+    return ψ, ψψ, truncation_error
 end
 
 #Apply function for a single gate. All apply functions will pass through here

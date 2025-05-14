@@ -68,7 +68,7 @@ function main()
                     ψ,
                     ("ZZ", [v_centre, v_centre_neighbor]);
                     alg = "boundarymps",
-                    cache_construction_kwargs = (; message_rank = r),
+                    message_rank = r,
                 )
                 println("Boundary MPS Value for ZZ at Rank $r is $sz_boundarymps")
             end
