@@ -217,7 +217,8 @@ function BoundaryMPSCache(
     vertex_groups = map(x -> sort(x; by = group_sorting_function), vertex_groups)
     ppg = PartitionedGraph(planar_graph, vertex_groups)
     bmpsc = BoundaryMPSCache(bpc, ppg, message_rank)
-    return set_interpartition_messages(bmpsc)
+    set_interpartition_messages!(bmpsc)
+    return bmpsc
 end
 
 function BoundaryMPSCache(tn, args...; kwargs...)
@@ -298,41 +299,39 @@ function mps_gauge_update_sequence(bmpsc::BoundaryMPSCache, pe::PartitionEdge)
 end
 
 #Initialise all the interpartition message tensors
-function set_interpartition_messages(
+function set_interpartition_messages!(
     bmpsc::BoundaryMPSCache,
     partitionpairs::Vector{<:Pair},
 )
-    bmpsc = copy(bmpsc)
-    ms = messages(bmpsc)
+    m_keys = keys(messages(bmpsc))
     for partitionpair in partitionpairs
         pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
         for pe in pes
-            if !haskey(ms, pe)
-                set!(ms, pe, ITensor[dense(delta(linkinds(bmpsc, pe)))])
+            if pe ∉ m_keys
+                set_message!(bmpsc, pe, ITensor[dense(delta(linkinds(bmpsc, pe)))])
             end
         end
         for i = 1:(length(pes)-1)
             virt_dim = virtual_index_dimension(bmpsc, pes[i], pes[i+1])
             ind = Index(virt_dim, "m$(i)$(i+1)")
-            m1, m2 = only(ms[pes[i]]), only(ms[pes[i+1]])
-            set!(ms, pes[i], ITensor[m1*delta(ind)])
-            set!(ms, pes[i+1], ITensor[m2*delta(ind)])
+            m1, m2 = only(message(bmpsc, pes[i])), only(message(bmpsc, pes[i+1]))
+            set_message!(bmpsc, pes[i], ITensor[m1*delta(ind)])
+            set_message!(bmpsc, pes[i+1], ITensor[m2*delta(ind)])
         end
     end
     return bmpsc
 end
 
-function set_interpartition_messages(bmpsc::BoundaryMPSCache)
+function set_interpartition_messages!(bmpsc::BoundaryMPSCache)
     partitionpairs = pair.(partitionedges(ppg(bmpsc)))
-    return set_interpartition_messages(
+    return set_interpartition_messages!(
         bmpsc,
         vcat(partitionpairs, reverse.(partitionpairs)),
     )
 end
 
 #Switch the message tensors on partition edges with their reverse (and dagger them)
-function switch_message(bmpsc::BoundaryMPSCache, pe::PartitionEdge)
-    bmpsc = copy(bmpsc)
+function switch_message!(bmpsc::BoundaryMPSCache, pe::PartitionEdge)
     ms = messages(bmpsc)
     me, mer = message(bmpsc, pe), message(bmpsc, reverse(pe))
     set!(ms, pe, dag.(mer))
@@ -340,9 +339,9 @@ function switch_message(bmpsc::BoundaryMPSCache, pe::PartitionEdge)
     return bmpsc
 end
 
-function switch_messages(bmpsc::BoundaryMPSCache, partitionpair::Pair)
+function switch_messages!(bmpsc::BoundaryMPSCache, partitionpair::Pair)
     for pe in planargraph_sorted_partitionedges(bmpsc, partitionpair)
-        bmpsc = switch_message(bmpsc, pe)
+        switch_message!(bmpsc, pe)
     end
     return bmpsc
 end
@@ -378,62 +377,68 @@ function partition_update_sequence(bmpsc::BoundaryMPSCache, region::Vector)
 end
 
 #Update all messages tensors within a partition by finding the path needed
+function partition_update!(bmpsc::BoundaryMPSCache, args...)
+
+    seq = partition_update_sequence(bmpsc, args...)
+    message_update_function_kwargs = (; normalize = false)
+    for pe in seq
+        m = updated_message(bp_cache(bmpsc), pe; message_update_function_kwargs)
+        set_message!(bmpsc, pe, m)
+    end
+
+    return bmpsc
+end
+
+#Out-of-place version
 function partition_update(bmpsc::BoundaryMPSCache, args...)
-    return update(
-        Algorithm("bp"),
-        bmpsc,
-        partition_update_sequence(bmpsc, args...);
-        message_update_function_kwargs = (; normalize = false),
-    )
+    bmpsc = copy(bmpsc)
+    return partition_update!(bmpsc, args...)
 end
 
 #Move the orthogonality centre one step on an interpartition from the message tensor on pe1 to that on pe2
-function gauge_step(
+function gauge_step!(
     alg::Algorithm"orthogonal",
     bmpsc::BoundaryMPSCache,
     pe1::PartitionEdge,
     pe2::PartitionEdge;
     kwargs...,
 )
-    bmpsc = copy(bmpsc)
-    ms = messages(bmpsc)
     m1, m2 = only(message(bmpsc, pe1)), only(message(bmpsc, pe2))
     @assert !isempty(commoninds(m1, m2))
     left_inds = uniqueinds(m1, m2)
     m1, Y = factorize(m1, left_inds; ortho = "left", kwargs...)
     m2 = m2 * Y
-    set!(ms, pe1, ITensor[m1])
-    set!(ms, pe2, ITensor[m2])
+    set_message!(bmpsc, pe1, ITensor[m1])
+    set_message!(bmpsc, pe2, ITensor[m2])
     return bmpsc
 end
 
 #Move the orthogonality / biorthogonality centre on an interpartition via a sequence of steps between message tensors
-function ITensorNetworks.gauge_walk(
+function gauge_walk!(
     alg::Algorithm,
     bmpsc::BoundaryMPSCache,
     seq::Vector;
     kwargs...,
 )
     for (pe1, pe2) in seq
-        bmpsc = gauge_step(alg::Algorithm, bmpsc, pe1, pe2; kwargs...)
+        gauge_step!(alg::Algorithm, bmpsc, pe1, pe2; kwargs...)
     end
     return bmpsc
 end
 
-function gauge(alg::Algorithm, bmpsc::BoundaryMPSCache, args...; kwargs...)
-    return gauge_walk(alg, bmpsc, mps_gauge_update_sequence(bmpsc, args...); kwargs...)
+function gauge!(alg::Algorithm, bmpsc::BoundaryMPSCache, args...; kwargs...)
+    return gauge_walk!(alg, bmpsc, mps_gauge_update_sequence(bmpsc, args...); kwargs...)
 end
 
 #Move the orthogonality centre on an interpartition to the message tensor on pe or between two pes
-function ITensorNetworks.orthogonalize(bmpsc::BoundaryMPSCache, args...; kwargs...)
-    return gauge(Algorithm("orthogonal"), bmpsc, args...; kwargs...)
+function orthogonalize!(bmpsc::BoundaryMPSCache, args...; kwargs...)
+    return gauge!(Algorithm("orthogonal"), bmpsc, args...; kwargs...)
 end
 
 default_inserter_transform(alg::Algorithm"orthogonal") = dag
 default_region_transform(alg::Algorithm"orthogonal") = reverse
 
-#Default inserter for the MPS fitting (one and two-site support)
-function default_inserter(
+function inserter!(
     alg::Algorithm,
     bmpsc::BoundaryMPSCache,
     update_pe_region::Vector{<:PartitionEdge},
@@ -443,7 +448,6 @@ function default_inserter(
     nsites::Int64 = 1,
     cutoff = 1e-12,
 )
-    bmpsc = copy(bmpsc)
     update_pe_region = region_transform.(update_pe_region)
     if nsites == 1
         set_message!(bmpsc, only(update_pe_region), ITensor[inserter_transform(m)])
@@ -467,28 +471,28 @@ function default_inserter(
 end
 
 #Default updater for the MPS fitting
-function default_updater(
+function updater!(
     alg::Algorithm,
     bmpsc::BoundaryMPSCache,
     prev_pe_region,
     update_pe_region,
 )
     if !isnothing(prev_pe_region)
-        bmpsc = gauge(alg, bmpsc, reverse.(prev_pe_region), reverse.(update_pe_region))
-        bmpsc = partition_update(
+        gauge!(alg, bmpsc, reverse.(prev_pe_region), reverse.(update_pe_region))
+        partition_update!(
             bmpsc,
             parent.(src.(prev_pe_region)),
             parent.(src.(update_pe_region)),
         )
     else
-        bmpsc = gauge(alg, bmpsc, reverse.(update_pe_region))
-        bmpsc = partition_update(bmpsc, parent.(src.(update_pe_region)))
+        gauge!(alg, bmpsc, reverse.(update_pe_region))
+        partition_update!(bmpsc, parent.(src.(update_pe_region)))
     end
     return bmpsc
 end
 
 #Default extracter for the MPS fitting (1 and two-site support)
-function default_extracter(
+function extracter(
     alg::Algorithm"orthogonal",
     bmpsc::BoundaryMPSCache,
     update_pe_region::Vector{<:PartitionEdge};
@@ -518,49 +522,6 @@ end
 function ITensors.commonind(bmpsc::BoundaryMPSCache, pe1::PartitionEdge, pe2::PartitionEdge)
     m1, m2 = message(bmpsc, pe1), message(bmpsc, pe2)
     return commonind(only(m1), only(m2))
-end
-
-#Transformers for switching the virtual index of message tensors on boundary of pe_region
-# to those of their reverse
-function virtual_index_transformers(
-    bmpsc::BoundaryMPSCache,
-    pe_region::Vector{<:PartitionEdge},
-)
-    partitionpair = planargraph_partitionpair(bmpsc, first(pe_region))
-    pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
-    sorted_pes = sort(pe_region; by = pe -> findfirst(x -> x == pe, pes))
-    pe1, pe2 = first(sorted_pes), last(sorted_pes)
-    pe_a, pe_b = partitionedge_above(bmpsc, pe2), partitionedge_below(bmpsc, pe1)
-    transformers = ITensor[]
-    if !isnothing(pe_b)
-        transformers = [
-            transformers
-            delta(
-                commonind(bmpsc, pe_b, pe1),
-                commonind(bmpsc, reverse(pe_b), reverse(pe1)),
-            )
-        ]
-    end
-    if !isnothing(pe_a)
-        transformers = [
-            transformers
-            delta(
-                commonind(bmpsc, pe_a, pe2),
-                commonind(bmpsc, reverse(pe_a), reverse(pe2)),
-            )
-        ]
-    end
-    return transformers
-end
-
-function default_cache_prep_function(
-    alg::Algorithm"orthogonal",
-    bmpsc::BoundaryMPSCache,
-    partitionpair,
-)
-    bmpsc = copy(bmpsc)
-    bmpsc = delete_partition_messages!(bmpsc, first(partitionpair))
-    return switch_messages(bmpsc, partitionpair)
 end
 
 #Sequences
@@ -613,62 +574,55 @@ function ITensorMPS.MPS(bmpsc::BoundaryMPSCache, partitionpair::Pair)
     return ITensorMPS.MPS(ms)
 end
 
-function ITensorNetworks.truncate(bmpsc::BoundaryMPSCache, partitionpair::Pair; truncate_kwargs...)
-    bmpsc = copy(bmpsc)
+function truncate!(bmpsc::BoundaryMPSCache, partitionpair::Pair; truncate_kwargs...)
     M = ITensorMPS.MPS(bmpsc, partitionpair)
     M = ITensorMPS.truncate(M; truncate_kwargs...)
-    return set_interpartition_message(bmpsc, M, partitionpair)
+    return set_interpartition_message!(bmpsc, M, partitionpair)
 end
 
-function set_interpartition_message(bmpsc::BoundaryMPSCache, M::Union{MPS, MPO}, partitionpair::Pair)
-    bmpsc = copy(bmpsc)
+function set_interpartition_message!(bmpsc::BoundaryMPSCache, M::Union{MPS, MPO}, partitionpair::Pair)
     sorted_pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
-    ms = messages(bmpsc)
     for i in 1:length(M)
-        set!(ms, sorted_pes[i], ITensor[M[i]])
+        set_message!(bmpsc, sorted_pes[i], ITensor[M[i]])
     end
     return bmpsc
 end
 
 #Update all the message tensors on an interpartition via an n-site fitting procedure
 function ITensorNetworks.update(
-    alg::Algorithm,
+    alg::Algorithm"orthogonal",
     bmpsc::BoundaryMPSCache,
     partitionpair::Pair;
-    inserter = default_inserter,
-    updater = default_updater,
-    extracter = default_extracter,
-    cache_prep_function = default_cache_prep_function,
     niters::Int64,
     tolerance,
     normalize = true,
     nsites::Int64 = 1,
 )
-    bmpsc = cache_prep_function(alg, bmpsc, partitionpair)
+    bmpsc = copy(bmpsc)
+    delete_partition_messages!(bmpsc, first(partitionpair))
+    switch_messages!(bmpsc, partitionpair)
+
     update_seq = update_sequence(alg, bmpsc, partitionpair; nsites)
     prev_cf = 0
     for i = 1:niters
         cf = 0
         for (j, update_pe_region) in enumerate(update_seq)
             prev_pe_region = j == 1 ? nothing : update_seq[j-1]
-            bmpsc = updater(alg, bmpsc, prev_pe_region, update_pe_region)
+            updater!(alg, bmpsc, prev_pe_region, update_pe_region)
             m = extracter(alg, bmpsc, update_pe_region; nsites)
             n = sqrt((m * dag(m))[])
             cf += n
             if normalize 
                 m /= n
             end
-            bmpsc = inserter(alg, bmpsc, update_pe_region, m; nsites)
+            inserter!(alg, bmpsc, update_pe_region, m; nsites)
         end
         epsilon = abs(cf - prev_cf) / length(update_seq)
-        if !isnothing(tolerance) && epsilon < tolerance
-            bmpsc = cache_prep_function(alg, bmpsc, partitionpair)
-            return bmpsc
-        else
-            prev_cf = cf
-        end
+        !isnothing(tolerance) && epsilon < tolerance && break
+        prev_cf = cf
     end
-    bmpsc = cache_prep_function(alg, bmpsc, partitionpair)
+    delete_partition_messages!(bmpsc, first(partitionpair))
+    switch_messages!(bmpsc, partitionpair)
     return bmpsc
 end
 
@@ -713,14 +667,15 @@ function ITensorNetworks.update(
     maxdim::Int = maximum_virtual_dimension(bmpsc),
     kwargs...
 )
+    bmpsc = copy(bmpsc)
     prev_pp = prev_partitionpair(bmpsc, partitionpair)
     O = ITensorMPS.MPO(bmpsc, first(partitionpair))
     O = ITensorMPS.truncate(O; cutoff, maxdim)
-    isnothing(prev_pp) && return set_interpartition_message(bmpsc, merge_internal_tensors(O), partitionpair)
+    isnothing(prev_pp) && return set_interpartition_message!(bmpsc, merge_internal_tensors(O), partitionpair)
 
     M = ITensorMPS.MPS(bmpsc, prev_pp)
     M_out = generic_apply(O, M; cutoff, maxdim)
-    return set_interpartition_message(bmpsc, M_out, partitionpair)
+    return set_interpartition_message!(bmpsc, M_out, partitionpair)
 end
 
 #Environment support, assume all vertices live in the same partition for now
