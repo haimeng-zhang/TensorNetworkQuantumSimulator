@@ -161,13 +161,14 @@ function sample_partition(
     bit_string::Dictionary;
     kwargs...,
 )
+    ψIψ = copy(ψIψ)
     vs = sort(planargraph_vertices(ψIψ, partition))
+    seq = PartitionEdge[PartitionEdge(vs[i] => vs[i-1]) for i in length(vs):-1:2]
+    !isempty(seq) && partition_update!(ψIψ, seq)
     prev_v, traces = nothing, []
     logq = 0
     for v in vs
-        ψIψ =
-            !isnothing(prev_v) ? partition_update(ψIψ, [prev_v], [v]) :
-            partition_update(ψIψ, [v])
+        !isnothing(prev_v) && partition_update!(ψIψ, [PartitionEdge(prev_v => v)])
         env = environment(bp_cache(ψIψ), [(v, "operator")])
         seq = contraction_sequence(env; alg="optimal")
         ρ = contract(env; sequence=seq)
