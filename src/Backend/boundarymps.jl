@@ -535,15 +535,17 @@ end
 #Environment support, assume all vertices live in the same partition for now
 function ITensorNetworks.environment(bmpsc::BoundaryMPSCache, verts::Vector; kwargs...)
     vs = parent.((partitionvertices(bp_cache(bmpsc), verts)))
-    bmpsc = partition_update(bmpsc, vs)
+    partition = only(planargraph_partitions(bmpsc, parent.(partitionvertices(bmpsc, verts))))
+    pg = partition_graph(bmpsc, partition)
+    update_seq = post_order_dfs_edges(pg,first(vs))
+    bmpsc = partition_update(bmpsc, PartitionEdge.(update_seq))
     return environment(bp_cache(bmpsc), verts; kwargs...)
 end
 
 function ITensorNetworks.region_scalar(bmpsc::BoundaryMPSCache, partition)
-    partition_vs = planargraph_vertices(bmpsc, partition)
-    column_graph = subgraph(unpartitioned_graph(ppg(bmpsc)), partition_vs)
-    v = first(center(column_graph))
-    update_seq = post_order_dfs_edges(column_graph,v)
+    pg = partition_graph(bmpsc, partition)
+    v = first(center(pg))
+    update_seq = post_order_dfs_edges(pg,v)
     bmpsc = partition_update(bmpsc, PartitionEdge.(update_seq))
     return region_scalar(bp_cache(bmpsc), PartitionVertex(v))
 end

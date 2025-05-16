@@ -75,8 +75,8 @@ function _get_one_sample(
     logq = 0
     for (i, partition) in enumerate(sorted_partitions)
 
-        norm_MPScache, p_over_q_approx, _logq, bit_string, =
-            sample_partition(norm_MPScache, partition, bit_string; kwargs...)
+        p_over_q_approx, _logq, bit_string, =
+            sample_partition!(norm_MPScache, partition, bit_string; kwargs...)
         vs = planargraph_vertices(norm_MPScache, partition)
         logq += _logq
 
@@ -88,9 +88,7 @@ function _get_one_sample(
 
         if i < length(sorted_partitions)
             next_partition = sorted_partitions[i+1]
-
-            ms = messages(norm_MPScache)
-
+            
             #Alternate fitting procedure here which is faster for small bond dimensions but slower for large
             projected_MPScache = update(Algorithm("ITensorMPS"),
                 projected_MPScache,
@@ -101,7 +99,7 @@ function _get_one_sample(
 
             for pe in pes
                 m = only(message(projected_MPScache, pe))
-                set!(ms, pe, [m, dag(prime(m))])
+                set_message!(norm_MPScache, pe, [m, dag(prime(m))])
             end
         end
 
@@ -155,13 +153,12 @@ function certify_samples(ψ::ITensorNetwork, probs_and_bitstrings::Vector{<:Name
 end
 
 #Sample along the column/ row specified by pv with the left incoming MPS message input and the right extractable from the cache
-function sample_partition(
+function sample_partition!(
     ψIψ::BoundaryMPSCache,
     partition,
     bit_string::Dictionary;
     kwargs...,
 )
-    ψIψ = copy(ψIψ)
     vs = sort(planargraph_vertices(ψIψ, partition))
     seq = PartitionEdge[PartitionEdge(vs[i] => vs[i-1]) for i in length(vs):-1:2]
     !isempty(seq) && partition_update!(ψIψ, seq)
@@ -193,5 +190,5 @@ function sample_partition(
 
     delete_partition_messages!(ψIψ, partition)
 
-    return ψIψ, first(traces), logq, bit_string
+    return first(traces), logq, bit_string
 end
