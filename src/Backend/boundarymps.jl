@@ -554,14 +554,6 @@ function virtual_index_transformers(
 end
 
 function default_cache_prep_function(
-    alg::Algorithm"biorthogonal",
-    bmpsc::BoundaryMPSCache,
-    partitionpair,
-)
-    bmpsc = delete_partition_messages!(bmpsc, first(partitionpair))
-    return bmpsc
-end
-function default_cache_prep_function(
     alg::Algorithm"orthogonal",
     bmpsc::BoundaryMPSCache,
     partitionpair,
