@@ -28,7 +28,7 @@ ITensorNetworks.default_cache_update_kwargs(alg::Algorithm"boundarymps") = defau
 """
     updatecache(bmpsc::BoundaryMPSCache; alg, message_update_kwargs = (; niters, tolerance))
 
-Update the MPS messages inside a boundaryMPS-cache. 
+Update the MPS messages inside a boundaryMPS-cache.
 """
 function updatecache(bmpsc::BoundaryMPSCache, args...; alg = ITensorNetworks.default_message_update_alg(is_flat(bmpsc)),
     message_update_kwargs = ITensorNetworks.default_message_update_kwargs(; cache_is_flat = is_flat(bmpsc), maxdim = maximum_virtual_dimension(bmpsc)), kwargs...)
@@ -204,7 +204,7 @@ function planargraph_sorted_partitionedges(bmpsc::BoundaryMPSCache, partitionpai
     return PartitionEdge.(es)
 end
 
-#Constructor, inserts missing edge in the planar graph to ensure each partition is connected 
+#Constructor, inserts missing edge in the planar graph to ensure each partition is connected
 #allowing the code to work for arbitrary grids and not just square grids
 function BoundaryMPSCache(
     bpc::BeliefPropagationCache;
@@ -386,7 +386,7 @@ function partition_update(bmpsc::BoundaryMPSCache, args...)
     )
 end
 
-#Move the orthogonality centre one step on an interpartition from the message tensor on pe1 to that on pe2 
+#Move the orthogonality centre one step on an interpartition from the message tensor on pe1 to that on pe2
 function gauge_step(
     alg::Algorithm"orthogonal",
     bmpsc::BoundaryMPSCache,
@@ -406,7 +406,7 @@ function gauge_step(
     return bmpsc
 end
 
-#Move the biorthogonality centre one step on an interpartition from the partition edge pe1 (and its reverse) to that on pe2 
+#Move the biorthogonality centre one step on an interpartition from the partition edge pe1 (and its reverse) to that on pe2
 function gauge_step(
     alg::Algorithm"biorthogonal",
     bmpsc::BoundaryMPSCache,
@@ -726,7 +726,7 @@ function set_interpartition_message(bmpsc::BoundaryMPSCache, M::Union{MPS, MPO},
 end
 
 
-#Update all the message tensors on an interpartition via an n-site fitting procedure 
+#Update all the message tensors on an interpartition via an n-site fitting procedure
 function ITensorNetworks.update(
     alg::Algorithm,
     bmpsc::BoundaryMPSCache,
@@ -785,7 +785,8 @@ function prev_partitionpair(bmpsc::BoundaryMPSCache, partitionpair::Pair)
 end
 
 function generic_apply(O::MPO, M::MPS; kwargs...)
-    length(O) == length(M) && return ITensorMPS.apply(O, M; kwargs...)
+    is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
+    is_simple_mpo && return ITensorMPS.apply(O, M; kwargs...)
 
     O_tensors = ITensor[]
     for i in 1:length(O)
@@ -809,7 +810,7 @@ function ITensorNetworks.update(
     alg::Algorithm"ITensorMPS",
     bmpsc::BoundaryMPSCache,
     partitionpair::Pair;
-    cutoff::Number = _default_boundarymps_update_cutoff, 
+    cutoff::Number = _default_boundarymps_update_cutoff,
     maxdim::Int = maximum_virtual_dimension(bmpsc),
     kwargs...
 )
@@ -817,7 +818,7 @@ function ITensorNetworks.update(
     O = ITensorMPS.MPO(bmpsc, first(partitionpair))
     O = ITensorMPS.truncate(O; cutoff, maxdim)
     isnothing(prev_pp) && return set_interpartition_message(bmpsc, merge_internal_tensors(O), partitionpair)
-    
+
     M = ITensorMPS.MPS(bmpsc, prev_pp)
     M_out = generic_apply(O, M; cutoff, maxdim)
     return set_interpartition_message(bmpsc, M_out, partitionpair)
