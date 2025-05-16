@@ -785,43 +785,8 @@ function prev_partitionpair(bmpsc::BoundaryMPSCache, partitionpair::Pair)
 end
 
 function generic_apply(O::MPO, M::MPS; kwargs...)
-    if length(O) == length(M)
-        O_tensors = ITensor[]
-        out_inds = Dict{Int64, ITensor}()
-
-        for i in 1:length(O)
-            sites = ITensors.siteinds(O, i)
-            if length(sites) < 2 # This is no out index
-                out_inds[i] = ITensor(1.0 + 0.0im, Index(1))
-            end
-        end
-
-        O_tensors = [(
-            if haskey(out_inds, i)
-                O[i] * out_inds[i]
-            else
-                O[i]
-            end
-        ) for i in 1:length(O)]
-        O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
-        O = ITensorNetworks.combine_linkinds(O)
-        O = ITensorMPS.MPO([O[v] for v in vertices(O)])
-
-        O = ITensorMPS.apply(O, M; kwargs...)
-
-        O_tensors = [(
-            if haskey(out_inds, i)
-                O[i] * out_inds[i]
-            else
-                O[i]
-            end
-        ) for i in 1:length(O)]
-        O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
-        O = ITensorNetworks.combine_linkinds(O)
-        O = ITensorMPS.MPS([O[v] for v in vertices(O)])
-        O = merge_internal_tensors(O)
-        return O
-    end
+    is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
+    is_simple_mpo && return ITensorMPS.apply(O, M; kwargs...)
 
     O_tensors = ITensor[]
     for i in 1:length(O)
