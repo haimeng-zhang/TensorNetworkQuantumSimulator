@@ -117,6 +117,7 @@ using ITensorNetworks:
     default_edge_sequence,
     default_bp_maxiter,
     default_message_update,
+    default_message,
     tree_orthogonalize,
     gauge_walk,
     maxlinkdim,
