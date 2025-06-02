@@ -1,10 +1,6 @@
 const _default_apply_kwargs =
     (maxdim = Inf, cutoff = 1e-10, normalize = true)
 
-# import ITensorNetworks.apply for less clutter down below
-# import ITensors.apply
-# import ITensorNetworks.apply
-
 """
     ITensors.apply(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
 
@@ -47,6 +43,7 @@ function ITensors.apply(
     verbose = false,
 )
 
+    ψ, ψψ = copy(ψ), copy(ψψ)
     # merge all the kwargs with the defaults 
     apply_kwargs = merge(_default_apply_kwargs, apply_kwargs)
 
@@ -80,7 +77,7 @@ function ITensors.apply(
         end
 
         # actually apply the gate
-        t = @timed ψ, ψψ, truncation_errors[ii] = apply(gate, ψ, ψψ; apply_kwargs)
+        t = @timed ψ, ψψ, truncation_errors[ii] = apply!(gate, ψ, ψψ; apply_kwargs)
         affected_indices = union(affected_indices, Set(inds(gate)))
 
         if verbose
@@ -127,8 +124,17 @@ function ITensors.apply(
     return ψ, ψψ, truncation_error
 end
 
+function ITensors.apply(gate::ITensor,
+    ψ::AbstractITensorNetwork,
+    ψψ::BeliefPropagationCache;
+    apply_kwargs = _default_apply_kwargs,
+)
+    ψ, ψψ = copy(ψ), copy(ψψ)
+    return apply(gate, ψ, ψψ, apply_kwargs)
+end
+
 #Apply function for a single gate. All apply functions will pass through here
-function ITensors.apply(
+function apply!(
     gate::ITensor,
     ψ::AbstractITensorNetwork,
     ψψ::BeliefPropagationCache;
@@ -136,10 +142,8 @@ function ITensors.apply(
 )
     # TODO: document each line
 
-    ψψ = copy(ψψ)
-    ψ = copy(ψ)
     vs = neighbor_vertices(ψ, gate)
-    envs = incoming_messages(ψψ, PartitionVertex.(vs))
+    envs = length(vs) == 1 ? nothing : incoming_messages(ψψ, PartitionVertex.(vs))
 
     err = 0.0
     s_values = ITensor(1.0)
@@ -150,11 +154,12 @@ function ITensors.apply(
     end
 
     # this is the only call to a lower-level apply that we currently do.
-    ψ = noprime(ITensorNetworks.apply(gate, ψ; envs, callback, apply_kwargs...))
+    ψ = ITensorNetworks.apply(gate, ψ; envs, callback, apply_kwargs...)
 
-    ψdag = prime(dag(ψ))
     if length(vs) == 2
         v1, v2 = vs
+        setindex_preserve_graph!(ψ, noprime(ψ[v1]), v1)
+        setindex_preserve_graph!(ψ, noprime(ψ[v2]), v2)
         pe = partitionedge(ψψ, (v1, "bra") => (v2, "bra"))
         ind2 = commonind(s_values, ψ[v1])
         δuv = dag(copy(s_values))
@@ -165,8 +170,8 @@ function ITensors.apply(
         set_message!(ψψ, reverse(pe), ITensor[s_values])
     end
     for v in vs
-        setindex_preserve_graph!(ψψ, copy(ψ[v]), (v, "ket"))
-        setindex_preserve_graph!(ψψ, copy(ψdag[v]), (v, "bra"))
+        setindex_preserve_graph!(ψψ, ψ[v], (v, "ket"))
+        setindex_preserve_graph!(ψψ, prime(dag(ψ[v])), (v, "bra"))
     end
     return ψ, ψψ, err
 end
