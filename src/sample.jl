@@ -121,6 +121,8 @@ function certify_sample(
         ψ = normalize(ψ, cache! = Ref(ψψ))
     end
 
+    certification_message_update_kwargs = (; certification_message_update_kwargs..., normalize=false)
+
     ψproj = copy(ψ)
     s = siteinds(ψ)
     qv = sqrt(exp((1 / length(vertices(ψ))) * logq))

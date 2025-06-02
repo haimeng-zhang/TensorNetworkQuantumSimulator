@@ -396,6 +396,22 @@ function merge_internal_tensors(O::Union{MPS, MPO})
     return O
 end
 
+function merge_internal_tensors(O::ITensorNetwork)
+    O = copy(O)
+    internal_sites = filter(v -> isempty(siteinds(O, v)), collect(vertices(O)))
+
+    while !isempty(internal_sites)
+        v = first(internal_sites)
+        sorted_vs = sort(collect(vertices(O)))
+        v_pos = findfirst(_v -> _v == v, sorted_vs)
+        vn = v_pos == length(sorted_vs) ? sorted_vs[v_pos - 1] : sorted_vs[v_pos + 1]
+        O = ITensorNetworks.contract(O, NamedEdge(v => vn))
+        O = ITensorNetworks.combine_linkinds(O)
+        internal_sites = filter(v -> isempty(siteinds(O, v)), collect(vertices(O)))
+    end
+    return O
+end
+
 function ITensorMPS.MPO(bmpsc::BoundaryMPSCache, partition)
     sorted_vs = sort(planargraph_vertices(bmpsc, partition))
     ts = [copy(bmpsc[v]) for v in sorted_vs]
@@ -491,7 +507,8 @@ function prev_partitionpair(bmpsc::BoundaryMPSCache, partitionpair::Pair)
     last(partitionpair) == v2 && return v1 => first(partitionpair)
 end
 
-function generic_apply(O::MPO, M::MPS; kwargs...)
+
+function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
     is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
     is_simple_mpo && return ITensorMPS.apply(O, M; kwargs...)
 
@@ -499,16 +516,22 @@ function generic_apply(O::MPO, M::MPS; kwargs...)
     for i in 1:length(O)
         m_ind = filter(j -> !isempty(ITensors.commoninds(O[i], M[j])), [j for j in 1:length(M)])
         if isempty(m_ind)
-            push!(O_tensors, O[i])
+            push!(O_tensors, copy(O[i]))
         else
             m_ind = only(m_ind)
-            push!(O_tensors, O[i] * M[m_ind])
+            push!(O_tensors, copy(O[i]) * M[m_ind])
         end
     end
     O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
-    O = ITensorNetworks.combine_linkinds(O)
-    O = ITensorMPS.MPS([O[v] for v in vertices(O)])
     O = merge_internal_tensors(O)
+    O = ITensorNetworks.combine_linkinds(O)
+    @assert is_tree(O)
+    O = ITensorMPS.MPS([O[v] for v in sort(vertices(O))])
+
+    if normalize
+        O = ITensors.normalize(O)
+    end
+
     return truncate(O; kwargs...)
 end
 
@@ -519,16 +542,23 @@ function ITensorNetworks.update(
     partitionpair::Pair;
     cutoff::Number = _default_boundarymps_update_cutoff,
     maxdim::Int = maximum_virtual_dimension(bmpsc),
+    normalize = true,
     kwargs...
 )
     bmpsc = copy(bmpsc)
     prev_pp = prev_partitionpair(bmpsc, partitionpair)
     O = ITensorMPS.MPO(bmpsc, first(partitionpair))
-    O = ITensorMPS.truncate(O; cutoff, maxdim)
-    isnothing(prev_pp) && return set_interpartition_message!(bmpsc, merge_internal_tensors(O), partitionpair)
+    if isnothing(prev_pp)
+        O = truncate(O; maxdim, cutoff)
+        O = merge_internal_tensors(O)
+        if normalize
+            O = normalize(O)
+        end
+        return set_interpartition_message!(bmpsc, O, partitionpair)
+    end
 
     M = ITensorMPS.MPS(bmpsc, prev_pp)
-    M_out = generic_apply(O, M; cutoff, maxdim)
+    M_out = generic_apply(O, M; normalize, cutoff, maxdim)
     return set_interpartition_message!(bmpsc, M_out, partitionpair)
 end
 
