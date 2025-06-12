@@ -127,3 +127,22 @@ function ITensors.op(
     mat[4,4] = conj(a)
     return mat
 end
+
+"""
+    ITensors.op(::OpName"Rxxyyzz", ::SiteType"S=1/2"; θxy::Float64, θz::Float64)
+
+Gate for rotation by XXYYZZ at a given angle
+"""
+function ITensors.op(
+    ::OpName"RxxyyRzz", ::SiteType"S=1/2"; θxy::Float64, θz::Float64
+  )
+    a = exp( im * θz * 0.5)
+    mat = zeros(ComplexF64, 4, 4)
+    mat[1, 1] = conj(a)
+    mat[2, 2] = cos(θxy) * a
+    mat[2, 3] = -1.0 * im * a * sin(θxy)
+    mat[3, 2] = -1.0 * im * a * sin(θxy)
+    mat[3, 3] = cos(θxy) * a
+    mat[4,4] = conj(a)
+    return mat
+end

@@ -135,16 +135,17 @@ function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
 
     println("Begining simulation with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), Delta of $(Δ)")
 
-    g = named_hexagonal_cylinder(ny)
+    g = named_heavy_hexagonal_cylinder(ny)
     @show nv(g)
     sphysical = siteinds("S=1/2", g)
     sancilla = siteinds("S=1/2", g)
 
     column_lengths = length.([filter(v -> last(v) == i, collect(vertices(g))) for i in 1:4])
+    column_lengths[2] = column_lengths[1]
+    column_lengths[4] = column_lengths[3]
     ρ = sqrt_high_temperature_initial_state(sphysical, sancilla, mu, v -> first(v) <= column_lengths[last(v)] / 2)
     ρρ = build_bp_cache(ρ)
     println("Intial trace is $(scalar(ρρ))")
-
 
     obs = [("Z", [v]) for v in collect(vertices(g))]
 
@@ -167,7 +168,7 @@ function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
     measure_freq = 1
 
     t = 0
-    f = "/mnt/home/jtindall/ceph/Data/Transport/Hexagonal/HeisenbergPictureSqrtApproach/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/HeavyHexagonal/HeisenbergPictureSqrtApproach/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
@@ -215,5 +216,5 @@ function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
 end
 
 #χ, ny, mu, δt, Δ = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Float64, ARGS[3]), parse(Float64, ARGS[4]), parse(Float64, ARGS[5])
-χ, ny, mu, δt, Δ =16, 24, 0.1, 0.1, 1.0
+χ, ny, mu, δt, Δ =16, 50, 0.1, 0.1, 1.0
 main(χ, ny, mu, δt, Δ)

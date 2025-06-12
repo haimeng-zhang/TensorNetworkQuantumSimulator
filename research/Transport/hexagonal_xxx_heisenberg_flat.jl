@@ -5,7 +5,7 @@ using ITensorNetworks
 const ITN = ITensorNetworks
 using ITensors
 
-using ITensorNetworks: AbstractBeliefPropagationCache, IndsNetwork
+using ITensorNetworks: AbstractBeliefPropagationCache
 using NamedGraphs
 using Graphs
 const NG = NamedGraphs
@@ -32,15 +32,6 @@ function high_temperature_initial_state(sphysical, sancilla, mu, vertex_lower_ha
     ψ = ITensorNetworks.random_tensornetwork(sphysical; link_space = 1)
     for v in vertices(ψ)
         array = vertex_lower_half_filter(v) ? (1/2)*[1 + mu 0; 0 1 - mu] : (1/2)*[1 - mu 0; 0 1 + mu]
-        ITensorNetworks.@preserve_graph ψ[v] = ITensors.ITensor(array, only(sphysical[v]), only(sancilla[v]))
-    end
-    return ITensorNetworks.insert_linkinds(ψ)
-end
-
-function sqrt_high_temperature_initial_state(sphysical, sancilla, mu, vertex_lower_half_filter)
-    ψ = ITensorNetworks.random_tensornetwork(sphysical; link_space = 1)
-    for v in vertices(ψ)
-        array = vertex_lower_half_filter(v) ? (1/sqrt(2))*[sqrt(1 + mu) 0; 0 sqrt(1 - mu)] : (1/sqrt(2))*[sqrt(1 - mu) 0; 0 sqrt(1 + mu)]
         ITensorNetworks.@preserve_graph ψ[v] = ITensors.ITensor(array, only(sphysical[v]), only(sancilla[v]))
     end
     return ITensorNetworks.insert_linkinds(ψ)
@@ -111,26 +102,6 @@ function form_tr_ρ(ρ::ITensorNetwork, sphysical, sancilla)
     return tr_ρ
 end
 
-function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obs::Tuple)
-    op_vec, vs, coeff = TN.collectobservable(obs)
-
-    ρOρ = copy(ρρ)
-    for (i, v) in enumerate(vs)
-        ITensorNetworks.@preserve_graph ρOρ[(v,"operator")] = ITensors.op("Id", only(sancilla[v])) * ITensors.op(op_vec[i], only(sphysical[v]))
-    end
-
-    numerator = ITensorNetworks.region_scalar(ρOρ, [(v, "ket") for v in vs])
-    denominator = ITensorNetworks.region_scalar(ρρ, [(v, "ket") for v in vs])
-
-    return coeff * numerator / denominator
-end
-
-function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obss::Vector{<:Tuple})
-    return [expect(ρρ, sphysical, sancilla, obs) for obs in obss]
-end
-
-
-
 function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
 
     println("Begining simulation with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), Delta of $(Δ)")
@@ -141,19 +112,18 @@ function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
     sancilla = siteinds("S=1/2", g)
 
     column_lengths = length.([filter(v -> last(v) == i, collect(vertices(g))) for i in 1:4])
-    ρ = sqrt_high_temperature_initial_state(sphysical, sancilla, mu, v -> first(v) <= column_lengths[last(v)] / 2)
+    ρ = high_temperature_initial_state(sphysical, sancilla, mu, v -> first(v) <= column_lengths[last(v)] / 2)
     ρρ = build_bp_cache(ρ)
-    println("Intial trace is $(scalar(ρρ))")
+    tr_ρ = form_tr_ρ(ρ, sphysical, sancilla)
+    tr_ρ = ITensorNetworks.BeliefPropagationCache(tr_ρ)
+    tr_ρ = TN.updatecache(tr_ρ; maxiter = 50, tol = 1e-10)
+    println("Intial trace is $(scalar(tr_ρ))")
 
 
     obs = [("Z", [v]) for v in collect(vertices(g))]
 
-    init_mags = ComplexF64[o for o in expect(ρρ, sphysical, sancilla, obs)]
+    init_mags = ComplexF64[o for o in trace_expect(tr_ρ, ρ, obs, sphysical, sancilla)]
     println("Initial magnetisation is $(sum(init_mags))")
-
-    top_vertices = filter(v -> first(v) <= column_lengths[last(v)] / 2, collect(vertices(g)))
-    init_mag_top = sum([v ∉ top_vertices ? init_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
-
 
     #Do a 4-way edge coloring then Trotterise the Hamiltonian into commuting groups
     layer = []
@@ -167,47 +137,51 @@ function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
     measure_freq = 1
 
     t = 0
-    f = "/mnt/home/jtindall/ceph/Data/Transport/Hexagonal/HeisenbergPictureSqrtApproach/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/Hexagonal/HeisenbergPicture/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
     file_name = f * "TrotterStep0.npz"
     npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols)
 
+    top_vertices = filter(v -> first(v) <= column_lengths[last(v)] / 2, collect(vertices(g)))
+    init_mag_top = sum([v ∉ top_vertices ? init_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
+
     apply_kwargs = (; maxdim = χ, cutoff = 1e-10, normalize = false)
     for i in 1:no_trotter_steps
         ρ, ρρ, errs = apply(layer, ρ, ρρ; apply_kwargs)
-        ρ, ρρ = TN.normalize(ρ, ρρ)
-        ρ, ρρ = TN.symmetric_gauge(ρ; cache! = Ref(ρρ))
+        #ρ, ρρ = TN.symmetric_gauge(ρ; cache! = Ref(ρρ))
 
         if i % measure_freq == 0
             println("Time is $(t)")
             println("Maximum bond dimension is $(ITN.maxlinkdim(ρ))")
             println("Average gate fidelity  was $(mean_gate_fidelity(errs))")
 
-            println("Trace is $(scalar(ρρ))")
+            tr_ρ = form_tr_ρ(ρ, sphysical, sancilla)
+            tr_ρ = TN.updatecache(ITensorNetworks.BeliefPropagationCache(tr_ρ))
+            println("Trace is $(scalar(tr_ρ))")
 
-            bp_mags = expect(ρρ, sphysical, sancilla, obs)
 
+            bp_mags = trace_expect(tr_ρ,ρ, obs, sphysical, sancilla)
             file_name = f * "TrotterStep"*string(i)*".npz"
             println("Current BP Measured magnetisation is $(sum(bp_mags))")
+            
 
-            #ρρ_bmps = TN.BoundaryMPSCache(copy(ρρ); message_rank = 3*ITensorNetworks.maxlinkdim(ρ), grouping_function = v -> last(v), group_sorting_function = v -> first(v))
-            #ρρ_bmps = TN.updatecache(ρρ_bmps; alg = "orthogonal", maxiter = 6, message_update_kwargs = (; niters = 100, tolerance = 1e-14))
-            #bmps_mags = expect(ρρ_bmps, sphysical, sancilla, obs)
-            #println("Current BMPS Measured magnetisation is $(sum(bmps_mags))")
-
-
-            bp_mag_top = sum([v ∉ top_vertices ? bp_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
-            #bmps_mag_top = sum([v ∉ top_vertices ? bmps_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
-
-            println("Current BP Measured magnetisation transfer is $(bp_mag_top - init_mag_top)")
-            #println("Current BMPS Measured magnetisation transfer is $(bmps_mag_top - init_mag_top)")
+            tr_ρ_bmps = TN.BoundaryMPSCache(ITensorNetworks.BeliefPropagationCache(tr_ρ); message_rank = 5*ITensorNetworks.maxlinkdim(ρ),
+            grouping_function = v -> last(v), group_sorting_function = v -> first(v))
+            tr_ρ_bmps = TN.updatecache(tr_ρ_bmps; alg = "orthogonal", maxiter = 5, message_update_kwargs = (; niters = 75, tolerance = 1e-12))
+            bmps_mags = trace_expect(tr_ρ_bmps, ρ, obs, sphysical, sancilla)
+            println("Current BMPS Measured magnetisation is $(sum(bmps_mags))")
 
             bp_mags = ComplexF64[b for b in bp_mags]
-            #bmps_mags = ComplexF64[b for b in bmps_mags]
-            #npzwrite(file_name, bp_mags = bp_mags, bmps_mags = bmps_mags, rows = rows, cols = cols)
-            npzwrite(file_name, bp_mags = bp_mags, rows = rows, cols = cols)
+            bmps_mags = ComplexF64[b for b in bmps_mags]
+
+            bp_mag_top = sum([v ∉ top_vertices ? bp_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
+            bmps_mag_top = sum([v ∉ top_vertices ? bmps_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
+
+            println("Current BP Measured magnetisation transfer is $(bp_mag_top - init_mag_top)")
+            println("Current BMPS Measured magnetisation transfer is $(bmps_mag_top - init_mag_top)")
+            npzwrite(file_name, bp_mags = bp_mags, bmps_mags = bmps_mags, rows = rows, cols = cols)
         end
         flush(stdout)
         t += δt
@@ -215,5 +189,5 @@ function main(χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
 end
 
 #χ, ny, mu, δt, Δ = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Float64, ARGS[3]), parse(Float64, ARGS[4]), parse(Float64, ARGS[5])
-χ, ny, mu, δt, Δ =16, 24, 0.1, 0.1, 1.0
+χ, ny, mu, δt, Δ =4, 12, 0.1, 0.1, 1.0
 main(χ, ny, mu, δt, Δ)

@@ -30,10 +30,9 @@ println("BLAS is using "*string(BLAS.get_num_threads()))
 
 function main(seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
 
-    g = named_hexagonal_cylinder(ny)
-    s = siteinds("S=1/2", g)
+    g, column_lengths = named_heavy_hexagonal_cylinder(ny)
+    s = ITensorNetworks.siteinds("S=1/2", g)
 
-    column_lengths = length.([filter(v -> last(v) == i, collect(vertices(g))) for i in 1:4])
     Random.seed!(1234*seed)
     function up_down(v)
         if first(v) <= column_lengths[last(v)] / 2
@@ -60,12 +59,12 @@ function main(seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float6
         append!(layer, _layer)
     end
 
-    no_trotter_steps = 500
+    no_trotter_steps = 100
     measure_freq = 1
 
     t = 0
     apply_kwargs = (; maxdim = χ, cutoff = 1e-10)
-    f = "/mnt/home/jtindall/ceph/Data/Transport/Hexagonal/SchrodingerPicture/Seed"*string(seed)*"ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/HeavyHexagonal/SchrodingerPicture/Seed"*string(seed)*"ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
@@ -82,8 +81,9 @@ function main(seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float6
             println("Average gate fidelity  was $(mean_gate_fidelity(errs))")
             println("Total BP magnetisation is $(sum(bp_mags))")
 
-            ψψ_bmps = build_boundarymps_cache(ψ, 2*ITensorNetworks.maxlinkdim(ψ); cache_update_kwargs = (; maxiter = 5))
-            bmps_mags = TN.expect(ψψ_bmps, obs)
+            #ψψ_bmps = build_boundarymps_cache(ψ, 2*ITensorNetworks.maxlinkdim(ψ); cache_update_kwargs = (; maxiter = 5))
+            #bmps_mags = TN.expect(ψψ_bmps, obs)
+            bmps_mags = [0 for m in bp_mags]
             println("Total BMPS magnetisation is $(sum(bmps_mags))")
 
             diffs = sum(abs.(bmps_mags - bp_mags)) / length(bp_mags)
@@ -98,5 +98,5 @@ function main(seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float6
 end
 
 #seed, χ, ny, mu, δt, Δ = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3]), parse(Float64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6])
-seed, χ, ny, mu, δt, Δ = 1, 8, 8, 0.1, 0.1, 1.0
+seed, χ, ny, mu, δt, Δ = 1, 150, 30, 1.0, 0.1, 1.0
 main(seed, χ, ny, mu, δt, Δ)

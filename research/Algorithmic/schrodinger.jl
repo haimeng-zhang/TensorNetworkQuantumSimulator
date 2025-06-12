@@ -26,7 +26,7 @@ using Base.Threads
 using MKL
 using LinearAlgebra
 
-BLAS.set_num_threads(min(12, Sys.CPU_THREADS))
+BLAS.set_num_threads(min(6, Sys.CPU_THREADS))
 println("Julia is using "*string(nthreads()))
 println("BLAS is using "*string(BLAS.get_num_threads()))
 @show BLAS.get_config()
@@ -209,5 +209,5 @@ function main(seed::Int, maxdim::Int, S::Int, grad::Float64, delta::Float64)
 end
 
 seed, χ, S, grad, delta = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3]), parse(Float64, ARGS[4]), parse(Float64, ARGS[5])
-#seed, χ, S, grad, delta = 1, 16, 3, 0.05, 0.011
+#seed, χ, S, grad, delta = 1, 256, 3, 0.05, 0.011
 main(seed, χ, S, grad, delta)

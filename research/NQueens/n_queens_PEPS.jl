@@ -274,7 +274,74 @@ function main(n::Int, maxdim::Int)
 
 end
 
-#n, maxdim = 4,8
-n, maxdim = parse(Int64, ARGS[1]), parse(Int64, ARGS[2])
-main(n, maxdim)
+function build_queenstate_dislocation(s, n::Int; cutoff, pre_placed_positions)
+    ψ = ITensorNetworks.ITensorNetwork(v -> v ∉ keys(pre_placed_positions) ? [1.0, 1.0] : pre_placed_positions[v] == 1 ? [1.0, 0.0] : [0.0, 1.0], s, link_space = nothing)
+
+    placed_queens = filter(v -> pre_placed_positions[v] == 1, collect(keys(pre_placed_positions)))
+    for i in 1:n
+        col_verts = [(i, col) for col in 1:n]
+        queen_already_in_column = !isempty(intersect(placed_queens, col_verts))
+        if !queen_already_in_column
+            ψ = project_to_spinup(ψ, col_verts, s; cutoff)
+        end
+
+        row_verts = [(row, i) for row in 1:n]
+        queen_already_in_row = !isempty(intersect(placed_queens, row_verts))
+        if !queen_already_in_row
+            ψ = project_to_spinup(ψ, row_verts, s; cutoff)
+        end
+    end
+
+    for rowpluscolumn in 3:(2*n - 1)
+        subvertices = filter(pos -> (first(pos)+ last(pos)) == rowpluscolumn, collect(vertices(s)))
+        queen_already_on_diagonal = !isempty(intersect(placed_queens, subvertices))
+        if !queen_already_on_diagonal
+            ψ = project_to_spinup(ψ, subvertices, s; cutoff, include_zero_space = true)
+        end
+    end
+
+    for rowminuscolumn in (2 - n):(n - 2)
+        subvertices = filter(pos -> (first(pos) - last(pos)) == rowminuscolumn, [(i,j) for i in 1:n for j in 1:n])
+        queen_already_on_diagonal = !isempty(intersect(placed_queens, subvertices))
+        if !queen_already_on_diagonal
+            ψ = project_to_spinup(ψ, subvertices, s; cutoff, include_zero_space = true)
+        end
+    end
+
+    return ψ
+end
+
+function main_dislocation(n::Int, maxdim::Int)  
+    
+    ITensors.disable_warn_order()
+    cutoff = 1e-10
+    g = queen_graph(n)
+    s = siteinds("S=1/2", g)
+
+    pre_placed_positions = Dictionary([(3,i) for i in 1:n], [i == 1 ? 1 : 0 for i in 1:n])
+    println("Solving n queens for n is $(n) and maxdim $(maxdim)")
+    ψ = build_queenstate_dislocation(s, n; cutoff, pre_placed_positions)
+    ψ = project_state(ψ)
+    println("State built and projected")
+
+    flush(stdout)
+
+    @show ITensorNetworks.maxlinkdim(ψ)
+
+    @show ψ
+
+    @time numer_terms, denom_terms = contract_projected_queens_state_diagonally_bp(ψ, n; cutoff, maxdim)
+    no_solutions = exp(numer_terms - denom_terms)
+    println("Counted $no_solutions solutions")
+
+    # flush(stdout)
+
+    # save_file = "/mnt/home/jtindall/ceph/Data/NQueens/TensorsN"*string(n)*"maxdim"*string(maxdim)*".npz"
+    # npzwrite(save_file, no_solutions = no_solutions, numer_terms, denom_terms)
+
+end
+
+n, maxdim = 4,8
+#n, maxdim = parse(Int64, ARGS[1]), parse(Int64, ARGS[2])
+main_dislocation(n, maxdim)
             

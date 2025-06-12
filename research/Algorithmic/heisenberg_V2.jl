@@ -139,7 +139,7 @@ end
 function swap_physical_auxillary_inds(tn::ITensorNetwork)
     tn_swap = copy(tn)
     for v in vertices(tn)
-        s1, s2 = first(siteinds(tn_swap, v)), last(siteinds(tn_swap, v))
+        s1, s2 = first(siteinds(tn, v)), last(siteinds(tn, v))
         ITensorNetworks.@preserve_graph tn_swap[v] = ITensors.swapind(tn[v], s1, s2)
     end
     return tn_swap
@@ -165,41 +165,30 @@ function main(maxdim::Int, S::Int, grad::Float64, delta::Float64)
 
     #Initial state
     O_init = initial_state(sphysical, sauxillary, z_vertices)
-    OU = copy(O_init)
+    UOU = copy(O_init)
 
-    #Do a transpose and take overlap
-    UO = swap_physical_auxillary_inds(OU)
-    println("Initial value of Tr(OOdag) is $(inner(OU, UO; alg = "bp"))")
+    println("Initial value of Tr(OOdag) is $(inner(UOU, O_init; alg = "bp"))")
 
     #Cache of norm of state (needed to apply gates)
-    OU_bpc = build_bp_cache(OU)
+    UOU_bpc = build_bp_cache(UOU)
     #Transform circuit to itensors
     U = TN.toitensor(circuit, sphysical)
-    Udag = reverse(dag.(TN.toitensor(circuit, sauxillary)))
+    Udag = dag.(TN.toitensor(circuit, sauxillary))
+    circ = reduce(vcat, [[U[i], Udag[i]] for i in 1:length(U)])
 
     #Apply kwargs (maximum bond dimension)
     apply_kwargs = (; maxdim = maxdim, cutoff = 1e-10, normalize = false)
 
     #Apply the circuit to get O. U
     t = time()
-    OU, OU_bpc, errs = apply(U, OU, OU_bpc; apply_kwargs, verbose = true)
+    UOU, UOU_bpc, errs = apply(circ, UOU, UOU_bpc; apply_kwargs, verbose = true)
     t = time() - t
     println("Simulation O -> OU took $(t) seconds")
     println("Average gate error was $(Statistics.mean(errs))")
     println("BP Computed Final value of Frobenius norm (should be conserved w/out truncation) is $(scalar(OU_bpc))")
     println("Rough fedility approximation (square overlap with correct state) is $(prod(1.0 .- errs))")
 
-    t = time()
-    OUdag, OUdag_bpc, errs = apply(Udag, O_init,build_bp_cache(O_init); apply_kwargs, verbose = true)
-    t = time() - t
-    println("Simulation O -> Odag(U) took $(t) seconds")
-    println("Average gate error was $(Statistics.mean(errs))")
-    println("BP Computed Final value of Frobenius norm (should be conserved w/out truncation) is $(scalar(OUdag_bpc))")
-    println("Rough fedility approximation (square overlap with correct state) is $(prod(1.0 .- errs))")
-
-    #Measure signal from BP overlap (we can use loop corrections etc if needed but simple for now)
-    signal = inner(OU, dag(OUdag); alg = "bp")
-    println("Final value of Tr(OUOUdag) is $signal")
+    println("Final value of Tr(OOdag) is $(inner(UOU, O_init; alg = "bp"))")
 
     save_file = "/mnt/home/jtindall/ceph/Data/Algorthmic/Heisenberg/Maxdim"*string(maxdim)*"S"*string(S)*"grad"*string(grad)*"delta"*string(delta)*".npz"
     npzwrite(save_file, signal = signal, errs = errs)
