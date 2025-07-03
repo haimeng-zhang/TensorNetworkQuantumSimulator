@@ -130,7 +130,7 @@ function ITensors.apply(gate::ITensor,
     apply_kwargs = _default_apply_kwargs,
 )
     ψ, ψψ = copy(ψ), copy(ψψ)
-    return apply!(gate, ψ, ψψ, apply_kwargs)
+    return apply!(gate, ψ, ψψ; apply_kwargs)
 end
 
 #Apply function for a single gate. All apply functions will pass through here
