@@ -10,12 +10,16 @@ function _sample(
     norm_message_rank::Int64,
     norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
     projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
+    partition_by = "Row",
     kwargs...,
 )
+
+    grouping_function = partition_by == "Column" ? v -> last(v) : v -> first(v)
+    group_sorting_function = partition_by == "Column" ? v -> first(v) : v -> last(v)
     ψ, ψψ = symmetric_gauge(ψ)
     ψ, ψψ = normalize(ψ, ψψ)
 
-    norm_MPScache = BoundaryMPSCache(ψψ; message_rank=norm_message_rank)
+    norm_MPScache = BoundaryMPSCache(ψψ; message_rank=norm_message_rank, grouping_function, group_sorting_function)
     sorted_partitions = sort(ITensorNetworks.partitions(norm_MPScache))
     seq = [
         sorted_partitions[i] => sorted_partitions[i-1] for
@@ -24,7 +28,7 @@ function _sample(
     norm_message_update_kwargs = (; norm_message_update_kwargs..., normalize=false)
     norm_MPScache = update(Algorithm("orthogonal"), norm_MPScache, seq; norm_message_update_kwargs...)
 
-    projected_MPScache = BoundaryMPSCache(ψ; message_rank=projected_message_rank)
+    projected_MPScache = BoundaryMPSCache(ψ; message_rank=projected_message_rank, grouping_function, group_sorting_function)
 
     #Generate the bit_strings moving left to right through the network
     probs_and_bitstrings = NamedTuple[]
