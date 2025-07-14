@@ -66,3 +66,4 @@ function honeycomb_kitaev_heisenberg_observables(J::Float64, K::Float64, ec)
     zz_observables = vcat([("ZZ", pair, (J + K)) for pair in ec[3]], [("ZZ", pair, (J)) for pair in vcat(ec[1], ec[2])])
     return xx_observables, yy_observables, zz_observables
 end
+

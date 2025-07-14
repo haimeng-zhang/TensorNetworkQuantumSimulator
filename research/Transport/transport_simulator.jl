@@ -23,6 +23,8 @@ using MKL
 using LinearAlgebra
 using NPZ
 
+using Statistics
+
 BLAS.set_num_threads(min(6, Sys.CPU_THREADS))
 println("Julia is using "*string(nthreads()))
 println("BLAS is using "*string(BLAS.get_num_threads()))
@@ -126,22 +128,33 @@ function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork,
 end
 
 function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obss::Vector{<:Tuple})
-    return [expect(ρρ, sphysical, sancilla, obs) for obs in obss]
+    return [TN.expect(ρρ, sphysical, sancilla, obs) for obs in obss]
 end
 
 
 
-function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
+function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, J::Float64)
 
     Random.seed!(12*seed)
-    println("Begining simulation on a $(lattice) lattice with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), Delta of $(Δ)")
+    println("Begining simulation on a $(lattice) lattice with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), J of $(J)")
 
     g, bottom_half_vertices = transport_graph_constructor(lattice, ny)
+
+    vs = collect(vertices(g))
+    rows = unique(first.(collect(vertices(g))))
     @show nv(g)
-    sphysical = siteinds("S=1/2", g)
-    sancilla = siteinds("S=1/2", g)
+    sphysical = ITensorNetworks.siteinds("S=1/2", g)
+    sancilla =  ITensorNetworks.siteinds("S=1/2", g)
 
     in_bottom_half = Int64[v ∈ bottom_half_vertices ? 1 : 0 for v in collect(vertices(g))]
+
+
+    a_vertices = filter(v -> isodd(sum(v)), collect(vertices(g)))
+    b_vertices = filter(v -> !isodd(sum(v)), collect(vertices(g)))
+
+    @show length(a_vertices)
+    @show length(b_vertices)
+    @assert all([isempty(intersect(neighbors(g, v), a_vertices)) for v in a_vertices])
 
     ρ = sqrt_high_temperature_initial_state(sphysical, sancilla, mu, v -> v ∈ bottom_half_vertices)
     ρρ = build_bp_cache(ρ)
@@ -149,31 +162,34 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
 
     obs = [("Z", [v]) for v in collect(vertices(g))]
 
-    init_mags = ComplexF64[o for o in expect(ρρ, sphysical, sancilla, obs)]
+    init_mags = ComplexF64[o for o in TensorNetworkQuantumSimulator.expect(ρρ, sphysical, sancilla, obs)]
     println("Initial magnetisation is $(sum(init_mags))")
 
-    init_mag_top = sum([v ∉ bottom_half_vertices ? init_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
+    mags_vs_row = [Statistics.mean(init_mags[filter(i -> first(vs[i]) == r, [i for i in 1:length(vs)])]) for r in unique(rows)]
 
+    init_mag_top = sum([v ∉ bottom_half_vertices ? init_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
 
     #Do a 4-way edge coloring then Trotterise the Hamiltonian into commuting groups
     layer = []
     k = lattice ∈ ["Hexagonal", "HeavyHexagonal"] ? 3 : lattice == "Chain" ? 2 : 4
     ec = edge_color(g, k)
+
+    layer = []
     for colored_edges in ec
-        _layer = reduce(vcat, [[ITensors.op("RxxyyRzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θxy = 2*δt, θz = 2*Δ*δt), ITensors.op("RxxyyRzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θxy = -2*δt, θz = -2*Δ*δt)] for pair in colored_edges])
+        _layer = reduce(vcat, [[ITensors.op("RxxyyRzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θxy = 2*J*δt, θz = 2*J*δt), ITensors.op("RxxyyRzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θxy = -2*J*δt, θz = -2*J*δt)] for pair in colored_edges])
         append!(layer, _layer)
     end
 
-    no_trotter_steps = 800
+    no_trotter_steps = 10000
     measure_freq = 1
 
     t = 0
-    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
     file_name = f * "TrotterStep0.npz"
-    npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half)
+    npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half, mags_vs_row = mags_vs_row)
 
     apply_kwargs = (; maxdim = χ, cutoff = 1e-10, normalize = false)
     for i in 1:no_trotter_steps
@@ -188,7 +204,9 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
 
             println("Trace is $(scalar(ρρ))")
 
-            bp_mags = expect(ρρ, sphysical, sancilla, obs)
+            bp_mags = TN.expect(ρρ, sphysical, sancilla, obs)
+
+            mags_vs_row = [Statistics.mean(bp_mags[filter(i -> first(vs[i]) == r, [i for i in 1:length(vs)])]) for r in unique(rows)]
 
             file_name = f * "TrotterStep"*string(i)*".npz"
             println("Current BP Measured magnetisation is $(sum(bp_mags))")
@@ -198,14 +216,16 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
             println("Current BP Measured magnetisation transfer is $(bp_mag_top - init_mag_top)")
 
             bp_mags = ComplexF64[b for b in bp_mags]
-            npzwrite(file_name, bp_mags = bp_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
+
+
+            npzwrite(file_name, bp_mags = bp_mags, rows = rows,mags_vs_row = mags_vs_row, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
         end
         flush(stdout)
         t += δt
     end
 end
 
-function main_schrodinger(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
+function main_schrodinger(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, J::Float64)
 
     Random.seed!(12*seed)
     println("Begining simulation on a $(lattice) lattice with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), Delta of $(Δ)")
@@ -236,6 +256,8 @@ function main_schrodinger(lattice::String, seed::Int, χ::Int, ny::Int, mu::Floa
     layer = []
     k = lattice ∈ ["Hexagonal", "HeavyHexagonal"] ? 3 : lattice == "Chain" ? 2 : 4
     ec = edge_color(g, k)
+    _layer = reduce(vcat, [[ITensors.op("Rz", only(s[v]); θ = 2*hz*δt)] for v in vertices(sphysical)])
+    append!(layer, _layer)
     for colored_edges in ec
         _layer =[ITensors.op("RxxyyRzz", only(s[src(pair)]), only(s[dst(pair)]); θxy = 2*δt, θz = 2*Δ*δt) for pair in colored_edges]
         append!(layer, _layer)
@@ -246,7 +268,7 @@ function main_schrodinger(lattice::String, seed::Int, χ::Int, ny::Int, mu::Floa
 
     t = 0
     apply_kwargs = (; maxdim = χ, cutoff = 1e-10)
-    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/SchrodingerPicture/Seed"*string(seed)*"ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/SchrodingerPicture/Seed"*string(seed)*"ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)*"hz"*string(hz)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
@@ -282,10 +304,10 @@ function main_schrodinger(lattice::String, seed::Int, χ::Int, ny::Int, mu::Floa
     end
 end
 
-function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, Δ::Float64)
+function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, J::Float64)
 
     Random.seed!(12*seed)
-    println("Begining simulation on a $(lattice) lattice with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), Delta of $(Δ)")
+    println("Begining simulation on a $(lattice) lattice with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), J of $(J)")
 
     g, bottom_half_vertices = transport_graph_constructor(lattice, ny)
     @show nv(g)
@@ -314,7 +336,7 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
     k = lattice ∈ ["Hexagonal", "HeavyHexagonal"] ? 3 : lattice == "Chain" ? 2 : 4
     ec = edge_color(g, k)
     for colored_edges in ec
-        _layer = reduce(vcat, [[ITensors.op("RxxyyRzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θxy = 2*δt, θz = 2*Δ*δt), ITensors.op("RxxyyRzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θxy = -2*δt, θz = -2*Δ*δt)] for pair in colored_edges])
+        _layer = reduce(vcat, [[ITensors.op("RxxyyRzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θxy = 2*J*δt, θz = 2*J*δt), ITensors.op("RxxyyRzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θxy = -2*J*δt, θz = -2*J*δt)] for pair in colored_edges])
         append!(layer, _layer)
     end
 
@@ -322,7 +344,7 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
     measure_freq = 1
 
     t = 0
-    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPicture/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"Delta"*string(Δ)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPicture/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)*"hz"*string(hz)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
@@ -371,8 +393,8 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
     end
 end
 
-mode, lattice, χ, ny, mu, δt, Δ, seed = ARGS[1], ARGS[2], parse(Int64, ARGS[3]), parse(Int64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6]), parse(Float64, ARGS[7]),  parse(Int64, ARGS[8])
-#mode, lattice, χ, ny, mu, δt, Δ, seed = "Schrodinger", "Hexagonal", 4, 10, 1.0, 0.05, 2.5, 1
-mode == "HeisenbergSqrt" && main_heisenberg_sqrt(lattice, seed, χ, ny, mu, δt, Δ)
-mode == "Heisenberg" && main_heisenberg(lattice, seed, χ, ny, mu, δt, Δ)
-mode == "Schrodinger" && main_schrodinger(lattice, seed, χ, ny, mu, δt, Δ)
+mode, lattice, χ, ny, mu, δt, J, seed = ARGS[1], ARGS[2], parse(Int64, ARGS[3]), parse(Int64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6]), parse(Float64, ARGS[7]), parse(Int64, ARGS[8])
+#mode, lattice, χ, ny, mu, δt, J, seed = "HeisenbergSqrt", "Hexagonal", 64, 40, 0.1, 0.1, 1.0, 1
+mode == "HeisenbergSqrt" && main_heisenberg_sqrt(lattice, seed, χ, ny, mu, δt, J)
+mode == "Heisenberg" && main_heisenberg(lattice, seed, χ, ny, mu, δt, J)
+mode == "Schrodinger" && main_schrodinger(lattice, seed, χ, ny, mu, δt, J)
