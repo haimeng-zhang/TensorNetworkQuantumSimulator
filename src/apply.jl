@@ -4,7 +4,9 @@ const _default_apply_kwargs =
 """
     ITensors.apply(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
 
-Apply a circuit to a tensor network with the cache built and updated internally
+Apply a circuit to a tensor network.
+The circuit should take the form of a vector of Tuples (gate_str, qubits_to_act_on, optional_param) or a vector of ITensors.
+Returns the final state and an approximate list of errors when applying each gate
 """
 function ITensors.apply(
     circuit::AbstractVector,
@@ -17,7 +19,7 @@ function ITensors.apply(
     return ψ, truncation_errors
 end
 
-#Convert a circuit in (gate_str, sites_to_act_on, params) form to ITensors and then apply it
+#Convert a circuit in [(gate_str, sites_to_act_on, params), ...] form to a ITensors and then apply it
 function ITensors.apply(
     circuit::AbstractVector,
     ψ::ITensorNetwork,
@@ -32,6 +34,7 @@ end
     ITensors.apply(circuit::AbstractVector{<:ITensor}, ψ::ITensorNetwork, ψψ::BeliefPropagationCache; apply_kwargs = _default_apply_kwargs, bp_update_kwargs = default_posdef_bp_update_kwargs(), update_cache = true, verbose = false)
 
 Apply a sequence of itensors to the network with its corresponding cache. Apply kwargs should be a NamedTuple containing desired maxdim and cutoff. Update the cache every time an overlapping gate is encountered.
+Returns the final state, the updated cache and an approximate list of errors when applying each gate
 """
 function ITensors.apply(
     circuit::AbstractVector{<:ITensor},
@@ -93,7 +96,12 @@ function ITensors.apply(
     return ψ, ψψ, truncation_errors
 end
 
-#Apply function for a single gate
+"""
+    ITensors.apply(gate::Tuple, ψ::ITensorNetwork; apply_kwargs = _default_apply_kwargs, bp_update_kwargs = default_posdef_bp_update_kwargs())
+
+Apply a single gate to the tensor network. The gate should be of the form (gate_str::String, vertices_to_act_on::Union{Vector, NamedEdge}, optional_parameter::Number). Apply kwargs should be a NamedTuple containing desired maxdim and cutoff.
+Returns the final state and an approximate error from applying the gate.
+"""
 function ITensors.apply(
     gate::Tuple,
     ψ::ITensorNetwork;
@@ -106,7 +114,11 @@ function ITensors.apply(
     return ψ, truncation_error
 end
 
-#Apply function for a single gate
+"""
+    ITensors.apply(gate::Tuple, ψ::ITensorNetwork, ψψ::BeliefPropagationCache; apply_kwargs = _default_apply_kwargs, bp_update_kwargs = default_posdef_bp_update_kwargs())
+
+Apply a single gate to the tensor network with a pre-initialised bp cache. The gate should be of the form (gate_str::String, vertices_to_act_on::Union{Vector, NamedEdge}, optional_parameter::Number). Apply kwargs should be a NamedTuple containing desired maxdim and cutoff.
+"""
 function ITensors.apply(
     gate::Tuple,
     ψ::ITensorNetwork,
@@ -124,6 +136,11 @@ function ITensors.apply(
     return ψ, ψψ, truncation_error
 end
 
+"""
+    ITensors.apply(gate::Tuple, ψ::ITensorNetwork, ψψ::BeliefPropagationCache; apply_kwargs = _default_apply_kwargs, bp_update_kwargs = default_posdef_bp_update_kwargs())
+
+Apply a single gate in the form of an ITensor to the network with a pre-initialised bp cache. The gate should be of the form (gate_str::String, vertices_to_act_on::Union{Vector, NamedEdge}, optional_parameter::Number). Apply kwargs should be a NamedTuple containing desired maxdim and cutoff.
+"""
 function ITensors.apply(gate::ITensor,
     ψ::AbstractITensorNetwork,
     ψψ::BeliefPropagationCache;
