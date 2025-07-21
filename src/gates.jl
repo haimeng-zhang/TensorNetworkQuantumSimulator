@@ -18,6 +18,12 @@ function _takes_phi_argument(string::String)
     return string ∈ ["Rxx", "Ryy", "Rzz", "P", "CPHASE"]
 end
 
+#Gates which need to have parameter rescaled to match qiskit convention
+function param_rescaling(string::String, param::Number)
+    string ∈ ["Rxx", "Ryy", "Rzz", "Rxxyy", "Rxxyyzz"] && return 0.5 * param
+    return param
+end
+
 #Convert a gate to the corrresponding ITensor
 function toitensor(gate::Tuple, sinds::IndsNetwork)
 
@@ -36,9 +42,9 @@ function toitensor(gate::Tuple, sinds::IndsNetwork)
     elseif length(gate) == 2
         gate = ITensors.op(gate_symbol, s_inds...)
     elseif _takes_theta_argument(gate_symbol)
-        gate = ITensors.op(gate_symbol, s_inds...; θ = gate[3])
+        gate = ITensors.op(gate_symbol, s_inds...; θ = param_rescaling(gate_symbol, gate[3]))
     elseif _takes_phi_argument(gate_symbol)
-        gate = ITensors.op(gate_symbol, s_inds...; ϕ = 0.5 * gate[3])
+        gate = ITensors.op(gate_symbol, s_inds...; ϕ = param_rescaling(gate_symbol, gate[3]))
     else
         throw(ArgumentError("Wrong gate format"))
     end
