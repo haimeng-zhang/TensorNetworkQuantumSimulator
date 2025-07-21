@@ -1,8 +1,5 @@
 using StatsBase
 
-#Take nsamples bitstrings from a 2D open boundary tensornetwork using boundary MPS with relevant ranks
-#Computes logq (logarithm of the probability of generating that sample conditioned on the specified message ranks)
-#And an approximation to p/q which is good if the left message rank is high so the left environments converge
 function _sample(
     ψ::ITensorNetwork,
     nsamples::Int64;
@@ -41,21 +38,63 @@ function _sample(
     return probs_and_bitstrings, ψ
 end
 
-#Compute bitstrings conditioned on whatever kwargs used
+"""
+    sample(
+        ψ::ITensorNetwork,
+        nsamples::Int64;
+        projected_message_rank::Int64,
+        norm_message_rank::Int64,
+        norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
+        projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
+        partition_by = "Row",
+        kwargs...,
+    )
+
+Take nsamples bitstrings from a 2D open boundary tensornetwork by partitioning it and using boundary MPS algorithm with relevant ranks
+"""
 function sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     probs_and_bitstrings, _ = _sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     # returns just the bitstrings
     return getindex.(probs_and_bitstrings, :bitstring)
 end
 
-#Compute bitstrings and corresponding p/qs : a sufficiently large left message rank should be used
+"""
+    sample_directly_certified(
+        ψ::ITensorNetwork,
+        nsamples::Int64;
+        projected_message_rank::Int64,
+        norm_message_rank::Int64,
+        norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
+        projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
+        partition_by = "Row",
+        kwargs...,
+    )
+
+Take nsamples bitstrings from a 2D open boundary tensornetwork by partitioning it and using boundary MPS algorithm with relevant ranks. 
+Returns a vector of (p/q, logq, bitstring) where loqq is log probability of drawing the bitstring and p/q attests to the quality of the bitstring which is accurate only if the projected boundary MPS rank is high enough.
+"""
 function sample_directly_certified(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank=5 * maxlinkdim(ψ), kwargs...)
     probs_and_bitstrings, _ = _sample(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank, kwargs...)
     # returns the self-certified p/q, logq and bitstrings
     return probs_and_bitstrings
 end
 
-#Compute bitstrings and independently computed p/qs : a sufficiently large certification message rank should be used
+"""
+    sample_certified(
+        ψ::ITensorNetwork,
+        nsamples::Int64;
+        projected_message_rank::Int64,
+        norm_message_rank::Int64,
+        norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
+        projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
+        partition_by = "Row",
+        kwargs...,
+    )
+
+Take nsamples bitstrings from a 2D open boundary tensornetwork by partitioning it and using boundary MPS algorithm with relevant ranks. For each sample perform
+an independent contraction of <x|ψ> to get a measure of p/q. 
+Returns a vector of (p/q, bitstring) where p/q attests to the quality of the bitstring which is accurate only if the certification boundary MPS rank is high enough.
+"""
 function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank=5 * maxlinkdim(ψ), certification_message_update_kwargs = (; maxdim = certification_message_rank, cutoff = _default_boundarymps_update_cutoff), kwargs...)
     probs_and_bitstrings, ψ = _sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     # send the bitstrings and the logq to the certification function

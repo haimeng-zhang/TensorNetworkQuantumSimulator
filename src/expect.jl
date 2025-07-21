@@ -52,7 +52,7 @@ end
     cache_construction_kwargs = default_cache_construction_kwargs(alg, QuadraticFormNetwork(ψ), ), kwargs...)
 
 Function for computing expectation values for any vector of pauli strings via different cached based algorithms. 
-Support: alg = "bp" and alg = "boundarymps". The latter takes cache_construction_kwargs = (; message_rank::Int) as a constructor.
+Support: alg = "bp" and alg = "boundarymps".
 """
 function ITensorNetworks.expect(
     alg::Algorithm,

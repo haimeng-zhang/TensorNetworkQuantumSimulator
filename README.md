@@ -2,16 +2,29 @@
 
 A wrapper around [ITensorNetworks](https://github.com/ITensor/ITensorNetworks.jl) for simulating quantum circuits with tensor networks (TNs) of near-arbitrary geometry. 
 
-The main workhorses of the simulation are _belief propagation_ (BP) for gauging the TNs, _simple update_ for applying the gates, and BP with _loop corrections_ or _boundary MPS_ for estimating expectation values. This package is an experimental compilation of state-of-the-art features before some of them get integrated into [ITensorNetworks](https://github.com/ITensor/ITensorNetworks.jl) over time, with a focus on simulating quantum circuits.
+The main workhorses of the simulation are _belief propagation_ (BP) and the _Singular Value Decomposition_ for applying gates, and _BP_ or _boundary MPS_ for estimating expectation values and sampling. This package is an experimental compilation of state-of-the-art features before some of them get integrated into [ITensorNetworks](https://github.com/ITensor/ITensorNetworks.jl) over time, with a focus on simulating quantum circuits / quantum dynamics.
 
-The workflow is that you pass a `NamedGraph` object to the tensor network constructor, which is a graph describing the desired connectivity of your tensor network. Then you  define and subsequently apply the desired gates to the TN (truncating the bonds of the tensor network down to some desired threshold), estimating expectation values with any of the available techniques along the way. These techniques make different levels of approximation and have different control paramaters. The relevant literature describes these in more detail.
+The starting point of most calculations is that you will define a `NamedGraph` object `g` that encodes the geometry of your problem and how you want your tensor network structured. Most simply, the vertices of this graph will correspond to the qubits in your setup and the edges the pairs of qubits that directly interact in your system (e.g. those that will have two-site gates applied to them). Then you define the _circuit_ which you will apply to your tensor network. A circuit, or layer of a circuit, simply takes the form `Vector{<:Tuple}` or `Vector{<:ITensor}` of a list of one or two-site gates to be applied in sequential order. These gates can either be specified as a Tuple `(Gate_string::String, vertices_gate_acts_on::Vector, optional_gate_parameter::Number)` using the pre-defined gates available or as specific ITensors for more custom gate options (see below).    
+
+You can then initialise an `ITensorNetwork ψ` as your chosen starting state,  with user-friendly constructors for various different product states, and apply the desired gates to the TN with the `apply` function. Keyword arguments, i.e. the `apply_kwargs` should be passed to indicate the desired level of truncation to use when applying the circuits. At any point during the simulation, expectation values, samples or other information (e.g. overlaps) can be extracted from the `ITensorNetwork` with different options for the algorithm to use and the various hyperparameters that control their complexity. The relevant literature describes these in more detail. We encourage users to read the literature and look through the examples to learn how the code works in more detail so they can effectively deploy their own simulations.
 
 ## Upcoming Features
-- Gates beyond Pauli rotations, for example, Clifford gates.
 - Applying gates to distant nodes of the TN via SWAP gates.
-- Sampling bitstrings from loopy networks.
+
+## Supported Gates
+Gates can take the form of ITensors or Tuples of length two or three, i.e.
+`(gate_string::String, qubits_to_act_on::Union{Vector, NamedEdge})` or `(gate_string::String, qubits_to_act_on::Union{Vector, NamedEdge}, optional_parameter::Number)` depending on whether the gate type supports an optional parameter. The qubits_to_act on can be a vector of one or two vertices of the network where the gate acts. In the case of a two-qubit gate an edge of the network can also be passed. 
+
+Pre-Defined One qubit gates (brackets indicates the optional rotation parameter which must be specified). These are consistent with the qiskit definitions.
+- "X", "Y", "Z', "Rx" (θ), "Ry" (θ), "Rz" (θ), "CRx" (θ), "CRy" (θ), "CRz" (θ), "P", "H"
+
+Pre-Defined Two qubit gates (brackets indicates the optional rotation angle parameter which must be specified). These are consistent with the qiskit definitions.
+- "CNOT", "CX", "CY", "SWAP", "iSWAP", "√SWAP", "√iSWAP", "Rxx" (θ), "Ryy" (θ), "Rzz" (θ), "Rxxyy" (θ), "Rxxyyzz" (θ), "CPHASE" (θ)
+
+If the user wants to instead define a custom gate, they can do so by creating the corresponding `ITensor` which acts on the physical indices for the qubit or pair of qubits they wish it to apply to.
 
 ## Relevant Literature
+- [Simulating and sampling quantum circuits with 2D tensor networks](https://arxiv.org/abs/2507.11424)
 - [Gauging tensor networks with belief propagation](https://www.scipost.org/SciPostPhys.15.6.222?acad_field_slug=chemistry)
 - [Efficient Tensor Network Simulation of IBM’s Eagle Kicked Ising Experiment](https://journals.aps.org/prxquantum/abstract/10.1103/PRXQuantum.5.010308)
 - [Loop Series Expansions for Tensor Networks](https://arxiv.org/abs/2409.03108)
