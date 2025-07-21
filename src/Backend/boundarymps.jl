@@ -506,6 +506,20 @@ function generic_apply(O::MPO, M::MPS; kwargs...)
         end
     end
     O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
+    
+    #Transform away edges that make a loop
+    loop_edges = filter(e -> abs(src(e) - dst(e)) != 1, edges(O))
+    for e in loop_edges
+        edge_to_split = e
+        inbetween_vertices = [i for i in (minimum((src(e), dst(e)))+1):(maximum((src(e), dst(e)))-1)]
+        for v in inbetween_vertices
+            edge_to_split_ind = only(linkinds(O, edge_to_split))
+            O = ITensorNetworks.split_index(O, [edge_to_split])
+            O[v] *= delta(edge_to_split_ind, edge_to_split_ind')
+            edge_to_split = NamedEdge(v => maximum((src(e), dst(e))))
+        end
+    end
+
     O = ITensorNetworks.combine_linkinds(O)
     O = ITensorMPS.MPS([O[v] for v in vertices(O)])
     O = merge_internal_tensors(O)
