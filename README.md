@@ -31,5 +31,5 @@ If the user wants to instead define a custom gate, they can do so by creating th
 - [Dynamics of disordered quantum systems with two- and three-dimensional tensor networks](https://arxiv.org/abs/2503.05693)
 
 ## Authors
-The package was developed by Joseph Tindall ([JoeyT1994](https://github.com/JoeyT1994)), a Postdoctoral Researcher at the Center for Computational Quantum Physics, Flatiron Institute NYC and Manuel S. Rudolph ([MSRudolph](https://github.com/MSRudolph)), a PhD Candidate at EPFL, Switzerland, during a research stay at the Center for Computational Quantum Physics, Flatiron Institute NYC.
+The package was developed by Joseph Tindall ([JoeyT1994](https://github.com/JoeyT1994)), an Associate Research Scientist at the Center for Computational Quantum Physics, Flatiron Institute NYC and Manuel S. Rudolph ([MSRudolph](https://github.com/MSRudolph)), a PhD Candidate at EPFL, Switzerland, during a research stay at the Center for Computational Quantum Physics, Flatiron Institute NYC.
 
