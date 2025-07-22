@@ -161,3 +161,60 @@ function make_hermitian(A::ITensor)
     @assert length(A_inds) == 2
     return (A + ITensors.swapind(conj(A), first(A_inds), last(A_inds))) / 2
 end
+
+#Calculate the correlation flowing around single loop of the bp cache via an eigendecomposition
+function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:PartitionEdge}, target_pe::PartitionEdge)
+
+    is_tree(partitioned_graph(bpc)) && return 0
+    bpc = copy(bpc)
+
+    pes = vcat(loop, [target_pe])
+    incoming_es = boundary_partitionedges(bpc, pes)
+    incoming_messages = ITensor[only(message(bpc, pe)) for pe in incoming_es]
+    pvs = unique(vcat(src.(loop), dst.(loop)))
+    vs = vertices(bpc, pvs)
+
+    src_vs = vertices(bpc, src(target_pe))
+
+    pe_linkinds = linkinds(bpc, target_pe)
+    pe_linkinds_sim = sim.(pe_linkinds)
+
+    ts = ITensor[]
+
+    for v in src_vs
+        t = bpc[v]
+        t_inds = filter(i -> i ∈ pe_linkinds, inds(t))
+        if !isempty(t_inds)
+            t_ind = only(t_inds)
+            t_ind_pos = findfirst(x -> x == t_ind, pe_linkinds)
+            t = replaceind(t, t_ind, pe_linkinds_sim[t_ind_pos])
+        end
+        push!(ts, t)
+    end
+
+    ts = ITensor[ts; ITensor[bpc[v] for v in setdiff(vs, src_vs)]]
+
+    tensors = [ts; incoming_messages]
+    seq = ITensorNetworks.contraction_sequence(tensors; alg = "einexpr", optimizer = Greedy())
+    t = contract(tensors; sequence = seq)
+
+    row_combiner, col_combiner = ITensors.combiner(pe_linkinds), ITensors.combiner(pe_linkinds_sim)
+    t = t * row_combiner * col_combiner
+    t = array(t)
+    λs = reverse(sort(LinearAlgebra.eigvals(t); by = abs))
+
+    err = 1.0 - abs(λs[1]) / sum(abs.(λs))
+
+    return err
+end
+
+#Calculate the correlations flowing around each of the primitive loops of the BP cache
+function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Int; kwargs...)
+    pg = partitioned_graph(bpc)
+    cycles = NamedGraphs.cycle_to_path.(NamedGraphs.unique_simplecycles_limited_length(pg, smallest_loop_size))
+    corrs = []
+    for loop in cycles
+        corrs = append!(corrs, loop_correlation(bpc, PartitionEdge.(loop[1:(length(loop)-1)]), reverse(PartitionEdge(last(loop))); kwargs...))
+    end
+    return corrs
+end
