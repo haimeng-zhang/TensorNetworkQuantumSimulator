@@ -161,17 +161,3 @@ function make_hermitian(A::ITensor)
     @assert length(A_inds) == 2
     return (A + ITensors.swapind(conj(A), first(A_inds), last(A_inds))) / 2
 end
-
-#Delete the message tensor on partition edge pe from the cache
-function delete_message!(bpc::AbstractBeliefPropagationCache, pe::PartitionEdge)
-    return delete_messages!(bpc, [pe])
-end
-
-#Delete the message tensors on the vector of partition edges pes from the cache
-function delete_messages!(bpc::AbstractBeliefPropagationCache, pes::Vector)
-    ms = messages(bpc)
-    for pe in pes
-        haskey(ms, pe) && delete!(ms, pe)
-    end
-    return bpc
-end
