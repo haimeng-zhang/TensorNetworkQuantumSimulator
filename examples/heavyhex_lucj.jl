@@ -7,6 +7,7 @@ const ITN = ITensorNetworks
 
 using NamedGraphs: NamedGraphs
 using Statistics
+using JSON
 
 # define lattice
 g = TN.heavy_hexagonal_lattice(1, 2) # a NamedGraph
@@ -35,8 +36,14 @@ occupied_orbitals = vcat(alpha_nodes[1:nelec[1]], beta_nodes[1:nelec[2]])
 
 hf_layer = [("X", [v]) for v in occupied_orbitals]
 
+# read gate defnitions from file
+filename = "examples/lucj_n2_8o5e.json"
+data = JSON.parsefile(filename)
+# convert data to a layer of gates
+# this is going to be the first function that I write in Julia
+
 # apply orbital rotations: XX + YY gates followed by phase gates
-xxyy_layer = [("R")]
+
 # apply diagonal Coulomb evolution
 
 χ = 8
