@@ -42,6 +42,47 @@ data = JSON.parsefile(filename)
 # convert data to a layer of gates
 # this is going to be the first function that I write in Julia
 
+function format_gate_name(gate_name::String)
+   mapping = Dict(
+    "x" => "X",
+    "xx_plus_yy" => "Rxxyy",
+    "p" => "P",
+    "cp" => "CPHASE",
+    )
+    if haskey(mapping, gate_name)
+        return mapping[gate_name]
+    else
+        @warn "Gate name '$gate_name' not recognized, using original name"
+        return gate_name
+    end
+end
+
+function parse_gate(d::Dict{String, Any})
+    name = format_gate_name(d["name"])
+    qubits = d["qubits"]
+    params = d["params"]
+    return (name, qubits, params)
+end
+
+function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
+    layer = []
+    for d in data_dict
+        if !isa(d, Dict)
+            error("Expect Dict, got $(typeof(d))")
+        end
+
+        if d["name"] in exclude_gates
+            continue
+        else  # skip gates that are in the exclude list
+            gate = parse_gate(d)
+            push!(layer, gate)
+        end
+    end
+    return layer
+end
+
+layer = parse_layer(data[2:end]; exclude_gates = ["global_phase", "measure", "barrier"]) # skip the first element which is qubit indices
+
 # apply orbital rotations: XX + YY gates followed by phase gates
 
 # apply diagonal Coulomb evolution
@@ -50,16 +91,17 @@ data = JSON.parsefile(filename)
 apply_kwargs = (; cutoff = 1e-12, maxdim = χ)
 
 # define initial state
-ψt = ITensorNetwork(v -> "↑", s)
+# ψt = ITensorNetwork(v -> "↑", s)
 #BP cache for norm of the network
-ψψ = build_bp_cache(ψt)
+# ψψ = build_bp_cache(ψt)
 
 # evolve the state
-layer = hf_layer
-ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
-fidelity = prod(1.0 .- errs)
-nsamples = 100
-bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 8)
+
+# layer = hf_layer
+# ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
+# fidelity = prod(1.0 .- errs)
+# nsamples = 100
+# bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 8)
 
 # now I have the bitstring, how do I check if it is correct?
 # view count distribution
