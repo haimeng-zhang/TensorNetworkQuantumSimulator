@@ -57,11 +57,45 @@ function format_gate_name(gate_name::String)
     end
 end
 
+function parse_qubit_index(qubit_index::Int64)
+    mapping = Dict{Int, Tuple{Int, Int}}(
+        0 => (4, 1),
+        1 => (5, 1),
+        2 => (5, 2),
+        3 => (6, 3), 
+        4 => (7, 3),
+        5 => (7, 4),
+        6 => (7, 5),
+        7 => (6, 5),
+        8 => (1, 2),
+        9 => (1, 3),
+        10 => (2, 3),
+        11 => (3, 3),
+        12 => (3, 4),
+        13 => (3, 5),
+        14 => (4, 5),
+        15 => (5, 5),
+    )
+    if haskey(mapping, qubit_index)
+        return mapping[qubit_index]
+    else
+        @warn "Qubit index '$qubit_index' not recognized, using original index"
+        return qubit_index
+    end   
+end
+
 function parse_gate(d::Dict{String, Any})
     name = format_gate_name(d["name"])
-    qubits = d["qubits"]
+    qubits = Vector{Int}(d["qubits"])
+    if length(qubits) == 1
+        qubits = parse_qubit_index(qubits[1])
+    elseif length(qubits) == 2
+        qubits = (parse_qubit_index(qubits[1]), parse_qubit_index(qubits[2]))
+    else
+        error("Unsupported number of qubit length: $(length(qubits))")
+    end
     params = d["params"]
-    return (name, qubits, params)
+    return (name, [qubits], params)
 end
 
 function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
