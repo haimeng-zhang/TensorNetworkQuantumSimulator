@@ -58,7 +58,7 @@ function format_gate_name(gate_name::String)
     end
 end
 
-mapping = Dict{Int, Tuple{Int, Int}}(
+qubit_mapping = Dict{Int, Tuple{Int, Int}}(
     0 => (4, 1),
     1 => (5, 1),
     2 => (5, 2),
@@ -91,9 +91,9 @@ function parse_gate(d::Dict{String, Any})
     # parse qubit indices
     qubits = Vector{Int}(d["qubits"])
     if length(qubits) == 1
-        qubits = [parse_qubit_index(qubits[1], mapping)]
+        qubits = [parse_qubit_index(qubits[1], qubit_mapping)]
     elseif length(qubits) == 2
-        qubits = [parse_qubit_index(qubits[1], mapping), parse_qubit_index(qubits[2], mapping)]
+        qubits = [parse_qubit_index(qubits[1], qubit_mapping), parse_qubit_index(qubits[2], qubit_mapping)]
     else
         error("Unsupported number of qubit length: $(length(qubits))")
     end
@@ -130,15 +130,15 @@ function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
                     @warn "Gate $(gate[1]) is applied on non-neighboring sites $(site1) and $(site2), Omitting this gate."
                     continue
                 end
-                push!(layer, gate)
             end
+            push!(layer, gate)
         end
     end
     return layer
 end
 
 layer = parse_layer(data[2:end]; exclude_gates = ["global_phase", "measure", "barrier"]) # skip the first element which is qubit indices
-layer = hf_layer
+# layer = hf_layer
 # apply orbital rotations: XX + YY gates followed by phase gates
 
 # apply diagonal Coulomb evolution
@@ -155,7 +155,7 @@ apply_kwargs = (; cutoff = 1e-12, maxdim = χ)
 # layer = hf_layer
 ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
 fidelity = prod(1.0 .- errs)
-nsamples = 100
+nsamples = 10000
 bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 8)
 
 open("examples/bitstrings.json", "w") do file
@@ -164,29 +164,28 @@ end
 # now I have the bitstring, how do I check if it is correct?
 # view count distribution
 nbits = length(bitstrings[1].bitstring)
-bit_array = BitArray(undef, nsamples, nbits)
-for i in eachindex(bitstrings)
-    bit_array[i, :] = collect(values(bitstrings[i].bitstring))
+bit_array = BitArray(undef, nsamples, norb * 2)
+for (i, bitstring) in pairs(bitstrings)
+    new_bitstring = BitVector(undef, norb * 2)
+    for (k,v) in pairs(bitstring.bitstring)
+        if k in keys(inverse_mapping)
+            new_index = inverse_mapping[k] + 1
+            new_bitstring[new_index] = v
+        end
+    end
+    bit_array[i, :] = new_bitstring
 end
-println("number of ones: $(sum(bit_array[1,:]))")
-# TODO: convert bit_array to count dictionary, write test function for that too
-mask = [(n in alpha_nodes || n in beta_nodes) for n in g.vertices]
-println("number of ones after masking: $(sum(bit_array[1,mask]))")
-# permute
-inverse_mapping = Dict(value => key for (key, value) in mapping)
-perm = [inverse_mapping[v] + 1 for (i, v) in enumerate(g.vertices) if mask[i]]
-bv = join(Int.(bit_array[1, mask]))
 
-println("before permute: $(bv)")
-bit_array = permutecols!!(bit_array[:, mask], perm)
-data = String[]
+println("number of ones: $(sum(bit_array[1,:]))")
+
+bitstring_list = String[]
 for row in eachrow(bit_array)
-    push!(data, join(Int.(row)))
+    push!(bitstring_list, join(Int.(row)))
 end
-println("after permute and masking: $(data[1])")
+println("after permute and masking: $(bitstring_list[1])")
 
 counts = Dict{String, Int}()
-for bitstring in data
+for bitstring in bitstring_list
     if bitstring in keys(counts)
         counts[bitstring] += 1
     else
