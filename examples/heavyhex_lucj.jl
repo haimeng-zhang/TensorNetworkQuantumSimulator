@@ -91,9 +91,9 @@ function parse_gate(d::Dict{String, Any})
     # parse qubit indices
     qubits = Vector{Int}(d["qubits"])
     if length(qubits) == 1
-        qubits = [parse_qubit_index(qubits[1])]
+        qubits = [parse_qubit_index(qubits[1], mapping)]
     elseif length(qubits) == 2
-        qubits = [parse_qubit_index(qubits[1]), parse_qubit_index(qubits[2])]
+        qubits = [parse_qubit_index(qubits[1], mapping), parse_qubit_index(qubits[2], mapping)]
     else
         error("Unsupported number of qubit length: $(length(qubits))")
     end
@@ -179,8 +179,20 @@ bv = join(Int.(bit_array[1, mask]))
 
 println("before permute: $(bv)")
 bit_array = permutecols!!(bit_array[:, mask], perm)
-bv = join(Int.(bit_array[1,:]))
-println("after permute: $(bv)")
+data = String[]
+for row in eachrow(bit_array)
+    push!(data, join(Int.(row)))
+end
+println("after permute and masking: $(data[1])")
+
+counts = Dict{String, Int}()
+for bitstring in data
+    if bitstring in keys(counts)
+        counts[bitstring] += 1
+    else
+        counts[bitstring] = 1
+    end
+end
 
 # measure expectation values
 
