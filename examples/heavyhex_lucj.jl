@@ -156,6 +156,9 @@ fidelity = prod(1.0 .- errs)
 nsamples = 100
 bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 8)
 
+open("examples/bitstrings.json", "w") do file
+    JSON.print(file, bitstrings)
+end
 # now I have the bitstring, how do I check if it is correct?
 # view count distribution
 
