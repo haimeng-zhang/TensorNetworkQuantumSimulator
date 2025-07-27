@@ -46,6 +46,8 @@ function format_gate_name(gate_name::String)
     "xx_plus_yy" => "Rxxyy",
     "p" => "P",
     "cp" => "CPHASE",
+    "rxx" => "Rxx",
+    "ryy" => "Ryy",
     )
     if haskey(mapping, gate_name)
         return mapping[gate_name]
