@@ -1,5 +1,8 @@
 import ffsim
 from qiskit.circuit import QuantumCircuit, QuantumRegister
+import rustworkx as rx
+from qiskit.transpiler import CouplingMap
+from qiskit.compiler import transpile
 import pyscf
 import json
 
@@ -48,6 +51,45 @@ circuit.measure_all()
 tcircuit = circuit.decompose().decompose()
 print(f'gates in circuit: {tcircuit.count_ops()}')
 
+# transpile to run on the hardware
+# create heavy-hex connectivity graph
+num_qubits = 21
+nodes = [i for i in range(num_qubits)]
+edges = [(0, 1),
+        (1, 2),
+        (3, 2),
+        (4, 3),
+        (4, 5),
+        (5, 6),
+        (6, 7),
+        (8, 9),
+        (9, 10),
+        (10, 11),
+        (11, 12),
+        (12, 13),
+        (13, 14),
+        (14, 15),
+        (16, 11),
+        (16, 3),
+        (0, 17),
+        (17, 18),
+        (18, 19),
+        (19, 8),
+        (20, 7),
+        (15, 20),
+]
+edge_list = [(p[0], p[1], None) for p in edges]
+graph = rx.PyDiGraph()
+graph.add_nodes_from(nodes)
+graph.add_edges_from(edge_list)
+
+cmap = CouplingMap()
+cmap.graph = graph
+# transpile
+# TODO: define a target with xx_plus_yy basis gate
+tcircuit = transpile(tcircuit, basis_gates=['rxx', 'ryy', 'cp', 'p', 'x', 'measure', 'swap'], coupling_map = cmap, initial_layout=list(range(16)))
+print(f'gates in circuit after transpilation: {tcircuit.count_ops()}')
+
 # export the circuit to a json file
 # the file contains a list of qubit indices and gate instructions
 qubit_indices = {'qubit_indices': [q._index for q in tcircuit.qubits]}
@@ -65,5 +107,5 @@ for data in tcircuit.data:
 
 with open(f'examples/lucj_n2_{norb}o{nelec[0]}e.json', 'w') as f:
     json.dump(lines, f)
-
+print('lucj circuit saved to '+ f'examples/lucj_n2_{norb}o{nelec[0]}e.json')
 # Samlpe from the cricuit
