@@ -6,6 +6,7 @@ using ITensorNetworks
 const ITN = ITensorNetworks
 
 using NamedGraphs: NamedGraphs
+using Base: permutecols!!
 using Graphs: has_edge
 using Statistics
 using JSON
@@ -57,25 +58,26 @@ function format_gate_name(gate_name::String)
     end
 end
 
-function parse_qubit_index(qubit_index::Int64)
-    mapping = Dict{Int, Tuple{Int, Int}}(
-        0 => (4, 1),
-        1 => (5, 1),
-        2 => (5, 2),
-        3 => (5, 3), 
-        4 => (6, 3),
-        5 => (7, 3),
-        6 => (7, 4),
-        7 => (7, 5),
-        8 => (1, 2),
-        9 => (1, 3),
-        10 => (2, 3),
-        11 => (3, 3),
-        12 => (3, 4),
-        13 => (3, 5),
-        14 => (4, 5),
-        15 => (5, 5),
-    )
+mapping = Dict{Int, Tuple{Int, Int}}(
+    0 => (4, 1),
+    1 => (5, 1),
+    2 => (5, 2),
+    3 => (5, 3), 
+    4 => (6, 3),
+    5 => (7, 3),
+    6 => (7, 4),
+    7 => (7, 5),
+    8 => (1, 2),
+    9 => (1, 3),
+    10 => (2, 3),
+    11 => (3, 3),
+    12 => (3, 4),
+    13 => (3, 5),
+    14 => (4, 5),
+    15 => (5, 5),
+)
+
+function parse_qubit_index(qubit_index::Int64, mapping::Dict{Int, Tuple{Int, Int}})
     if haskey(mapping, qubit_index)
         return mapping[qubit_index]
     else
@@ -136,7 +138,7 @@ function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
 end
 
 layer = parse_layer(data[2:end]; exclude_gates = ["global_phase", "measure", "barrier"]) # skip the first element which is qubit indices
-
+layer = hf_layer
 # apply orbital rotations: XX + YY gates followed by phase gates
 
 # apply diagonal Coulomb evolution
@@ -161,6 +163,24 @@ open("examples/bitstrings.json", "w") do file
 end
 # now I have the bitstring, how do I check if it is correct?
 # view count distribution
+nbits = length(bitstrings[1].bitstring)
+bit_array = BitArray(undef, nsamples, nbits)
+for i in eachindex(bitstrings)
+    bit_array[i, :] = collect(values(bitstrings[i].bitstring))
+end
+println("number of ones: $(sum(bit_array[1,:]))")
+# TODO: convert bit_array to count dictionary, write test function for that too
+mask = [(n in alpha_nodes || n in beta_nodes) for n in g.vertices]
+println("number of ones after masking: $(sum(bit_array[1,mask]))")
+# permute
+inverse_mapping = Dict(value => key for (key, value) in mapping)
+perm = [inverse_mapping[v] + 1 for (i, v) in enumerate(g.vertices) if mask[i]]
+bv = join(Int.(bit_array[1, mask]))
+
+println("before permute: $(bv)")
+bit_array = permutecols!!(bit_array[:, mask], perm)
+bv = join(Int.(bit_array[1,:]))
+println("after permute: $(bv)")
 
 # measure expectation values
 
