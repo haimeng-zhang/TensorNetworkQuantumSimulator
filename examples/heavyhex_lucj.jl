@@ -13,7 +13,6 @@ using JSON
 
 # define lattice
 g = TN.heavy_hexagonal_lattice(1, 2) # a NamedGraph
-# visualize
 
 # define physical indices on each site
 s = ITN.siteinds("S=1/2", g)
@@ -23,27 +22,18 @@ norb = 8
 nelec = (5, 5)
 
 # define the circuit
-# prepare hartree-fock state
-
-alpha_nodes = [(4, 1), (5, 1), (5, 2), (5, 3), (6, 3), (7, 3), (7, 4), (7, 5)]
-beta_nodes = [(1, 2), (1, 3), (2, 3), (3, 3), (3, 4), (3, 5), (4, 5), (5, 5)]
-pairs_aa = [(a, b) for (a, b) in zip(alpha_nodes[1:end-1], alpha_nodes[2:end])]
-pairs_ab =[(alpha_nodes[4], beta_nodes[4])] # this is hard coded for now
-
 # read gate defnitions from file
 filename = "examples/lucj_n2_8o5e.json"
 data = JSON.parsefile(filename)
 # convert data to a layer of gates
-# this is going to be the first function that I write in Julia
-
 function format_gate_name(gate_name::String)
-   mapping = Dict(
-    "x" => "X",
-    "xx_plus_yy" => "Rxxyy",
-    "p" => "P",
-    "cp" => "CPHASE",
-    "rxx" => "Rxx",
-    "ryy" => "Ryy",
+    mapping = Dict(
+        "x" => "X",
+        "xx_plus_yy" => "Rxxyy",
+        "p" => "P",
+        "cp" => "CPHASE",
+        "rxx" => "Rxx",
+        "ryy" => "Ryy",
     )
     if haskey(mapping, gate_name)
         return mapping[gate_name]
@@ -53,11 +43,11 @@ function format_gate_name(gate_name::String)
     end
 end
 
-qubit_mapping = Dict{Int, Tuple{Int, Int}}(
+qubit_mapping = Dict{Int,Tuple{Int,Int}}(
     0 => (4, 1),
     1 => (5, 1),
     2 => (5, 2),
-    3 => (5, 3), 
+    3 => (5, 3),
     4 => (6, 3),
     5 => (7, 3),
     6 => (7, 4),
@@ -72,16 +62,16 @@ qubit_mapping = Dict{Int, Tuple{Int, Int}}(
     15 => (5, 5),
 )
 
-function parse_qubit_index(qubit_index::Int64, mapping::Dict{Int, Tuple{Int, Int}})
+function parse_qubit_index(qubit_index::Int64, mapping::Dict{Int,Tuple{Int,Int}})
     if haskey(mapping, qubit_index)
         return mapping[qubit_index]
     else
         @warn "Qubit index '$qubit_index' not recognized, using original index"
         return qubit_index
-    end   
+    end
 end
 
-function parse_gate(d::Dict{String, Any})
+function parse_gate(d::Dict{String,Any})
     name = format_gate_name(d["name"])
     # parse qubit indices
     qubits = Vector{Int}(d["qubits"])
@@ -106,7 +96,7 @@ function parse_gate(d::Dict{String, Any})
     end
 end
 
-function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
+function parse_layer(data_dict::Vector; exclude_gates::Vector{String}=[])
     layer = []
     for d in data_dict
         if !isa(d, Dict)
@@ -132,10 +122,10 @@ function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
     return layer
 end
 
-layer = parse_layer(data[2:end]; exclude_gates = ["global_phase", "measure", "barrier"]) # skip the first row which is qubit indices
+layer = parse_layer(data[2:end]; exclude_gates=["global_phase", "measure", "barrier"]) # skip the first row which is qubit indices
 
-χ = 8
-apply_kwargs = (; cutoff = 1e-12, maxdim = χ)
+χ = 16
+apply_kwargs = (; cutoff=1e-12, maxdim=χ)
 
 # define initial state
 ψt = ITensorNetwork(v -> "↑", s)
@@ -143,12 +133,11 @@ apply_kwargs = (; cutoff = 1e-12, maxdim = χ)
 ψψ = build_bp_cache(ψt)
 
 # evolve the state
-# layer = hf_layer
 ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
 fidelity = prod(1.0 .- errs)
-nsamples = 10000
-bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 8)
-
+nsamples = 100
+bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank=8)
+println("χ = $(χ), estimated fidelity = $(fidelity)")
 open("examples/bitstrings.json", "w") do file
     JSON.print(file, bitstrings)
 end
@@ -157,9 +146,10 @@ end
 # view count distribution
 nbits = length(bitstrings[1].bitstring)
 bit_array = BitArray(undef, nsamples, norb * 2)
+inverse_mapping = Dict(value => key for (key, value) in qubit_mapping)
 for (i, bitstring) in pairs(bitstrings)
     new_bitstring = BitVector(undef, norb * 2)
-    for (k,v) in pairs(bitstring.bitstring)
+    for (k, v) in pairs(bitstring.bitstring)
         if k in keys(inverse_mapping)
             new_index = inverse_mapping[k] + 1
             new_bitstring[new_index] = v
@@ -168,16 +158,13 @@ for (i, bitstring) in pairs(bitstrings)
     bit_array[i, :] = new_bitstring
 end
 
-println("number of ones: $(sum(bit_array[1,:]))")
-
 # TODO: need to flip the order of the bitstring to follow the little endian convention
 bitstring_list = String[]
 for row in eachrow(bit_array)
     push!(bitstring_list, join(Int.(row)))
 end
-println("after permute and masking: $(bitstring_list[1])")
 
-counts = Dict{String, Int}()
+counts = Dict{String,Int}()
 for bitstring in bitstring_list
     if bitstring in keys(counts)
         counts[bitstring] += 1
@@ -185,6 +172,7 @@ for bitstring in bitstring_list
         counts[bitstring] = 1
     end
 end
+println("bitstring counts: $(counts)")
 
 # TODO: measure expectation values
 
