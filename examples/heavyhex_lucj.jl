@@ -30,11 +30,6 @@ beta_nodes = [(1, 2), (1, 3), (2, 3), (3, 3), (3, 4), (3, 5), (4, 5), (5, 5)]
 pairs_aa = [(a, b) for (a, b) in zip(alpha_nodes[1:end-1], alpha_nodes[2:end])]
 pairs_ab =[(alpha_nodes[4], beta_nodes[4])] # this is hard coded for now
 
-# alpha sector
-occupied_orbitals = vcat(alpha_nodes[1:nelec[1]], beta_nodes[1:nelec[2]])
-
-hf_layer = [("X", [v]) for v in occupied_orbitals]
-
 # read gate defnitions from file
 filename = "examples/lucj_n2_8o5e.json"
 data = JSON.parsefile(filename)
@@ -137,11 +132,7 @@ function parse_layer(data_dict::Vector; exclude_gates::Vector{String} = [])
     return layer
 end
 
-layer = parse_layer(data[2:end]; exclude_gates = ["global_phase", "measure", "barrier"]) # skip the first element which is qubit indices
-# layer = hf_layer
-# apply orbital rotations: XX + YY gates followed by phase gates
-
-# apply diagonal Coulomb evolution
+layer = parse_layer(data[2:end]; exclude_gates = ["global_phase", "measure", "barrier"]) # skip the first row which is qubit indices
 
 χ = 8
 apply_kwargs = (; cutoff = 1e-12, maxdim = χ)
@@ -162,6 +153,7 @@ open("examples/bitstrings.json", "w") do file
     JSON.print(file, bitstrings)
 end
 # now I have the bitstring, how do I check if it is correct?
+# TODO: compare the state vector coefficients
 # view count distribution
 nbits = length(bitstrings[1].bitstring)
 bit_array = BitArray(undef, nsamples, norb * 2)
@@ -178,6 +170,7 @@ end
 
 println("number of ones: $(sum(bit_array[1,:]))")
 
+# TODO: need to flip the order of the bitstring to follow the little endian convention
 bitstring_list = String[]
 for row in eachrow(bit_array)
     push!(bitstring_list, join(Int.(row)))
@@ -193,8 +186,8 @@ for bitstring in bitstring_list
     end
 end
 
-# measure expectation values
+# TODO: measure expectation values
 
-# I don't know yet what these line of code is doing
+# I don't know yet how to use p/q to quantify the quality of the result
 # st_dev = Statistics.std(first.(bitstrings))
 # println("Standard deviation of p(x) / q(x) is $(st_dev)")
