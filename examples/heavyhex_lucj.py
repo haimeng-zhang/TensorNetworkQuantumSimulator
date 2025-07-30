@@ -5,6 +5,7 @@ from qiskit.transpiler import CouplingMap
 from qiskit.compiler import transpile
 import pyscf
 import json
+import numpy as np
 
 # Build N2 molecule
 mol = pyscf.gto.Mole()
@@ -86,7 +87,7 @@ graph.add_edges_from(edge_list)
 cmap = CouplingMap()
 cmap.graph = graph
 # transpile
-# TODO: define a target with xx_plus_yy basis gate
+# TODO: define a target with xx_plus_yy included in the basis gates
 tcircuit = transpile(tcircuit, basis_gates=['rxx', 'ryy', 'cp', 'p', 'x', 'measure', 'swap'], coupling_map = cmap, initial_layout=list(range(16)))
 print(f'gates in circuit after transpilation: {tcircuit.count_ops()}')
 
@@ -108,4 +109,17 @@ for data in tcircuit.data:
 with open(f'examples/lucj_n2_{norb}o{nelec[0]}e.json', 'w') as f:
     json.dump(lines, f)
 print('lucj circuit saved to '+ f'examples/lucj_n2_{norb}o{nelec[0]}e.json')
+
 # Samlpe from the cricuit
+rng = np.random.default_rng(12345)
+sampler = ffsim.qiskit.FfsimSampler(seed=rng)
+pub = (circuit,)
+job = sampler.run([pub], shots=10_000)
+result = job.result()
+pub_result = result[0]
+
+# Get counts
+counts = pub_result.data.meas.get_counts()
+print(counts)
+# Save bit array
+np.save(f'examples/bit_array_lucj_n2_{norb}o{nelec[0]}e.npy', pub_result.data.meas.array)
