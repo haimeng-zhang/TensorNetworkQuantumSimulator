@@ -622,10 +622,10 @@ function delete_partition_messages!(bmpsc::BoundaryMPSCache, partition)
     pg = partition_graph(bmpsc, partition)
     pes = PartitionEdge.(edges(pg))
     pes = vcat(pes, reverse.(pes))
-    return delete_messages!(bmpsc, pes)
+    return delete_messages!(bmpsc, filter(pe -> pe ∈ keys(messages(bmpsc)), pes))
 end
 
 function delete_partitionpair_messages!(bmpsc::BoundaryMPSCache, partitionpair::Pair)
     pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
-    return delete_messages!(bmpsc, pes)
+    return delete_messages!(bmpsc, filter(pe -> pe ∈ keys(messages(bmpsc)), pes))
 end

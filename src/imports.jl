@@ -74,6 +74,8 @@ using ITensorNetworks:
     VidalITensorNetwork,
     expect,
     default_cache_construction_kwargs,
+    delete_messages!,
+    delete_messages,
     cache,
     norm_sqr_network,
     update,
