@@ -1,0 +1,211 @@
+using TensorNetworkQuantumSimulator
+const TN = TensorNetworkQuantumSimulator
+using ITensors.ITensorVisualizationCore: ITensorVisualizationCore
+
+using ITensorNetworks
+const ITN = ITensorNetworks
+
+using NamedGraphs: NamedGraphs
+using Base: permutecols!!
+using Graphs: has_edge
+using Statistics
+using JSON
+
+# define lattice
+g = TN.heavy_hexagonal_lattice(2, 4) # a NamedGraph
+
+# define circuit parameters
+norb = 16
+nelec = (10, 10)
+n_ancilla = 4
+
+# define the circuit
+# read gate defnitions from file
+filename = "examples/lucj_n2_16o10e.json"
+data = JSON.parsefile(filename)
+# convert data to a layer of gates
+function format_gate_name(gate_name::String)
+    mapping = Dict(
+        "x" => "X",
+        "rx" => "Rx",
+        "xx_plus_yy" => "Rxxyy",
+        "p" => "P",
+        "cp" => "CPHASE",
+        "rxx" => "Rxx",
+        "ryy" => "Ryy",
+        "swap" => "SWAP",
+    )
+    if haskey(mapping, gate_name)
+        return mapping[gate_name]
+    else
+        @warn "Gate name '$gate_name' not recognized, using original name"
+        return gate_name
+    end
+end
+
+qubit_mapping = Dict{Int,Tuple{Int,Int}}(
+    0 => (4, 1), # alpha sector
+    1 => (5, 1),
+    2 => (5, 2),
+    3 => (5, 3),
+    4 => (6, 3),
+    5 => (7, 3),
+    6 => (7, 4),
+    7 => (7, 5),
+    8 => (8, 5),
+    9 => (9, 5),
+    10 => (9, 6),
+    11 => (9, 7),
+    12 => (10, 7),
+    13 => (11, 7),
+    14 => (11, 8),
+    15 => (11, 9),
+    16 => (1, 2), # beta sector
+    17 => (1, 3),
+    18 => (2, 3),
+    19 => (3, 3),
+    20 => (3, 4),
+    21 => (3, 5),
+    22 => (4, 5),
+    23 => (5, 5),
+    24 => (5, 6),
+    25 => (5, 7),
+    26 => (6, 7),
+    27 => (7, 7),
+    28 => (7, 8),
+    29 => (7, 9),
+    30 => (8, 9),
+    31 => (9, 9),
+    32 => (4, 3), # ancilla qubit
+    33 => (6, 5),
+    34 => (8, 7),
+    35 => (10, 9),
+)
+
+nodes_to_remove = [
+    node for node in g.vertices if !(node in values(qubit_mapping))
+]
+NamedGraphs.GraphsExtensions.rem_vertices!(g, nodes_to_remove)
+
+# define physical indices on each site
+s = ITN.siteinds("S=1/2", g)
+
+function parse_qubit_index(qubit_index::Int64, mapping::Dict{Int,Tuple{Int,Int}})
+    if haskey(mapping, qubit_index)
+        return mapping[qubit_index]
+    else
+        @warn "Qubit index '$qubit_index' not recognized, using original index"
+        return qubit_index
+    end
+end
+
+function parse_gate(d::Dict{String,Any})
+    name = format_gate_name(d["name"])
+    # parse qubit indices
+    qubits = Vector{Int}(d["qubits"])
+    if length(qubits) == 1
+        qubits = [parse_qubit_index(qubits[1], qubit_mapping)]
+    elseif length(qubits) == 2
+        qubits = [parse_qubit_index(qubits[1], qubit_mapping), parse_qubit_index(qubits[2], qubit_mapping)]
+    else
+        error("Unsupported number of qubit length: $(length(qubits))")
+    end
+    params = d["params"]
+    # parse parameters
+    if isempty(params)
+        return (name, qubits)
+    else
+        if length(params) == 1
+            params = params[1]
+        elseif name == "Rxxyy"
+            params = params[1] # discard the second parameter (beta) for Rxxyy gates
+        end
+        return (name, qubits, params)
+    end
+end
+
+function parse_layer(data_dict::Vector; exclude_gates::Vector{String}=[])
+    layer = []
+    for d in data_dict
+        if !isa(d, Dict)
+            error("Expect Dict, got $(typeof(d))")
+        end
+
+        if d["name"] in exclude_gates
+            continue
+        else  # skip gates that are in the exclude list
+            gate = parse_gate(d)
+            # for two-qubit gates, check if the gates are applied on two neighboring sites
+            if length(gate[2]) == 2
+                site1 = gate[2][1]
+                site2 = gate[2][2]
+                if !has_edge(g, site1 => site2)
+                    @warn "Gate $(gate[1]) is applied on non-neighboring sites $(site1) and $(site2), Omitting this gate."
+                    continue
+                end
+            end
+            push!(layer, gate)
+        end
+    end
+    return layer
+end
+
+layer = parse_layer(data[2:end]; exclude_gates=["global_phase", "measure", "barrier"]) # skip the first row which is qubit indices
+
+χ = 64
+apply_kwargs = (; cutoff=1e-12, maxdim=χ)
+
+# define initial state
+ψt = ITensorNetwork(v -> "↑", s)
+#BP cache for norm of the network
+ψψ = build_bp_cache(ψt)
+
+# evolve the state
+ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
+fidelity = prod(1.0 .- errs)
+nsamples = 10000
+bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank=8)
+println("χ = $(χ), estimated fidelity = $(fidelity)")
+open("$(filename)_bitstrings.json", "w") do file
+    JSON.print(file, bitstrings)
+end
+# now I have the bitstring, how do I check if it is correct?
+# TODO: compare the state vector coefficients
+# view count distribution
+
+nbits = length(bitstrings[1].bitstring)
+bit_array = BitArray(undef, nsamples, 2 * norb)
+inverse_mapping = Dict(value => key for (key, value) in qubit_mapping)
+for (i, bitstring) in pairs(bitstrings)
+    new_bitstring = BitVector(undef, 2 * norb)
+    for (k, v) in pairs(bitstring.bitstring)
+        if k in keys(inverse_mapping) && inverse_mapping[k] < 2 * norb
+            new_index = inverse_mapping[k] + 1
+            new_bitstring[new_index] = v
+        end
+    end
+    bit_array[i, :] = new_bitstring
+end
+
+# TODO: need to flip the order of the bitstring to follow the little endian convention
+bitstring_list = String[]
+for row in eachrow(bit_array)
+    push!(bitstring_list, join(Int.(row)))
+end
+
+counts = Dict{String,Int}()
+for bitstring in bitstring_list
+    if bitstring in keys(counts)
+        counts[bitstring] += 1
+    else
+        counts[bitstring] = 1
+    end
+end
+println("number of samples = $(sum(values(counts)))")
+println("bitstring counts: $(sort(collect(counts), by = x -> x[2], rev = true))")
+
+# TODO: measure expectation values
+
+# I don't know yet how to use p/q to quantify the quality of the result
+# st_dev = Statistics.std(first.(bitstrings))
+# println("Standard deviation of p(x) / q(x) is $(st_dev)")
