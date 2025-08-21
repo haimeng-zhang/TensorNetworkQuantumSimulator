@@ -23,7 +23,7 @@ function _sample(
         i = length(sorted_partitions):-1:2
     ]
     norm_message_update_kwargs = (; norm_message_update_kwargs..., normalize=false)
-    norm_MPScache = update(Algorithm("orthogonal"), norm_MPScache, seq; norm_message_update_kwargs...)
+    norm_MPScache = ITensorNetworks.update_iteration(Algorithm("bp"; message_update_alg = Algorithm("orthogonal"; norm_message_update_kwargs...)), norm_MPScache, seq)
 
     projected_MPScache = BoundaryMPSCache(ψ; message_rank=projected_message_rank, grouping_function, group_sorting_function)
 
@@ -95,7 +95,7 @@ Take nsamples bitstrings from a 2D open boundary tensornetwork by partitioning i
 an independent contraction of <x|ψ> to get a measure of p/q. 
 Returns a vector of (p/q, bitstring) where p/q attests to the quality of the bitstring which is accurate only if the certification boundary MPS rank is high enough.
 """
-function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank=5 * maxlinkdim(ψ), certification_message_update_kwargs = (; maxdim = certification_message_rank, cutoff = _default_boundarymps_update_cutoff), kwargs...)
+function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank=5 * maxlinkdim(ψ), certification_message_update_kwargs = (; cutoff = _default_boundarymps_update_cutoff), kwargs...)
     probs_and_bitstrings, ψ = _sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     # send the bitstrings and the logq to the certification function
     return certify_samples(ψ, probs_and_bitstrings; certification_message_rank, certification_message_update_kwargs, symmetrize_and_normalize=false)
@@ -133,10 +133,9 @@ function _get_one_sample(
             next_partition = sorted_partitions[i+1]
             
             #Alternate fitting procedure here which is faster for small bond dimensions but slower for large
-            projected_MPScache = update(Algorithm("ITensorMPS"),
+            projected_MPScache = ITensorNetworks.update_message(ITensorNetworks.set_default_kwargs(Algorithm("ITensorMPS"; projected_message_update_kwargs...)),
                 projected_MPScache,
-                partition => next_partition;
-                projected_message_update_kwargs...)
+                partition => next_partition)
 
             pes = planargraph_sorted_partitionedges(norm_MPScache, partition => next_partition)
 
@@ -168,18 +167,21 @@ function certify_sample(
     s = siteinds(ψ)
     qv = sqrt(exp((1 / length(vertices(ψ))) * logq))
     for v in vertices(ψ)
-        ψproj[v] = ψ[v] * onehot(only(s[v]) => bitstring[v] + 1) / qv
+        ψproj[v] = ψproj[v] * onehot(only(s[v]) => bitstring[v] + 1) / qv
     end
 
     bmpsc = BoundaryMPSCache(ψproj; message_rank=certification_message_rank)
+    certification_message_update_kwargs = (; normalize = false, certification_message_update_kwargs...)
 
     pg = partitioned_graph(ppg(bmpsc))
     partition = first(center(pg))
     seq = [src(e) => dst(e) for e in post_order_dfs_edges(pg, partition)]
 
-    bmpsc = update(Algorithm("ITensorMPS"), bmpsc, seq; certification_message_update_kwargs...)
+    #bmpsc = ITensorNetworks.update_iteration(Algorithm("bp"; message_update_alg = Algorithm("ITensorMPS"; certification_message_update_kwargs...)), bmpsc, seq)
+    bmpsc = ITensorNetworks.update(bmpsc, message_update_alg = Algorithm("ITensorMPS"; certification_message_update_kwargs...))
 
-    p_over_q = region_scalar(bmpsc, partition)
+    #p_over_q = region_scalar(bmpsc, partition)
+    p_over_q = scalar(bmpsc)
     p_over_q *= conj(p_over_q)
 
     return (poverq=p_over_q, bitstring=bitstring)

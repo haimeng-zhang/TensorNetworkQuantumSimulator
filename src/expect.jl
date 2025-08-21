@@ -60,7 +60,7 @@ function ITensorNetworks.expect(
     observables::Vector{<:Tuple};
     (cache!)=nothing,
     update_cache=isnothing(cache!),
-    cache_update_kwargs=alg == Algorithm("bp") ? default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)) : ITensorNetworks.default_cache_update_kwargs(alg),
+    cache_update_kwargs=alg == Algorithm("bp") ? default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)) : default_cache_update_kwargs(alg),
     cache_construction_kwargs= (;),
     message_rank = nothing,
     kwargs...,
