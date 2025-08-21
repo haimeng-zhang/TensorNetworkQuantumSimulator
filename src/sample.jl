@@ -173,15 +173,17 @@ function certify_sample(
     bmpsc = BoundaryMPSCache(ψproj; message_rank=certification_message_rank)
     certification_message_update_kwargs = (; normalize = false, certification_message_update_kwargs...)
 
-    pg = partitioned_graph(ppg(bmpsc))
-    partition = first(center(pg))
-    seq = [src(e) => dst(e) for e in post_order_dfs_edges(pg, partition)]
-
+    #This block is two times faster than the two lines below but likely less accurate for smaller maxdims
+    # pg = partitioned_graph(ppg(bmpsc))
+    # partition = first(center(pg))
+    # seq = [src(e) => dst(e) for e in post_order_dfs_edges(pg, partition)]
     #bmpsc = ITensorNetworks.update_iteration(Algorithm("bp"; message_update_alg = Algorithm("ITensorMPS"; certification_message_update_kwargs...)), bmpsc, seq)
-    bmpsc = ITensorNetworks.update(bmpsc, message_update_alg = Algorithm("ITensorMPS"; certification_message_update_kwargs...))
-
     #p_over_q = region_scalar(bmpsc, partition)
+
+    bmpsc = ITensorNetworks.update(bmpsc, message_update_alg = Algorithm("ITensorMPS"; certification_message_update_kwargs...))
     p_over_q = scalar(bmpsc)
+
+
     p_over_q *= conj(p_over_q)
 
     return (poverq=p_over_q, bitstring=bitstring)

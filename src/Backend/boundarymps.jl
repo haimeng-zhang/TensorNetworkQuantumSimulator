@@ -27,13 +27,14 @@ ITensorNetworks.default_update_alg(bmpsc::BoundaryMPSCache) = "bp"
 function ITensorNetworks.set_default_kwargs(alg::Algorithm"bp", bmpsc::BoundaryMPSCache)
     maxiter = is_tree(partitioned_graph(ppg(bmpsc))) ? 1 : nothing
     edge_sequence = pair.(default_edge_sequence(ppg(bmpsc)))
-    message_update_alg = ITensorNetworks.set_default_kwargs(Algorithm("orthogonal"))
+    message_update_alg = ITensorNetworks.set_default_kwargs(get(alg.kwargs, :message_update_alg, Algorithm(ITensorNetworks.default_message_update_alg(is_flat(bmpsc)))))
     return Algorithm("bp"; tol = nothing, message_update_alg, maxiter, edge_sequence, verbose = false)
 end
 
 function ITensorNetworks.set_default_kwargs(alg::Algorithm"orthogonal")
     normalize = get(alg.kwargs, :normalize, true)
-    return Algorithm("orthogonal"; tolerance = _default_boundarymps_update_tolerance, niters = _default_boundarymps_update_niters, 
+    tolerance = get(alg.kwargs, :tolerance, _default_boundarymps_update_tolerance)
+    return Algorithm("orthogonal"; tolerance, niters = _default_boundarymps_update_niters, 
         normalize)
 end
 
@@ -50,7 +51,7 @@ Update the MPS messages inside a boundaryMPS-cache.
 """
 function updatecache(bmpsc::BoundaryMPSCache, args...; message_update_alg = ITensorNetworks.default_message_update_alg(is_flat(bmpsc)),
     message_update_kwargs = default_message_update_kwargs(; cache_is_flat = is_flat(bmpsc), maxdim = maximum_virtual_dimension(bmpsc)), kwargs...)
-    return update(bmpsc, args...; alg, message_update_kwargs..., kwargs...)
+    return update(bmpsc, args...; message_update_alg, message_update_kwargs..., kwargs...)
 end
 
 """
@@ -274,19 +275,22 @@ function set_interpartition_messages!(
     partitionpairs::Vector{<:Pair},
 )
     m_keys = keys(messages(bmpsc))
+    dtype = datatype(bp_cache(bmpsc))
     for partitionpair in partitionpairs
         pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
         for pe in pes
             if pe ∉ m_keys
-                set_message!(bmpsc, pe, ITensor[dense(delta(linkinds(bmpsc, pe)))])
+                m = dense(delta(linkinds(bmpsc, pe)))
+                set_message!(bmpsc, pe, ITensor[adapt(dtype)(m)])
             end
         end
         for i = 1:(length(pes)-1)
             virt_dim = virtual_index_dimension(bmpsc, pes[i], pes[i+1])
             ind = Index(virt_dim, "m$(i)$(i+1)")
             m1, m2 = only(message(bmpsc, pes[i])), only(message(bmpsc, pes[i+1]))
-            set_message!(bmpsc, pes[i], ITensor[m1*delta(ind)])
-            set_message!(bmpsc, pes[i+1], ITensor[m2*delta(ind)])
+            t = adapt(dtype)(dense(delta(ind)))
+            set_message!(bmpsc, pes[i], ITensor[m1*t])
+            set_message!(bmpsc, pes[i+1], ITensor[m2*t])
         end
     end
     return bmpsc
@@ -450,7 +454,6 @@ end
   
 function ITensorNetworks.update_message(
     alg::Algorithm"orthogonal", bmpsc::BoundaryMPSCache, partitionpair::Pair)
-
   bmpsc = copy(bmpsc)
   delete_partition_messages!(bmpsc, first(partitionpair))
   switch_messages!(bmpsc, partitionpair)
