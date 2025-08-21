@@ -13,29 +13,35 @@ using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_grap
 
 using EinExprs: Greedy
 
-using Metal
+using CUDA
 
 using Random
 Random.seed!(1634)
 
 function main()
-    nx, ny = 3,3
-    χ = 3
+    nx, ny = 6,6
+    χ = 6
+    message_rank = 36
     g = named_grid((nx, ny))
     s = siteinds("S=1/2", g)
-    ψ = ITensorNetworks.random_tensornetwork(s; link_space = χ)
+    println("Building random $(nx) x $(ny) tensor network of bond dimension $(χ)")
+    ψ = ITensorNetworks.random_tensornetwork(ComplexF32, s; link_space = χ)
+
+    ψ = ITensorNetworks.normalize(ψ; alg = "bp", cache_update_kwargs = (; maxiter = 10))
+
+    # t1 = time()
+    # ψIψ = build_boundarymps_cache(ψ, message_rank; cache_update_kwargs = (; message_update_alg = Algorithm("orthogonal"; niters = 40, tolerance = nothing)))
+    # z = ITensorNetworks.scalar(ψIψ)
+    # t2 = time()
+    # println("Boundary MPS using MPS bond dimension of $(message_rank) took $(t2- t1) secs on CPU")
+    # println("CPU computed value for the norm is $(z)")
 
     t1 = time()
-    ψIψ = build_bp_cache(ψ)
+    ψIψ = build_boundarymps_cache(CUDA.cu(ψ), message_rank;  cache_update_kwargs = (; message_update_alg = Algorithm("orthogonal"; niters = 40, tolerance = nothing)))
+    z = ITensorNetworks.scalar(ψIψ)
     t2 = time()
-    println("Took $(t2- t1) secs on CPU")
-    @show scalar(ψIψ)
-
-    t1 = time()
-    ψIψ = build_bp_cache(Metal.mtl(ψ))
-    t2 = time()
-    println("Took $(t2- t1) secs on GPU")
-    @show scalar(ψIψ)
+    println("Boundary MPS using MPS bond dimension of $(message_rank) took $(t2- t1) secs on GPU")
+    println("GPU computed value for the norm is $(z)")
 
 end
 

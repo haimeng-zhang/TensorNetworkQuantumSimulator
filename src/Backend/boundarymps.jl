@@ -457,7 +457,6 @@ function ITensorNetworks.update_message(
   bmpsc = copy(bmpsc)
   delete_partition_messages!(bmpsc, first(partitionpair))
   switch_messages!(bmpsc, partitionpair)
-
   pes = planargraph_sorted_partitionedges(bmpsc, partitionpair)
   pg = partition_graph(bmpsc, first(partitionpair))
   update_seq = vcat([pes[i] for i in 1:length(pes)], [pes[i] for i in (length(pes) - 1):-1:2])
