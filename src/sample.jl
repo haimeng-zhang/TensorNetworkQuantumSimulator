@@ -224,7 +224,7 @@ function sample_partition!(
         # config is 1 or 2, but we want 0 or 1 for the sample itself
         set!(bit_string, v, config - 1)
         s_ind = only(filter(i -> plev(i) == 0, inds(ρ)))
-        P = onehot(s_ind => config)
+        P = adapt(datatype(ρ))(onehot(s_ind => config))
         q = diag(ρ)[config]
         logq += log(q)
         ψv = copy(ψIψ[(v, "ket")]) / sqrt(q)

@@ -29,7 +29,7 @@ function main()
 
     ψ = copy(ψ0)
 
-    ψψ = build_bp_cache(ψ)
+    ψψ = build_normsqr_bp_cache(ψ)
 
     h, J = -1.0, -1.0
     no_trotter_steps = 10
@@ -62,8 +62,8 @@ function main()
         println("Frobenius norm of O(t) is $(scalar(ψψ))")
         
         #Take traces
-        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp")
-        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp")
+        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; maxiter = 10))
+        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; maxiter = 10))
         println("Trace(O(t)) is $(tr_ψt)")
         println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
 

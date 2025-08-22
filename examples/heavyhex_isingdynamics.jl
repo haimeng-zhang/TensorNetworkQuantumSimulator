@@ -41,7 +41,7 @@ function main()
     ψt = ITensorNetwork(v -> "↑", s)
 
     #BP cache for norm of the network
-    ψψ = build_bp_cache(ψt)
+    ψψ = build_normsqr_bp_cache(ψt)
 
     #Do the evolution
     fidelities = []

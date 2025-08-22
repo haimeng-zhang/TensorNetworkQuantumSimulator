@@ -31,7 +31,7 @@ function main()
         ψ = ITN.random_tensornetwork(ComplexF64, s; link_space = χ)
         s = ITN.siteinds(ψ)
 
-        ψ = normalize(ψ; alg = "bp")
+        ψ = normalize(ψ; alg = "bp", cache_update_kwargs = (; maxiter = 10))
 
         norm_sqr_bp = inner(ψ, ψ; alg = "loopcorrections", max_configuration_size = 0, cache_update_kwargs = TN.default_posdef_bp_update_kwargs())
         norm_sqr = inner(
@@ -39,6 +39,7 @@ function main()
             ψ;
             alg = "loopcorrections",
             max_configuration_size = 2*(smallest_loop_size) - 1,
+            cache_update_kwargs = TN.default_posdef_bp_update_kwargs()
         )
         norm_sqr_exact = inner(
             ψ,

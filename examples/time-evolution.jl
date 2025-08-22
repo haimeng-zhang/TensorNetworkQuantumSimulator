@@ -67,7 +67,7 @@ function main()
     ψ = zerostate(g)
 
     # create the BP cache manually
-    ψψ = build_bp_cache(ψ)
+    ψψ = build_normsqr_bp_cache(ψ)
 
     # an array to keep track of expectations
     expectations_advanced = Float64[real(expect(ψ, obs))]
