@@ -165,9 +165,10 @@ function certify_sample(
 
     ψproj = copy(ψ)
     s = siteinds(ψ)
-    qv = sqrt(exp((1 / length(vertices(ψ))) * logq))
+    qv = sqrt(exp(inv(oftype(logq, length(vertices(ψ)))) * logq))
     for v in vertices(ψ)
-        ψproj[v] = ψproj[v] * onehot(only(s[v]) => bitstring[v] + 1) / qv
+        P = adapt(datatype(ψproj[v]))(onehot(only(s[v]) => bitstring[v] + 1))
+        ψproj[v] = ψproj[v] * P * inv(qv)
     end
 
     bmpsc = BoundaryMPSCache(ψproj; message_rank=certification_message_rank)
@@ -218,18 +219,18 @@ function sample_partition!(
         ρ = contract(env; sequence=seq)
         ρ_tr = tr(ρ)
         push!(traces, ρ_tr)
-        ρ /= ρ_tr
-        # the usual case of single-site
-        config = StatsBase.sample(1:length(diag(ρ)), Weights(real.(diag(ρ))))
+        ρ *= inv(ρ_tr)
+        ρ_diag =  collect(real.(diag(ITensors.array(ρ))))
+        config = StatsBase.sample(1:length(ρ_diag), Weights(ρ_diag))
         # config is 1 or 2, but we want 0 or 1 for the sample itself
         set!(bit_string, v, config - 1)
         s_ind = only(filter(i -> plev(i) == 0, inds(ρ)))
         P = adapt(datatype(ρ))(onehot(s_ind => config))
-        q = diag(ρ)[config]
+        q = ρ_diag[config]
         logq += log(q)
-        ψv = copy(ψIψ[(v, "ket")]) / sqrt(q)
+        ψv = copy(ψIψ[(v, "ket")]) * inv(sqrt(q))
         ψv = P * ψv
-        setindex_preserve_graph!(ψIψ, ITensor(one(Bool)), (v, "operator"))
+        setindex_preserve_graph!(ψIψ, adapt(datatype(ρ))(ITensor(one(Bool))), (v, "operator"))
         setindex_preserve_graph!(ψIψ, copy(ψv), (v, "ket"))
         setindex_preserve_graph!(ψIψ, dag(prime(copy(ψv))), (v, "bra"))
         prev_v = v

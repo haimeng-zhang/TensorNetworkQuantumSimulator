@@ -4,6 +4,7 @@ authors = ["JoeyT1994 <jtindall@flatironinstitute.org>", "MSRudolph <manuel.rudo
 version = "0.0.1"
 
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
 EinExprs = "b1794770-133b-4de1-afb4-526377e9f4c5"
@@ -26,13 +27,14 @@ Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 
 [compat]
+Adapt = "4.3.0"
 CSV = "0.10.15"
 Dictionaries = "0.4"
 EinExprs = "0.6.4"
 GraphRecipes = "0.5.13"
 Graphs = "1.8.0"
 ITensorMPS = "0.3.17"
-ITensorNetworks = "0.13.9"
+ITensorNetworks = "0.14.1"
 ITensors = "0.9"
 Interpolations = "0.15.1"
 JLD2 = "0.5.15"
