@@ -28,7 +28,7 @@ function ITensorNetworks.set_default_kwargs(alg::Algorithm"bp", bmpsc::BoundaryM
     maxiter = is_tree(partitioned_graph(ppg(bmpsc))) ? 1 : nothing
     edge_sequence = pair.(default_edge_sequence(ppg(bmpsc)))
     verbose = get(alg.kwargs, :verbose, false)
-    tol = get(alg.kwargs, :tolerance, nothing)
+    tol = get(alg.kwargs, :tol, nothing)
     message_update_alg = ITensorNetworks.set_default_kwargs(get(alg.kwargs, :message_update_alg, Algorithm(ITensorNetworks.default_message_update_alg(is_flat(bmpsc)))))
     return Algorithm("bp"; tol, message_update_alg, maxiter, edge_sequence, verbose)
 end
