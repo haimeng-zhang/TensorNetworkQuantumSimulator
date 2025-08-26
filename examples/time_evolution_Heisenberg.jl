@@ -24,7 +24,7 @@ function main()
     ψ0 = TN.topaulitensornetwork(init_state, s)
 
     maxdim, cutoff = 4, 1e-14
-    apply_kwargs = (; maxdim, cutoff, normalize = true)
+    apply_kwargs = (; maxdim, cutoff, normalize_tensors = true)
     #Parameters for BP, as the graph is not a tree (it has loops), we need to specify these
 
     ψ = copy(ψ0)
