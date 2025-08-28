@@ -59,11 +59,11 @@ function updatecache(bmpsc::BoundaryMPSCache, args...; message_update_alg = ITen
 end
 
 """
-    build_normsqr_bp_cache(ψ::AbstractITensorNetwork, message_rank::Int64; cache_construction_kwargs = (;), cache_update_kwargs = default_posdef_boundarymps_update_kwargs())
+    build_normsqr_bmps_cache(ψ::AbstractITensorNetwork, message_rank::Int64; cache_construction_kwargs = (;), cache_update_kwargs = default_posdef_boundarymps_update_kwargs())
 
 Build the Boundary MPS cache for ψIψ  and update it appropriately
 """
-function build_normsqr_bp_cache(
+function build_normsqr_bmps_cache(
     ψ::AbstractITensorNetwork,
     message_rank::Int64;
     cache_construction_kwargs = (;),
@@ -75,7 +75,7 @@ function build_normsqr_bp_cache(
     ψIψ = build_normsqr_bp_cache(ψ; update_cache = update_bp_cache)
 
     # convert BP cache to boundary MPS cache, no further update needed
-    return build_normsqr_bp_cache(
+    return build_normsqr_bmps_cache(
         ψIψ,
         message_rank;
         cache_construction_kwargs,
@@ -84,7 +84,7 @@ function build_normsqr_bp_cache(
     )
 end
 
-function build_normsqr_bp_cache(
+function build_normsqr_bmps_cache(
     ψIψ::AbstractBeliefPropagationCache,
     message_rank::Int64;
     update_cache = true,
