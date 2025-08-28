@@ -17,6 +17,8 @@ global gammas, Js =  CSV.File(joinpath(@__DIR__, "AnnealingSchedules/Gammas.csv"
 global gamma_xvals, gamma_yvals = Tables.getcolumn(gammas,1), Tables.getcolumn(gammas,2)
 global Js_xvals, Js_yvals = Tables.getcolumn(Js,1), Tables.getcolumn(Js,2)
 
+using ITensors: inds, onehot, dag
+
 
 global gamma_interpolation, J_interpolation = linear_interpolation(gamma_xvals, gamma_yvals, extrapolation_bc=Line()), linear_interpolation(Js_xvals, Js_yvals, extrapolation_bc=Line())
 
@@ -25,17 +27,6 @@ function annealing_schedule(current_annealing_time, maximum_annealing_time)
     Γ, J = gamma_interpolation(x), J_interpolation(x)
     Γ < 0 && return 0.0, J
     return Γ, J
-end
-
-
-function zz_dict_boundarymps(ψ::ITensorNetwork, ψIψ_boundarymps::BoundaryMPSCache; vertical_only = true)
-    out = Dictionary()
-    for e in edges(ψ)
-        if !vertical_only || (first(src(e)) == first(dst(e)))
-            set!(out, e, expect(ψIψ_boundarymps, "Z", src(e), dst(e)))
-        end
-    end
-    return out
 end
 
 function column_aligned_zz_dict_boundarymps(ψ::ITensorNetwork, ψIψ_boundarymps::BoundaryMPSCache)
@@ -169,32 +160,7 @@ function terms_to_scalar(numerator_numerator_terms, numerator_denominator_terms,
     return exp(sum(log.(numerator_numerator_terms)) - sum(log.(numerator_denominator_terms)) - sum(log.(denominator_numerator_terms)) + sum(log.(denominator_denominator_terms)))
 end
 
-#Assume symmetry
-function zz_correlations(radius::Int64, ψ::ITensorNetwork, v; fit_kwargs = (; maxiter =5, message_update_kwargs = (; niters = 30, tolerance = 1e-10, verbosity = true)), mps_rank::Int64 = 1)
-    ψIψ = BoundaryMPSCache(BeliefPropagationCache(QuadraticFormNetwork(ψ)); message_rank = mps_rank)
-    s = only(inds(only(factors(ψIψ, [(v, "operator")])); plev = 0))
-    ψIψ = update_factor(ψIψ, (v, "operator"), onehot(s => 1) * onehot(s' => 1))
-    println("Updating")
-    ψIψ = update(ψIψ; fit_kwargs...)
-    println("Updated")
-    corrs = Dictionary()
-    for col in first(v):radius
-        v_prev = []
-        for vp in [[(col, row)] for row in 1:radius]
-            ψIψ = isempty(v_prev) ? partition_update(ψIψ, vp) : partition_update(ψIψ, v_prev, vp)
-            if first(vp) != v
-                ρ = contract(environment(bp_cache(ψIψ), [(only(vp), "operator")]); sequence = "automatic")
-                p_upup, p_downup = diag(ρ)[1], diag(ρ)[2]
-                szsz = (p_upup - p_downup) / (p_upup + p_downup)
-                set!(corrs, NamedEdge(v => first(vp)), szsz)
-            end
-            v_prev = vp
-        end
-    end
-    return corrs
-end
-
-#Assume symmetry
+#Assume Z2 symmetry, get all local z mags involving vertex v
 function magnetisations(radius::Int64, ψ::ITensorNetwork; fit_kwargs = (; maxiter =5, message_update_kwargs = (; niters = 30, tolerance = 1e-10, verbosity = true)), mps_rank::Int64 = 1)
     ψIψ = BoundaryMPSCache(BeliefPropagationCache(QuadraticFormNetwork(ψ)); message_rank = mps_rank)
     println("Updating")
@@ -214,7 +180,7 @@ function magnetisations(radius::Int64, ψ::ITensorNetwork; fit_kwargs = (; maxit
     return mags
 end
 
-#Assume symmetry
+#Assume Z2 symmetry, get all local x mags involving vertex v
 function x_magnetisations(radius::Int64, ψIψ_bmps::BoundaryMPSCache)
     mags = Dictionary()
     ψIψ_bmps_t = copy(ψIψ_bmps)
@@ -233,7 +199,7 @@ function x_magnetisations(radius::Int64, ψIψ_bmps::BoundaryMPSCache)
     return mags
 end
 
-#Assume symmetry
+#Assume Z2 symmetry, get all zz corrs involving vertex v in the cylindrical case
 function zz_correlations_kz(radius::Int64, ψ::ITensorNetwork, v; fit_kwargs = (; maxiter =5, message_update_kwargs = (; niters = 30, tolerance = 1e-10)), mps_rank::Int64 = 1)
     ψIψ = BoundaryMPSCache(BeliefPropagationCache(QuadraticFormNetwork(ψ)); message_rank = mps_rank)
     s = only(inds(only(factors(ψIψ, [(v, "operator")])); plev = 0))
@@ -315,6 +281,7 @@ function _quadraticformnetwork(ψ)
     return ITN.QuadraticFormNetwork(I, ψ)
 end
 
+#For the cubic lattice case
 function zz_correlation_bp_loopcorrectfull_dimerized(old_sinds::IndsNetwork, ψ::ITensorNetwork, v1, v2, egs::Vector)
     vs = collect(vertices(ψ))
     v1_dimer, v2_dimer = only(filter(v -> last(v) == v1 || first(v) == v1, vs)), only(filter(v -> last(v) == v2 || first(v) == v2, vs))
