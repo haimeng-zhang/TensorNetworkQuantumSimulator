@@ -107,30 +107,25 @@ function main_cylinder()
     end
 end
 
-function which_corr(v1, v2, nvs)
-    vmax, vmin = maximum((v1, v2)), minimum((v1,v2))
-    return sum([nvs - v for v in 1:(vmin-1)]) + (vmax-vmin)
-end
-
     
 function main_diamond()
     println("Diamond Regular analysis")
-    nx, ny, nz = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3])
-    max_loop_length = parse(Int64, ARGS[4])
-    disorder_no = parse(Int64, ARGS[5])
-    annealing_time = parse(Int64, ARGS[6])
-    χ_state = parse(Int64, ARGS[7])
-    job_no = parse(Int64, ARGS[8])
-    no_corrs_per_job = parse(Int64, ARGS[9])
+    # nx, ny, nz = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3])
+    # max_loop_length = parse(Int64, ARGS[4])
+    # disorder_no = parse(Int64, ARGS[5])
+    # annealing_time = parse(Int64, ARGS[6])
+    # χ_state = parse(Int64, ARGS[7])
+    # job_no = parse(Int64, ARGS[8])
+    # no_corrs_per_job = parse(Int64, ARGS[9])
 
-    # nx, ny, nz = 4,4,8
-    # max_loop_length = 6
-    # disorder_no = 1
-    # annealing_time = 20
-    # χ_state = 16
-    # job_no = 13
+    nx, ny, nz = 8,8,12
+    max_loop_length = 11
+    disorder_no = 1
+    annealing_time = 7
+    χ_state = 16
+    job_no = 1
 
-    # no_corrs_per_job = 10
+    no_corrs_per_job = 1
 
 
     f = nothing
@@ -162,109 +157,15 @@ function main_diamond()
         flush(stdout)
     end
 
-    for (i, cl) in enumerate(circuit_lengths)
-        cs = corrs[:, i]
-        corr_dict=  Dictionary()
-        for (j, (v1, v2)) in enumerate(v1v2s)
-            set!(corr_dict, NamedEdge(v1 => v2), cs[j])
-        end
-        save("/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/LoopLength$(cl)Corrsnx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no)/JobNo$(job_no)NCorrs$(no_corrs_per_job).jld2",
-        "corrs", corr_dict)
-    end
-end
-
-function main_diamond_edge_based()
-    println("Diamond Regular analysis")
-    nx, ny, nz = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3])
-    max_loop_length = parse(Int64, ARGS[4])
-    disorder_no = parse(Int64, ARGS[5])
-    annealing_time = parse(Int64, ARGS[6])
-    χ_state = parse(Int64, ARGS[7])
-    job_no = parse(Int64, ARGS[8])
-
-    # nx, ny, nz = 8,8,12
-    # max_loop_length = 6
-    # disorder_no = 1
-    # annealing_time = 7
-    # χ_state = 2
-    # job_no = 1
-
-
-    f = nothing
-    try
-        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).jld2")
-    catch
-        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time)Cutoff.jld2")
-    end
-    ψ = f["Wavefunction"]
-
-    ψIψ = build_bp_cache(ψ)
-    ψ, ψIψ = normalize(ψ, ψIψ; update_cache = false)
-    ψ = ITN.VidalITensorNetwork(ψ; cache! = Ref(ψIψ), cache_update_kwargs = (; maxiter = 0))
-    ψ = ITensorNetwork(ψ)
-
-    es = edges(ψ)
-    @show length(es)
-    e = es[job_no]
-    v1, v2 = src(e), dst(e)
-
-    
-    egs = NG.edgeinduced_subgraphs_no_leaves(ITN.partitioned_graph(ψIψ), max_loop_length)
-    circuit_lengths = vcat([0], sort(unique(length.(edges.(egs)))))
-
-    corrs = zz_correlation_bp_loopcorrectfull(ψ, v1, v2, egs)
-
-    npzwrite("/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondCorrelationsEdges/Corrsnx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no)JobNo$(job_no).npz",
-        corrs=corrs, looplengths=circuit_lengths)
-end
-
-
-function main_diamond_all_corrs_at_dist()
-    println("Diamond Regular analysis")
-    nx, ny, nz = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3])
-    disorder_no = parse(Int64, ARGS[4])
-    annealing_time = parse(Int64, ARGS[5])
-    χ_state = parse(Int64, ARGS[6])
-
-    distance = 3
-
-    # nx, ny, nz = 8,8,12
-    # max_loop_length = 6
-    # disorder_no = 1
-    # annealing_time = 7
-    # χ_state = 2
-    # job_no = 1
-
-
-    f = nothing
-    try
-        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).jld2")
-    catch
-        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time)Cutoff.jld2")
-    end
-    ψ = f["Wavefunction"]
-
-    ψIψ = build_bp_cache(ψ)
-    ψ, ψIψ = normalize(ψ, ψIψ; update_cache = false)
-    ψ = ITN.VidalITensorNetwork(ψ; cache! = Ref(ψIψ), cache_update_kwargs = (; maxiter = 0))
-    ψ = ITensorNetwork(ψ)
-
-    
-    egs = NG.edgeinduced_subgraphs_no_leaves(ITN.partitioned_graph(ψIψ), 6)
-
-    v1v2s = vertices_at_distance(ψ, 3)
-
-    @show [which_corr(v1, v2, length(vertices(ψ))) for (v1, v2) in v1v2s]
-    bp_corrs =  []
-    bp_corrected_corrs = []
-    for (v1, v2) in v1v2s
-        corrs = zz_correlation_bp_loopcorrectfull(ψ, v1, v2, egs)
-        push!(bp_corrs, corrs[1])
-        push!(bp_corrected_corrs, corrs[2])
-    end
-
-    npzwrite("/mnt/home/jtindall/ceph/Data/DWave/PaperData/ResubmissionData/SMErrorAnalysisFigure/Corrs/CorrsatDistance$(distance)nx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no).npz",
-        bp_corrs=bp_corrs, bp_corrected_corrs=bp_corrected_corrs)
+    # for (i, cl) in enumerate(circuit_lengths)
+    #     cs = corrs[:, i]
+    #     corr_dict=  Dictionary()
+    #     for (j, (v1, v2)) in enumerate(v1v2s)
+    #         set!(corr_dict, NamedEdge(v1 => v2), cs[j])
+    #     end
+    #     save("/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/LoopLength$(cl)Corrsnx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no)/JobNo$(job_no)NCorrs$(no_corrs_per_job).jld2",
+    #     "corrs", corr_dict)
+    # end
 end
 
 function main_cubic()
@@ -319,7 +220,6 @@ function main_cubic()
     end
 end
 
-#main_diamond_edge_based()
 main_diamond()
 #main_cylinder()
 #main_cubic()

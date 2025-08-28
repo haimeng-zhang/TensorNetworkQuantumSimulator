@@ -25,6 +25,8 @@ const IT = ITensors
 
 using Dictionaries: Dictionary, set!
 
+using StatsBase
+
 BLAS.set_num_threads(min(8, Sys.CPU_THREADS))
 println("Julia is using "*string(nthreads()))
 println("BLAS is using "*string(BLAS.get_num_threads()))
@@ -47,6 +49,11 @@ function get_job_corrs(g::AbstractNamedGraph, job_no::Int64, no_corrs_per_job::I
         end
     end
     return job_v1_v2s
+end
+
+function which_corr(v1, v2, nvs)
+    vmax, vmin = maximum((v1, v2)), minimum((v1,v2))
+    return sum([nvs - v for v in 1:(vmin-1)]) + (vmax-vmin)
 end
 
 function main_cylinder()
@@ -105,11 +112,6 @@ function main_cylinder()
         save("/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/Cylinder/LoopLength$(cl)CorrsRadius$(radius)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no)/vc$(v1col)vr$(v1row).jld2",
         "corrs", corr_dict)
     end
-end
-
-function which_corr(v1, v2, nvs)
-    vmax, vmin = maximum((v1, v2)), minimum((v1,v2))
-    return sum([nvs - v for v in 1:(vmin-1)]) + (vmax-vmin)
 end
 
     
@@ -228,12 +230,11 @@ function main_diamond_all_corrs_at_dist()
 
     distance = 3
 
-    # nx, ny, nz = 8,8,12
-    # max_loop_length = 6
+    # nx, ny, nz = 8,8,8
     # disorder_no = 1
     # annealing_time = 7
-    # χ_state = 2
-    # job_no = 1
+    # χ_state = 8
+    # distance = 1
 
 
     f = nothing
@@ -252,18 +253,27 @@ function main_diamond_all_corrs_at_dist()
     
     egs = NG.edgeinduced_subgraphs_no_leaves(ITN.partitioned_graph(ψIψ), 6)
 
-    v1v2s = vertices_at_distance(ψ, 3)
+    v1v2s = vertices_at_distance(ITensorNetworks.underlying_graph(ψ), 3)
+
+    Random.seed!(1234)
+    k = 50
+    v1v2s = StatsBase.sample(v1v2s, k, replace = false)
 
     @show [which_corr(v1, v2, length(vertices(ψ))) for (v1, v2) in v1v2s]
-    bp_corrs =  []
-    bp_corrected_corrs = []
+
+    println("Number of pairs is $(length(v1v2s))")
+    bp_corrs =  ComplexF64[]
+    bp_corrected_corrs = ComplexF64[]
     for (v1, v2) in v1v2s
+        println("Vertex pair is $(v1) and $(v2)")
         corrs = zz_correlation_bp_loopcorrectfull(ψ, v1, v2, egs)
         push!(bp_corrs, corrs[1])
         push!(bp_corrected_corrs, corrs[2])
+        println("BP Corr is $(corrs[1])")
+        println("First Order BP Corr is $(corrs[2])")
     end
 
-    npzwrite("/mnt/home/jtindall/ceph/Data/DWave/PaperData/ResubmissionData/SMErrorAnalysisFigure/Corrs/CorrsatDistance$(distance)nx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no).npz",
+    npzwrite("/mnt/home/jtindall/ceph/Data/DWave/PaperData/ResubmissionData/SMErrorAnalysisFigure/Corrs/50CorrsatDistance$(distance)nx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no).npz",
         bp_corrs=bp_corrs, bp_corrected_corrs=bp_corrected_corrs)
 end
 
@@ -319,7 +329,8 @@ function main_cubic()
     end
 end
 
+main_diamond_all_corrs_at_dist()
 #main_diamond_edge_based()
-main_diamond()
+#main_diamond()
 #main_cylinder()
 #main_cubic()

@@ -24,7 +24,7 @@ const IT = ITensors
 
 using Dictionaries: Dictionary, set!
 
-BLAS.set_num_threads(min(4, Sys.CPU_THREADS))
+BLAS.set_num_threads(min(8, Sys.CPU_THREADS))
 println("Julia is using "*string(nthreads()))
 println("BLAS is using "*string(BLAS.get_num_threads()))
 @show BLAS.get_config()
@@ -83,6 +83,7 @@ function main(nx::Int64, ny::Int64, nz::Int64, χ::Int64, boundary::String, anne
 
     all_errs = []
     flush(stdout)
+    t1 = time()
     for i in 1:round(Int, s_cutoff*nsteps)
         sr = t / annealing_time
         println("Time is $t (ns), s is $sr")
@@ -106,24 +107,18 @@ function main(nx::Int64, ny::Int64, nz::Int64, χ::Int64, boundary::String, anne
 
         flush(stdout)
     end
+    t2 = time()
 
-    all_errs = reduce(vcat, all_errs)
-    ψ, ψIψ  = normalize(ψ, ψIψ; update_cache = false)
-    loop_errors = TN.loop_correlations(ψIψ, 6)
-    ψ = ITN.VidalITensorNetwork(ψ; cache! = Ref(ψIψ), cache_update_kwargs = (; maxiter = 0))
-    ψ = ITensorNetwork(ψ)
-    total_time = time() - t_start
-    if boundary == "obc"
-        save("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/OBCDiamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).jld2", Dict("Wavefunction" => ψ, "TimeTaken" => total_time, "Errors" => all_errs, "LoopErrors" => loop_errors))
-    elseif boundary == "pbc"
-        save("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).jld2", Dict("Wavefunction" => ψ, "TimeTaken" => total_time, "Errors" => all_errs, "LoopErrors" => loop_errors))
-    end
+    time_taken = t2 - t1
+    npzwrite("/mnt/home/jtindall/ceph/Data/DWave/PaperData/ResubmissionData/SMErrorAnalysisFigure/Timings/nx$(nx)ny$(ny)nz$(nz)Chi$(χ)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).npz", time_taken = time_taken)
 end
 
-nx, ny, nz = parse(Int64, ARGS[1]),  parse(Int64, ARGS[2]),  parse(Int64, ARGS[3])
-disorder_no = parse(Int64, ARGS[4])
-annealing_time = parse(Int64, ARGS[5])
-χ = parse(Int64, ARGS[6])
-bc = ARGS[7]
+ns = [(3,3,8), (4,4,8), (5,5,8), (8,8,8), (8,8,12), (8,8,16), (10,10,12), (10,10,16), (12,12,16), (10,10,24), (12,12,24)]
+disorder_no = parse(Int64, ARGS[1])
+annealing_time = parse(Int64, ARGS[2])
+χ = parse(Int64, ARGS[3])
+bc = "pbc"
 
-main(nx, ny, nz, χ, bc, annealing_time, disorder_no)
+for (nx, ny, nz) in ns
+    main(nx, ny, nz, χ, bc, annealing_time, disorder_no)
+end

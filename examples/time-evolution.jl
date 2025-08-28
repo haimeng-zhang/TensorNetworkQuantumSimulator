@@ -41,7 +41,7 @@ function main()
 
     # max bond dimension for the TN
     # we will use enough and just see how
-    apply_kwargs = (maxdim = 5, cutoff = 1e-10, normalize = false)
+    apply_kwargs = (maxdim = 5, cutoff = 1e-10, normalize_tensors = false)
 
     # evolve! The first evaluation will take significantly longer because of compilation.
     for l = 1:nl
@@ -67,7 +67,7 @@ function main()
     ψ = zerostate(g)
 
     # create the BP cache manually
-    ψψ = build_bp_cache(ψ)
+    ψψ = build_normsqr_bp_cache(ψ)
 
     # an array to keep track of expectations
     expectations_advanced = Float64[real(expect(ψ, obs))]

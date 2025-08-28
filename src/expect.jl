@@ -20,12 +20,12 @@ function ITensorNetworks.expect(
     for obs in observables
         op_strings, vs, coeff = collectobservable(obs)
         if iszero(coeff)
-            push!(out, 0.0)
+            push!(out, 0)
             continue
         end
         ψOψ = copy(ψIψ)
         for (op_string, v) in zip(op_strings, vs)
-            ψOψ[(v, "operator")] = ITensors.op(op_string, s[v])
+            ψOψ[(v, "operator")] = adapt(datatype(ψOψ[(v, "operator")]))(ITensors.op(op_string, s[v]))
         end
 
         numer_seq = contraction_sequence(ψOψ; contraction_sequence_kwargs...)
@@ -52,7 +52,7 @@ end
     cache_construction_kwargs = default_cache_construction_kwargs(alg, QuadraticFormNetwork(ψ), ), kwargs...)
 
 Function for computing expectation values for any vector of pauli strings via different cached based algorithms. 
-Support: alg = "bp" and alg = "boundarymps". The latter takes cache_construction_kwargs = (; message_rank::Int) as a constructor.
+Support: alg = "bp" and alg = "boundarymps".
 """
 function ITensorNetworks.expect(
     alg::Algorithm,
@@ -60,7 +60,7 @@ function ITensorNetworks.expect(
     observables::Vector{<:Tuple};
     (cache!)=nothing,
     update_cache=isnothing(cache!),
-    cache_update_kwargs=alg == Algorithm("bp") ? default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)) : ITensorNetworks.default_cache_update_kwargs(alg),
+    cache_update_kwargs = alg == Algorithm("bp") ? default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)) : default_cache_update_kwargs(alg),
     cache_construction_kwargs= (;),
     message_rank = nothing,
     kwargs...,
@@ -126,7 +126,7 @@ function ITensorNetworks.expect(
 )
 
     op_strings, vs, coeff = collectobservable(obs)
-    iszero(coeff) && return 0.0
+    iszero(coeff) && return 0
 
     ψOψ = insert_observable(ψIψ, obs)
 
@@ -157,7 +157,7 @@ function insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
     ψIψ_vs = [ψIψ[(v, "operator")] for v in verts]
     sinds =
         [commonind(ψIψ[(v, "ket")], ψIψ_vs[i]) for (i, v) in enumerate(verts)]
-    operators = [ITensors.op(op_strings[i], sinds[i]) for i in eachindex(op_strings)]
+    operators = [adapt(datatype(ψIψ[(v, "operator")]))(ITensors.op(op_strings[i], sinds[i])) for (i, v) in enumerate(verts)]
 
     ψOψ = update_factors(ψIψ, Dictionary([(v, "operator") for v in verts], operators))
     return ψOψ
@@ -168,7 +168,7 @@ function collectobservable(obs::Tuple)
     # unpack
     op = obs[1]
     qinds = obs[2]
-    coeff = length(obs) == 2 ? 1.0 : last(obs)
+    coeff = length(obs) == 2 ? 1 : last(obs)
 
     @assert !(op == "" && isempty(qinds))
 

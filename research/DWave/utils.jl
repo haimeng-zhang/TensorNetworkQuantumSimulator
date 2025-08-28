@@ -1,7 +1,7 @@
 using TensorNetworkQuantumSimulator: BoundaryMPSCache
 using ITensorNetworks: IndsNetwork, BeliefPropagationCache
 using NamedGraphs
-using NamedGraphs: AbstractGraph, NamedGraph
+using NamedGraphs: AbstractGraph, NamedGraph, AbstractNamedGraph
 using NamedGraphs.GraphsExtensions: add_edge
 using Graphs
 
@@ -263,14 +263,11 @@ function zz_correlations_kz(radius::Int64, ψ::ITensorNetwork, v; fit_kwargs = (
 end
 
 #Project spins on sites v1 and v2 to v1_val (1 = up, 2 = down) and v2_val
-function project(ψ::ITensorNetwork, ψIψ::BeliefPropagationCache, v1, v2, v1_val::Int64 = 1, v2_val::Int64=1)
-    ψIψ, ψ = copy(ψIψ), copy(ψ)
+function project!(ψIψ::BeliefPropagationCache, v1, v2, v1_val::Int64 = 1, v2_val::Int64=1)
     s1 = only(inds(only(ITN.factors(ψIψ, [(v1, "operator")])); plev = 0))
     s2 = only(inds(only(ITN.factors(ψIψ, [(v2, "operator")])); plev = 0))
-    ψIψ = ITN.update_factor(ψIψ, (v1, "operator"), onehot(s1 => v1_val) * dag(onehot(s1' => v1_val)))
-    ψIψ = ITN.update_factor(ψIψ, (v2, "operator"), onehot(s2 => v2_val) * dag(onehot(s2' => v2_val)))
-
-    return ψ, ψIψ
+    ITensorNetworks.@preserve_graph ψIψ[(v1, "operator")] = onehot(s1 => v1_val) * dag(onehot(s1' => v1_val))
+    ITensorNetworks.@preserve_graph ψIψ[(v2, "operator")] = onehot(s2 => v2_val) * dag(onehot(s2' => v2_val))
 end 
 
 #Log scalar contraction of bpc
@@ -292,26 +289,22 @@ function cumulative_weights(bpc::BeliefPropagationCache, egs::Vector{<:AbstractN
     return cumsum(outs)
 end
 
-#Compute zz with loop correction and all bells and whistles
-function zz_correlation_bp_loopcorrectfull(ψ::ITensorNetwork, v1, v2, egs::Vector{<:AbstractNamedGraph})
+function compute_ps(ψ::ITensorNetwork, v1, v2, v1_val, v2_val, egs::Vector{<:AbstractNamedGraph}; kwargs...)
     ψIψ = BeliefPropagationCache(ITN.QuadraticFormNetwork(ψ))
+    project!(ψIψ, v1, v2, v1_val, v2_val)
+    ψIψ = updatecache(ψIψ)
+    p_bp = exp(logscalar(ψIψ))
+    ψIψ = ITensorNetworks.rescale(ψIψ)
+    cfes = cumulative_weights(ψIψ, egs; kwargs...)
+    return [p_bp*cfe for cfe in cfes]
+end
 
-    ψ_upup, ψIψ_upup = project(ψ, ψIψ, v1, v2, 2, 2)
-    ψIψ_upup = updatecache(ψIψ_upup)
-    p_upup_bp = exp(logscalar(ψIψ_upup))
-    _, ψIψ_upup  = normalize(ψ_upup, ψIψ_upup; update_cache = false)
-    cfes = cumulative_weights(ψIψ_upup, egs)
-    p_upups = [p_upup_bp*cfe for cfe in cfes]
-
-    ψ_updown, ψIψ_updown = project(ψ, ψIψ, v1, v2, 2, 1)
-    ψIψ_updown = updatecache(ψIψ_updown)
-    p_updown_bp = exp(logscalar(ψIψ_updown))
-    _, ψIψ_updown  = normalize(ψ_updown, ψIψ_updown; update_cache = false)
-    cfes = cumulative_weights(ψIψ_updown, egs)
-    p_updowns = [p_updown_bp*cfe for cfe in cfes]
+#Compute zz with loop correction and all bells and whistles
+function zz_correlation_bp_loopcorrectfull(ψ::ITensorNetwork, v1, v2, egs::Vector{<:AbstractNamedGraph}; kwargs...)
+    p_upups = compute_ps(ψ, v1, v2, 2, 2, egs; kwargs...)
+    p_updowns = compute_ps(ψ, v1, v2, 2, 1, egs; kwargs...)
 
     szszs = [(p_upup - p_updown) / (p_upup + p_updown) for (p_upup, p_updown) in zip(p_upups, p_updowns)]
-
     return szszs
 end
 
@@ -371,3 +364,17 @@ function named_cylinder(nx::Int64, ny::Int64)
     end
     return g
 end
+
+function vertices_at_distance(g::AbstractNamedGraph, dist::Int)
+    vs = collect(vertices(g))
+    vertex_pairs = []
+    for (i, v) in enumerate(vs)
+        for vp in vs[(i+1):length(vs)]
+            if length(NamedGraphs.a_star(g, v, vp)) == dist
+                push!(vertex_pairs, (v, vp))
+            end
+        end
+    end
+    return vertex_pairs
+end
+

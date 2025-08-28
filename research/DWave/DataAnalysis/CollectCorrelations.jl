@@ -98,8 +98,9 @@ function files_to_corrs_V2(nv::Int64, annealing_time, tns_bond_dimension, disord
     corrs = Dictionary()
     missed_jobs = []
     for i in 1:no_jobs
+        file_name = file_prefix *file_suffix * "/JobNo" * string(i)*"NCorrs"*string(corrs_per_job)*".jld2"
+        @show file_name
         try
-            file_name = file_prefix *file_suffix * "/JobNo" * string(i)*"NCorrs"*string(corrs_per_job)*".jld2"
             f = load(file_name)
             corrs = non_duplicate_merge(f["corrs"], corrs)
         catch
@@ -124,6 +125,37 @@ function files_to_corrs_V2(nv::Int64, annealing_time, tns_bond_dimension, disord
         dir = file_save_prefix *file_suffix
         isdir(dir) || mkdir(dir)
         npzwrite(file_save_prefix *file_suffix * "/FullCorrs.npz", corrs = corrs_vector, TimeTakenBoundaryMPS = time_taken, TimeTakenBP = time_taken_evo)
+    end
+    return corrs_vector
+end
+
+function files_to_corrs_diamond(nv::Int64, annealing_time, tns_bond_dimension, disorder_no, no_jobs::Int64, corrs_per_job::Int64, var_name::String; max_loop_length = 0)
+    file_prefix = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/LoopLength$(max_loop_length)"
+    file_save_prefix = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/FullCorrs/LoopLength$(max_loop_length)"
+    file_suffix = "Corrs"*var_name*"AnnealingTime$(annealing_time)Chi$(tns_bond_dimension)DisorderNo$(disorder_no)"
+    
+    time_taken = 0
+    corrs = Dictionary()
+    missed_jobs = []
+    for i in 1:no_jobs
+        try
+            file_name = file_prefix *file_suffix * "/JobNo" * string(i)*"NCorrs"*string(corrs_per_job)*".jld2"
+            f = load(file_name)
+            corrs = non_duplicate_merge(f["corrs"], corrs)
+        catch
+            push!(missed_jobs, i)
+        end
+    end
+
+    corrs_vector = []
+    @show missed_jobs
+    @show length(keys(corrs))
+    @show nv * (nv-1) / 2
+    if abs(length(keys(corrs)) - nv * (nv-1) / 2) <= 1e-10
+        corrs_vector, _ = convert_dict_to_correlations(nv, corrs)
+        dir = file_save_prefix *file_suffix
+        isdir(dir) || mkdir(dir)
+        npzwrite(file_save_prefix *file_suffix * "/FullCorrs.npz", corrs = corrs_vector)
     end
     return corrs_vector
 end
@@ -158,13 +190,13 @@ function files_to_corrs_cylinder(g::AbstractGraph, radius::Int64, annealing_time
 end
 
 function main_diamond()
-    disorder_nos = [i for i in 2:2]
-    ns =[(8,8,8)]
+    disorder_nos = [i for i in 3:3]
+    ns =[(8,8,12)]
     annealing_times =[7]
-    tns_bond_dimension =48
-    max_loop_lengths =[0,6]
-    no_corrs_per_job = 25
-    no_jobs = 326
+    tns_bond_dimension =16
+    max_loop_lengths =[0,6, 8]
+    no_corrs_per_job = 30
+    no_jobs =612
     mps_bond_dimension = 512
 
     for (nx,ny,nz) in ns
@@ -177,23 +209,10 @@ function main_diamond()
                 errs = []
                 for disorder_no in disorder_nos
                     println("Analysing Error for disorder $disorder_no")
-                    boundarympsratio_corrs = files_to_corrs_V2(nv, annealing_time, tns_bond_dimension, disorder_no, no_jobs, no_corrs_per_job, "nx$(nx)ny$(ny)nz$(nz)"; max_loop_length)
+                    boundarympsratio_corrs = files_to_corrs_diamond(nv, annealing_time, tns_bond_dimension, disorder_no, no_jobs, no_corrs_per_job, "nx$(nx)ny$(ny)nz$(nz)"; max_loop_length)
                     q_sq = mean([x*x for x in boundarympsratio_corrs])
                     @show q_sq
-
-                    #mps_file_name = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/MPS/diamond_($(nx)_$(ny)_$(nz))_precision256/$(annealing_time)ns/chi$(mps_bond_dimension)/correlations_uppertriangular_20_seeds.npz"
-                    #mps_file = npzread(mps_file_name)
-                    #mps_corrs = mps_file["corrs"][disorder_no, :]
-                    #err = correlation_error(mps_corrs, boundarympsratio_corrs)
-                    #push!(errs, err)
-
-                    #sorted_corrs = reverse(sort([(i, abs(corr - mps_corrs[i])) for (i, corr) in enumerate(boundarympsratio_corrs)]; by = x -> last(x)))
-
-                    #@show first(sorted_corrs)
-                    #@show mps_corrs[first(first(sorted_corrs))]
                 end
-                #@show mean(errs)
-                #@show Statistics.std(errs)
             end
         end
     end
@@ -278,8 +297,6 @@ function main_cubic()
         end
     end
 end
-
-
 
 
 main_diamond()

@@ -52,7 +52,7 @@ using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_grap
 using TensorOperations
 
 using ITensors
-using ITensors: Index, ITensor, inner, itensor, apply, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str
+using ITensors: Index, ITensor, datatype, inner, itensor, apply, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str
 using ITensorMPS
 
 using ITensorNetworks
@@ -74,6 +74,8 @@ using ITensorNetworks:
     VidalITensorNetwork,
     expect,
     default_cache_construction_kwargs,
+    delete_messages!,
+    delete_messages,
     cache,
     norm_sqr_network,
     update,
@@ -116,14 +118,12 @@ using ITensorNetworks:
     edge_tag,
     default_edge_sequence,
     default_bp_maxiter,
-    default_message_update,
-    default_message,
     tree_orthogonalize,
     gauge_walk,
     maxlinkdim,
     default_cache_construction_kwargs
 
-
+using Adapt: adapt
 
 
 using ITensorNetworks.ITensorsExtensions: map_eigvals

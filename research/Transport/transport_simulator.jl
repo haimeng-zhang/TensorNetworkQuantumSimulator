@@ -23,6 +23,8 @@ using MKL
 using LinearAlgebra
 using NPZ
 
+using JLD2
+
 using Statistics
 
 BLAS.set_num_threads(min(6, Sys.CPU_THREADS))
@@ -154,7 +156,7 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
 
     @show length(a_vertices)
     @show length(b_vertices)
-    @assert all([isempty(intersect(neighbors(g, v), a_vertices)) for v in a_vertices])
+    #@assert all([isempty(intersect(neighbors(g, v), a_vertices)) for v in a_vertices])
 
     ρ = sqrt_high_temperature_initial_state(sphysical, sancilla, mu, v -> v ∈ bottom_half_vertices)
     ρρ = build_bp_cache(ρ)
@@ -180,11 +182,12 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
         append!(layer, _layer)
     end
 
-    no_trotter_steps = 10000
+    no_trotter_steps = 1000
+    ρ_save_steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
     measure_freq = 1
 
     t = 0
-    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/BPMeasurements/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
@@ -220,6 +223,12 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
 
             npzwrite(file_name, bp_mags = bp_mags, rows = rows,mags_vs_row = mags_vs_row, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
         end
+
+        if i ∈ ρ_save_steps
+            file_name = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/DensityMatrices/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)*"TimeStep"*string(i)*".jld2"
+            jldsave(file_name, density_matrix = ρ)
+        end
+            
         flush(stdout)
         t += δt
     end
@@ -394,7 +403,7 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
 end
 
 mode, lattice, χ, ny, mu, δt, J, seed = ARGS[1], ARGS[2], parse(Int64, ARGS[3]), parse(Int64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6]), parse(Float64, ARGS[7]), parse(Int64, ARGS[8])
-#mode, lattice, χ, ny, mu, δt, J, seed = "HeisenbergSqrt", "Hexagonal", 64, 40, 0.1, 0.1, 1.0, 1
+#mode, lattice, χ, ny, mu, δt, J, seed = "HeisenbergSqrt", "Square", 4, 10, 0.1, 0.1, 1.0, 1
 mode == "HeisenbergSqrt" && main_heisenberg_sqrt(lattice, seed, χ, ny, mu, δt, J)
 mode == "Heisenberg" && main_heisenberg(lattice, seed, χ, ny, mu, δt, J)
 mode == "Schrodinger" && main_schrodinger(lattice, seed, χ, ny, mu, δt, J)
