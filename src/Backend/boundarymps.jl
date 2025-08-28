@@ -25,8 +25,8 @@ default_cache_update_kwargs(alg::Algorithm"boundarymps") = default_boundarymps_u
 
 ITensorNetworks.default_update_alg(bmpsc::BoundaryMPSCache) = "bp"
 function ITensorNetworks.set_default_kwargs(alg::Algorithm"bp", bmpsc::BoundaryMPSCache)
-    maxiter = is_tree(partitioned_graph(ppg(bmpsc))) ? 1 : nothing
-    edge_sequence = pair.(default_edge_sequence(ppg(bmpsc)))
+    maxiter = get(alg.kwargs, :maxiter, is_tree(partitioned_graph(ppg(bmpsc))) ? 1 : nothing)
+    edge_sequence = get(alg.kwargs, :edge_sequence, pair.(default_edge_sequence(ppg(bmpsc))))
     verbose = get(alg.kwargs, :verbose, false)
     tol = get(alg.kwargs, :tol, nothing)
     message_update_alg = ITensorNetworks.set_default_kwargs(get(alg.kwargs, :message_update_alg, Algorithm(ITensorNetworks.default_message_update_alg(is_flat(bmpsc)))))
