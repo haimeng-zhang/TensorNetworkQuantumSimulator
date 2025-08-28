@@ -23,6 +23,9 @@ Pre-Defined Two qubit gates (brackets indicates the optional rotation angle para
 
 If the user wants to instead define a custom gate, they can do so by creating the corresponding `ITensor` which acts on the physical indices for the qubit or pair of qubits they wish it to apply to.
 
+## GPU Support
+GPU support is enabled. Simply load in the relevant GPU Julia module (Metal.jl or CUDA.jl for example) and transform the tensor network, beliefpropagationcache or boundarympscache with `ψ = CUDA.cu(ψ)` and then perform the desired operation e.g. `sample_directly_certified(ψ. 10; norm_message_rank = 10)` and it will run on GPU. Dramatic speedups are seen on NVidia GPUs for moderate to large bond dimension states. 
+
 ## Relevant Literature
 - [Simulating and sampling quantum circuits with 2D tensor networks](https://arxiv.org/abs/2507.11424)
 - [Gauging tensor networks with belief propagation](https://www.scipost.org/SciPostPhys.15.6.222?acad_field_slug=chemistry)
