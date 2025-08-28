@@ -1,5 +1,5 @@
 const _default_apply_kwargs =
-    (maxdim = Inf, cutoff = 1e-10, normalize = true)
+    (maxdim = Inf, cutoff = 1e-10, normalize_tensors = true)
 
 """
     ITensors.apply(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
@@ -14,7 +14,7 @@ function ITensors.apply(
     bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     kwargs...,
 )
-    ψψ = build_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs)
+    ψψ = build_normsqr_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs)
     ψ, ψψ, truncation_errors = apply(circuit, ψ, ψψ; kwargs...)
     return ψ, truncation_errors
 end
@@ -26,8 +26,9 @@ function ITensors.apply(
     ψψ::BeliefPropagationCache;
     kwargs...,
 )
+    gate_vertices = [_tovec(gate[2]) for gate in circuit]
     circuit = toitensor(circuit, siteinds(ψ))
-    return apply(circuit, ψ, ψψ; kwargs...)
+    return apply(circuit, ψ, ψψ; gate_vertices, kwargs...)
 end
 
 """
@@ -40,6 +41,7 @@ function ITensors.apply(
     circuit::AbstractVector{<:ITensor},
     ψ::ITensorNetwork,
     ψψ::BeliefPropagationCache;
+    gate_vertices = [ITensorNetworks.neighbor_vertices(ψ, gate) for gate in circuit],
     apply_kwargs = _default_apply_kwargs,
     bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     update_cache = true,
@@ -80,7 +82,7 @@ function ITensors.apply(
         end
 
         # actually apply the gate
-        t = @timed ψ, ψψ, truncation_errors[ii] = apply!(gate, ψ, ψψ; apply_kwargs)
+        t = @timed ψ, ψψ, truncation_errors[ii] = apply!(gate, ψ, ψψ; v⃗ = gate_vertices[ii], apply_kwargs)
         affected_indices = union(affected_indices, Set(inds(gate)))
 
         if verbose
@@ -91,7 +93,9 @@ function ITensors.apply(
 
     end
 
-    ψψ = updatecache(ψψ; bp_update_kwargs...)
+    if update_cache
+        ψψ = updatecache(ψψ; bp_update_kwargs...)
+    end
 
     return ψ, ψψ, truncation_errors
 end
@@ -109,7 +113,7 @@ function ITensors.apply(
     bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
 )
     ψ, ψψ, truncation_error =
-        apply(gate, ψ, build_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs); apply_kwargs)
+        apply(gate, ψ, build_normsqr_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs); apply_kwargs, update_cache = false)
     # because the cache is not passed, we return the state only
     return ψ, truncation_error
 end
@@ -123,17 +127,10 @@ function ITensors.apply(
     gate::Tuple,
     ψ::ITensorNetwork,
     ψψ::BeliefPropagationCache;
-    apply_kwargs = _default_apply_kwargs,
-    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ))
+    kwargs...
 )
-    ψ, ψψ, truncation_error = apply(
-        toitensor(gate, siteinds(ψ)),
-        ψ,
-        ψψ;
-        apply_kwargs,
-    )
-    ψψ = updatecache(ψψ; bp_update_kwargs...)
-    return ψ, ψψ, truncation_error
+    v⃗ = gate[2]
+    return apply(toitensor(gate, siteinds(ψ)), ψ, ψψ; v⃗, kwargs...)
 end
 
 """
@@ -144,10 +141,17 @@ Apply a single gate in the form of an ITensor to the network with a pre-initiali
 function ITensors.apply(gate::ITensor,
     ψ::AbstractITensorNetwork,
     ψψ::BeliefPropagationCache;
+    v⃗ = ITensorNetworks.neighbor_vertices(ψ, gate),
     apply_kwargs = _default_apply_kwargs,
+    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
+    kwargs...
 )
     ψ, ψψ = copy(ψ), copy(ψψ)
-    return apply!(gate, ψ, ψψ; apply_kwargs)
+    ψ, ψψ, err = apply!(gate, ψ, ψψ; v⃗, apply_kwargs, kwargs...)
+
+    if update_cache
+        ψψ = updatecache(ψψ; bp_update_kwargs...)
+    end
 end
 
 #Apply function for a single gate. All apply functions will pass through here
@@ -155,12 +159,11 @@ function apply!(
     gate::ITensor,
     ψ::AbstractITensorNetwork,
     ψψ::BeliefPropagationCache;
+    v⃗ = ITensorNetworks.neighbor_vertices(ψ, gate),
     apply_kwargs = _default_apply_kwargs,
 )
     # TODO: document each line
-
-    vs = neighbor_vertices(ψ, gate)
-    envs = length(vs) == 1 ? nothing : incoming_messages(ψψ, PartitionVertex.(vs))
+    envs = length(v⃗) == 1 ? nothing : incoming_messages(ψψ, PartitionVertex.(v⃗))
 
     err = 0.0
     s_values = ITensor(1.0)
@@ -171,10 +174,10 @@ function apply!(
     end
 
     # this is the only call to a lower-level apply that we currently do.
-    ψ = ITensorNetworks.apply(gate, ψ; envs, callback, apply_kwargs...)
+    ψ = ITensorNetworks.apply(gate, ψ; v⃗, envs, callback, apply_kwargs...)
 
-    if length(vs) == 2
-        v1, v2 = vs
+    if length(v⃗) == 2
+        v1, v2 = v⃗
         setindex_preserve_graph!(ψ, noprime(ψ[v1]), v1)
         setindex_preserve_graph!(ψ, noprime(ψ[v2]), v2)
         pe = partitionedge(ψψ, (v1, "bra") => (v2, "bra"))
@@ -186,7 +189,7 @@ function apply!(
         set_message!(ψψ, pe, dag.(ITensor[s_values]))
         set_message!(ψψ, reverse(pe), ITensor[s_values])
     end
-    for v in vs
+    for v in v⃗
         setindex_preserve_graph!(ψψ, ψ[v], (v, "ket"))
         setindex_preserve_graph!(ψψ, prime(dag(ψ[v])), (v, "bra"))
     end
@@ -201,3 +204,41 @@ function _cacheupdate_check(affected_indices::Set, gate::ITensor)
     length(indices) == 4 && any(ind in affected_indices for ind in indices) && return true
     return false
 end
+
+function ITensors.apply(
+    o::ITensor,
+    ψ::AbstractITensorNetwork;
+    v⃗ = ITensorNetworks.neighbor_vertices(ψ, o),
+    envs=ITensor[],
+    normalize_tensors=false,
+    callback=Returns(nothing),
+    apply_kwargs...,
+  )
+    ψ = copy(ψ)
+    if length(v⃗) == 1
+      oψᵥ = apply(o, ψ[v⃗[1]])
+      if normalize_tensors
+        oψᵥ ./= norm(oψᵥ)
+      end
+      setindex_preserve_graph!(ψ, oψᵥ, v⃗[1])
+    elseif length(v⃗) == 2
+      envs = Vector{ITensor}(envs)
+      is_product_env = iszero(ITensorNetworks.ne(ITensorNetwork(envs)))
+      e = v⃗[1] => v⃗[2]
+      if !has_edge(ψ, e)
+        error("Vertices where the gates are being applied must be neighbors for now.")
+      end
+      ψᵥ₁, ψᵥ₂ = ITensorNetworks.simple_update_bp(o, ψ, v⃗; envs, callback, apply_kwargs...)
+      if normalize_tensors
+        ψᵥ₁ ./= norm(ψᵥ₁)
+        ψᵥ₂ ./= norm(ψᵥ₂)
+      end
+      setindex_preserve_graph!(ψ, ψᵥ₁, v⃗[1])
+      setindex_preserve_graph!(ψ, ψᵥ₂, v⃗[2])
+    elseif length(v⃗) < 1
+      error("Gate being applied does not share indices with tensor network.")
+    elseif length(v⃗) > 2
+      error("Gates with more than 2 sites is not supported yet.")
+    end
+    return ψ
+  end

@@ -72,7 +72,7 @@ function sim_edgeinduced_subgraph(bpc::BeliefPropagationCache, eg)
                 row_inds, col_inds = linds, linds_sim
                 row_combiner, col_combiner = combiner(row_inds), combiner(col_inds)
                 ap =
-                    denseblocks(delta(combinedind(col_combiner), dag(combinedind(row_combiner))))
+                    adapt(datatype(only(message(bpc, pe))))(denseblocks(delta(combinedind(col_combiner), dag(combinedind(row_combiner)))))
                 ap = ap * row_combiner * dag(col_combiner)
                 ap = ap - only(message(bpc, pe)) * mer
                 push!(antiprojectors, ap)

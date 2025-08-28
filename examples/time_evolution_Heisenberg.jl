@@ -24,12 +24,12 @@ function main()
     ψ0 = TN.topaulitensornetwork(init_state, s)
 
     maxdim, cutoff = 4, 1e-14
-    apply_kwargs = (; maxdim, cutoff, normalize = true)
+    apply_kwargs = (; maxdim, cutoff, normalize_tensors = true)
     #Parameters for BP, as the graph is not a tree (it has loops), we need to specify these
 
     ψ = copy(ψ0)
 
-    ψψ = build_bp_cache(ψ)
+    ψψ = build_normsqr_bp_cache(ψ)
 
     h, J = -1.0, -1.0
     no_trotter_steps = 10
@@ -62,8 +62,8 @@ function main()
         println("Frobenius norm of O(t) is $(scalar(ψψ))")
         
         #Take traces
-        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp")
-        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp")
+        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; maxiter = 20))
+        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; maxiter = 20))
         println("Trace(O(t)) is $(tr_ψt)")
         println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
 

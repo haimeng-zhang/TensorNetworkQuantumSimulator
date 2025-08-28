@@ -21,9 +21,9 @@ function main()
     ψ = ITensorNetwork(v -> "Z+", s)
 
     maxdim, cutoff = 4, 1e-14
-    apply_kwargs = (; maxdim, cutoff, normalize = true)
+    apply_kwargs = (; maxdim, cutoff, normalize_tensors = true)
 
-    ψψ = build_bp_cache(ψ)
+    ψψ = build_normsqr_bp_cache(ψ)
     h, J = -1.0, -1.0
     no_trotter_steps = 25
     δt = 0.04

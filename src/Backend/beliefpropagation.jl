@@ -3,17 +3,12 @@ const _default_bp_update_tol = 1e-10
 
 ## Frontend functions
 
-# `default_message_update` lives in ITensorNetworks.jl
-default_posdef_message_update_function(ms) = make_hermitian.(default_message_update(ms))
-
 function default_posdef_bp_update_kwargs(; cache_is_tree = false)
-    message_update_function = default_posdef_message_update_function
-    return (; maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function))
+    return (; maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_alg = Algorithm("posdef_contract"))
 end
 
 function default_nonposdef_bp_update_kwargs(; cache_is_tree = false)
-    message_update_function = default_message_update
-    return (;  maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function))
+    return (;  maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_alg = Algorithm("contract"))
 end
 
 function default_bp_update_maxiter(cache_is_tree::Bool = false)
@@ -21,22 +16,36 @@ function default_bp_update_maxiter(cache_is_tree::Bool = false)
     return 1
 end
 
+function ITensorNetworks.updated_message(
+    alg::Algorithm"posdef_contract", bpc::AbstractBeliefPropagationCache, edge::PartitionEdge
+  )
+    updated_messages = updated_message(Algorithm("contract"; alg.kwargs...), bpc, edge)
+    return make_hermitian.(updated_messages)
+end
+
+ITensorNetworks.default_normalize(alg::Algorithm"posdef_contract") = true
+ITensorNetworks.default_sequence_alg(alg::Algorithm"posdef_contract") = "optimal"
+function ITensorNetworks.set_default_kwargs(alg::Algorithm"posdef_contract")
+    normalize = get(alg.kwargs, :normalize, ITensorNetworks.default_normalize(alg))
+    sequence_alg = get(alg.kwargs, :sequence_alg, ITensorNetworks.default_sequence_alg(alg))
+    return Algorithm("posdef_contract"; normalize, sequence_alg)
+end
+
 """
     updatecache(bp_cache::BeliefPropagationCache; maxiter::Int64, tol::Number, message_update_kwargs = (; message_update_function = default_message_update))
 
 Update the message tensors inside a bp-cache, running over the graph up to maxiter times until convergence to the desired tolerance `tol`.
-If the cache is positive definite, the message update function can
 """
-function updatecache(bp_cache; maxiter=default_bp_update_maxiter(is_tree(partitioned_graph(bp_cache))), tol=_default_bp_update_tol, message_update_kwargs=(; message_update_function=default_message_update))
-    return update(bp_cache; maxiter, tol, message_update_kwargs)
+function updatecache(bp_cache; maxiter=default_bp_update_maxiter(is_tree(partitioned_graph(bp_cache))), tol=_default_bp_update_tol, kwargs...)
+    return update(bp_cache; maxiter, tol, kwargs...)
 end
 
 """
-    build_bp_cache(ψ::ITensorNetwork, args...; kwargs...)
+    build_normsqr_bp_cache(ψ::ITensorNetwork, args...; kwargs...)
 
 Build the tensornetwork and cache of message tensors for the norm square network `ψIψ`.
 """
-function build_bp_cache(
+function build_normsqr_bp_cache(
     ψ::AbstractITensorNetwork,
     args...;
     update_cache=true,
@@ -146,7 +155,7 @@ function entanglement(
     (cache!)=nothing,
     cache_update_kwargs=default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
 )
-    cache = isnothing(cache!) ? build_bp_cache(ψ; cache_update_kwargs) : cache![]
+    cache = isnothing(cache!) ? build_normsqr_bp_cache(ψ; cache_update_kwargs) : cache![]
     ψ_vidal = VidalITensorNetwork(ψ; cache)
     bt = ITensorNetworks.bond_tensor(ψ_vidal, e)
     ee = 0

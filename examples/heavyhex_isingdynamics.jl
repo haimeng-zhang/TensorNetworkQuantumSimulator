@@ -6,6 +6,10 @@ const ITN = ITensorNetworks
 
 using Statistics
 
+using NamedGraphs: NamedGraphs, neighbors
+
+using ITensors: ITensor, ITensors
+
 function main()
     #Define the lattice
     g = TN.heavy_hexagonal_lattice(5,5)
@@ -37,7 +41,7 @@ function main()
     ψt = ITensorNetwork(v -> "↑", s)
 
     #BP cache for norm of the network
-    ψψ = build_bp_cache(ψt)
+    ψψ = build_normsqr_bp_cache(ψt)
 
     #Do the evolution
     fidelities = []
@@ -63,11 +67,11 @@ function main()
     message_rank = 10
     sz_bmps = expect(ψt, [("Z", [central_site])]; alg = "boundarymps", message_rank)
 
-    println("Boundary MPS measured magnetisation on central site with rank $(message_rank) MPSs is $(only(sz_bp))")
+    println("Boundary MPS measured magnetisation on central site with rank $(message_rank) MPSs is $(only(sz_bmps))")
 
     #Sample from q(x) and get p(x) / q(x) for each sample too
     nsamples = 100
-    bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 8)
+    bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = 12)
 
     st_dev = Statistics.std(first.(bitstrings))
     println("Standard deviation of p(x) / q(x) is $(st_dev)")

@@ -22,7 +22,7 @@ include("sample.jl")
 
 export
     updatecache,
-    build_bp_cache,
+    build_normsqr_bp_cache,
     vertices,
     edges,
     apply,
@@ -34,7 +34,7 @@ export
     fidelity_boundarymps,
     fidelity_loopcorrect,
     make_hermitian,
-    build_boundarymps_cache,
+    build_normsqr_bp_cache,
     truncate,
     maxlinkdim,
     siteinds,
