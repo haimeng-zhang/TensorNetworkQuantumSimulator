@@ -62,8 +62,8 @@ function main()
         println("Frobenius norm of O(t) is $(scalar(ψψ))")
         
         #Take traces
-        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; maxiter = 10))
-        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; maxiter = 10))
+        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; maxiter = 20))
+        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; maxiter = 20))
         println("Trace(O(t)) is $(tr_ψt)")
         println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
 

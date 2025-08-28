@@ -41,7 +41,7 @@ function main()
 
     # max bond dimension for the TN
     # we will use enough and just see how
-    apply_kwargs = (maxdim = 5, cutoff = 1e-10, normalize = false)
+    apply_kwargs = (maxdim = 5, cutoff = 1e-10, normalize_tensors = false)
 
     # evolve! The first evaluation will take significantly longer because of compilation.
     for l = 1:nl
