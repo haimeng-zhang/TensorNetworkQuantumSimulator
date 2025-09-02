@@ -526,7 +526,14 @@ end
 
 function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
     is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
-    is_simple_mpo && return ITensorMPS.apply(O, M; kwargs...)
+
+    if is_simple_mpo
+        out = ITensorMPS.apply(O, M; alg = "naive", kwargs...)
+        if normalize
+            out = ITensors.normalize(out)
+        end
+        return out
+    end
 
     O_tensors = ITensor[]
     for i in 1:length(O)
@@ -548,7 +555,8 @@ function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
         for v in inbetween_vertices
             edge_to_split_ind = only(linkinds(O, edge_to_split))
             O = ITensorNetworks.split_index(O, [edge_to_split])
-            O[v] *= delta(edge_to_split_ind, edge_to_split_ind')
+            d = adapt(datatype(O[v]))(denseblocks(delta(edge_to_split_ind, edge_to_split_ind')))
+            O[v] *= d
             edge_to_split = NamedEdge(v => maximum((src(e), dst(e))))
         end
     end
