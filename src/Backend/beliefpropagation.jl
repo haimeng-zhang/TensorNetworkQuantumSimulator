@@ -1,5 +1,5 @@
 const _default_bp_update_maxiter = 25
-const _default_bp_update_tol = 1e-10
+const _default_bp_update_tol = 1e-7
 
 ## Frontend functions
 
@@ -9,6 +9,10 @@ end
 
 function default_nonposdef_bp_update_kwargs(; cache_is_tree = false)
     return (;  maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_alg = Algorithm("contract"))
+end
+
+function default_square_bp_update_kwargs(; cache_is_tree = false)
+    return (;  maxiter=default_bp_update_maxiter(cache_is_tree), tol=_default_bp_update_tol, message_update_alg = Algorithm("squarebp"))
 end
 
 function default_bp_update_maxiter(cache_is_tree::Bool = false)
@@ -171,6 +175,10 @@ function make_hermitian(A::ITensor)
     return (A + ITensors.swapind(conj(A), first(A_inds), last(A_inds))) / 2
 end
 
+function ITensorNetworks.ket_network(bpc::AbstractBeliefPropagationCache)
+    return ket_network(tensornetwork(bpc))
+end
+
 #Calculate the correlation flowing around single loop of the bp cache via an eigendecomposition
 function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:PartitionEdge}, target_pe::PartitionEdge)
 
@@ -226,4 +234,36 @@ function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Int;
         corrs = append!(corrs, loop_correlation(bpc, PartitionEdge.(loop[1:(length(loop)-1)]), reverse(PartitionEdge(last(loop))); kwargs...))
     end
     return corrs
+end
+
+default_normalize(::Algorithm"squarebp") = true
+default_sequence_alg(::Algorithm"squarebp") = "optimal"
+function ITensorNetworks.set_default_kwargs(alg::Algorithm"squarebp")
+    normalize = get(alg.kwargs, :normalize, default_normalize(alg))
+    sequence_alg = get(alg.kwargs, :sequence_alg, default_sequence_alg(alg))
+    return Algorithm("squarebp"; normalize, sequence_alg)
+end
+
+function initialize_square_bp_messages!(bpc::BeliefPropagationCache)
+    dtype = datatype(tensornetwork(bpc))
+    for pe in vcat(partitionedges(bpc), reverse.(partitionedges(bpc)))
+        lind = only(ITensorNetworks.linkinds(bpc, pe))
+        m = adapt(dtype, denseblocks(delta(lind, dag(lind)')))
+        ITensorNetworks.set_message!(bpc, pe, ITensor[m])
+    end
+end
+
+function ITensorNetworks.updated_message(alg::Algorithm"squarebp", bpc::AbstractBeliefPropagationCache, edge::PartitionEdge)
+    vertex = src(edge)
+    incoming_ms = ITensorNetworks.incoming_messages(bpc, vertex; ignore_edges = PartitionEdge[reverse(edge)])
+    state = only(ITensorNetworks.factors(bpc, vertex))
+    state_dag = noprime(dag(prime(state)), tags = "Site")
+    contract_list = ITensor[incoming_ms; [state, state_dag]]
+    sequence = ITensorNetworks.contraction_sequence(contract_list; alg = alg.kwargs.sequence_alg)
+    m = make_hermitian(ITensors.contract(contract_list; sequence))
+    message_norm = norm(m)
+    if alg.kwargs.normalize && !iszero(message_norm)
+        m /= message_norm
+    end
+    return ITensor[m]
 end

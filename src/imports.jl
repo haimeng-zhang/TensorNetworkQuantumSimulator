@@ -68,6 +68,7 @@ using ITensorNetworks:
     IndsNetwork,
     ITensorNetwork,
     inner_network,
+    ket_network,
     PartitionVertex,
     PartitionEdge,
     Algorithm,

@@ -29,7 +29,7 @@ function main()
     for (g, g_str) in gs
         println("Testing for $g_str lattice with $(nv(g)) vertices")
         s = siteinds("S=1/2", g)
-        ψ = ITN.random_tensornetwork(ComplexF64, s; link_space = χ)
+        ψ = ITN.random_tensornetwork(ComplexF32, s; link_space = χ)
         s = ITN.siteinds(ψ)
         v_centre = first(G.center(g))
 

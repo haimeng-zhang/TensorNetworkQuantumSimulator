@@ -18,9 +18,9 @@ function main()
 
     nqubits = length(vertices(g))
     s = ITN.siteinds("S=1/2", g)
-    ψ = ITensorNetwork(v -> "Z+", s)
+    ψ = ITensorNetwork(ComplexF32, v -> "↑", s)
 
-    maxdim, cutoff = 4, 1e-14
+    maxdim, cutoff = 4, 1e-10
     apply_kwargs = (; maxdim, cutoff, normalize_tensors = true)
 
     ψψ = build_normsqr_bp_cache(ψ)
@@ -47,12 +47,12 @@ function main()
     χinit = maxlinkdim(ψ)
     println("Initial bond dimension of the state is $χinit")
 
-    expect_sigmaz = real.(expect(ψ, observables; (cache!) = Ref(ψψ)))
+    expect_sigmaz = real.(expect(ψψ, observables))
     println("Initial Sigma Z on selected sites is $expect_sigmaz")
 
     time = 0
 
-    Zs = Float64[]
+    Zs = []
 
     # evolve! The first evaluation will take significantly longer because of compilation.
     for l = 1:no_trotter_steps
@@ -60,14 +60,14 @@ function main()
         println("Layer $l")
 
         # pass BP cache manually
-        t = @timed ψ, ψψ, errors =
-            apply(layer, ψ, ψψ; apply_kwargs, verbose = false);
+        t = @timed ψψ, errors =
+            apply(layer, s, ψψ; apply_kwargs, verbose = false);
 
-        # push expectation to list
-        push!(Zs, only(real(expect(ψ, observables; (cache!) = Ref(ψψ)))))
+        # push BP measured expectation to list
+        push!(Zs, only(real(expect(ψψ, observables))))
 
         # printing
-        println("Took time: $(t.time) [s]. Max bond dimension: $(maxlinkdim(ψ))")
+        println("Took time: $(t.time) [s].")
         println("Maximum Gate error for layer was $(maximum(errors))")
         println("Sigma z on central site is $(last(Zs))")
     end
