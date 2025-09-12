@@ -32,6 +32,7 @@ function ITensors.apply(
     end
     circuit = toitensor(circuit, s)
     circuit = [adapt(ComplexF32, gate) for gate in circuit]
+    circuit = [adapt(unspecify_type_parameters(datatype(bpc)), gate) for gate in circuit]
     return apply_itensors(circuit, bpc; gate_vertices, kwargs...)
 end
 

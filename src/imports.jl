@@ -133,3 +133,5 @@ using EinExprs: Greedy
 
 import PauliPropagation
 const PP = PauliPropagation
+
+using TypeParameterAccessors: unspecify_type_parameters
