@@ -64,7 +64,7 @@ function main()
 
         ψ = ket_network(ψψ)
 
-        sz_boundarymps = expect(ψ,obs;alg = "boundarymps",cache_construction_kwargs = (; message_rank = boundarymps_rank))
+        sz_boundarymps = expect(ψ,obs;alg = "boundarymps", message_rank = boundarymps_rank)
         sz_bp = expect(ψψ,obs)
 
         println("    Took time: $(t1.time) [s]. Max bond dimension: $(maxlinkdim(ψ))")

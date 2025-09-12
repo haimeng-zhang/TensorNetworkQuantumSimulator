@@ -11,15 +11,23 @@ Returns the final state and an approximate list of errors when applying each gat
 function ITensors.apply(
     circuit::AbstractVector,
     ψ::ITensorNetwork;
-    bp_update_kwargs = default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
+    bp_update_kwargs = default_square_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     kwargs...,
 )
-    ψψ = build_normsqr_bp_cache(ψ; cache_update_kwargs = bp_update_kwargs)
-    ψψ, truncation_errors = apply(circuit, siteinds(ψ), ψψ; kwargs...)
-    return ITensorNetworks.ket_network(tensornetwork(ψψ)), truncation_errors
+    ψ_bpc = BeliefPropagationCache(ψ)
+    initialize_square_bp_messages!(ψ_bpc)
+    ψ_bpc = update(ψ_bpc; bp_update_kwargs...)
+    ψ_bpc, truncation_errors = apply(circuit, siteinds(ψ), ψ_bpc; kwargs...)
+    return tensornetwork(ψ_bpc), truncation_errors
 end
 
-#Convert a circuit from [(gate_str, sites_to_act_on, params), ...] form to a Vector{<:ITensors} and then apply 
+"""
+    ITensors.apply(circuit::AbstractVector, s::IndsNetwork, bpc::BeliefPropagationCache; bp_update_kwargs, apply_kwargs = (; maxdim, cutoff))
+
+Apply a circuit to a tensor network by passing the indsnetwork and either the BP cache for the ket network or the norm netwrok.
+The circuit should take the form of a vector of Tuples (gate_str, qubits_to_act_on, optional_param).
+Returns the final state and an approximate list of errors when applying each gate
+"""
 function ITensors.apply(
     circuit::AbstractVector,
     s::IndsNetwork,
