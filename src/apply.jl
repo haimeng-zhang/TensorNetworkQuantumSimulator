@@ -28,6 +28,8 @@ function ITensors.apply(
 )
     gate_vertices = [_tovec(gate[2]) for gate in circuit]
     circuit = toitensor(circuit, siteinds(ψ))
+    circuit = [adapt(ComplexF32, gate) for gate in circuit]
+    circuit = [adapt(unspecify_type_parameters(datatype(ψ)), gate) for gate in circuit]
     return apply(circuit, ψ, ψψ; gate_vertices, kwargs...)
 end
 
@@ -130,7 +132,8 @@ function ITensors.apply(
     kwargs...
 )
     v⃗ = gate[2]
-    return apply(toitensor(gate, siteinds(ψ)), ψ, ψψ; v⃗, kwargs...)
+    t = adapt(unspecify_type_parameters(datatype(ψ)), adapt(ComplexF32, toitensor(gate, siteinds(ψ))))
+    return apply(t, ψ, ψψ; v⃗, kwargs...)
 end
 
 """

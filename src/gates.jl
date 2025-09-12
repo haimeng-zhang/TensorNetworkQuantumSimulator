@@ -20,7 +20,7 @@ end
 
 #Gates which need to have parameter rescaled to match qiskit convention
 function param_rescaling(string::String, param::Number)
-    string ∈ ["Rxx", "Ryy", "Rzz", "Rxxyy", "Rxxyyzz"] && return 0.5 * param
+    string ∈ ["Rxx", "Ryy", "Rzz", "Rxxyy", "Rxxyyzz"] && return param / 2
     return param
 end
 
@@ -50,7 +50,6 @@ function toitensor(gate::Tuple, sinds::IndsNetwork)
     end
 
     return gate
-
 end
 
 
@@ -98,12 +97,12 @@ function _ensuretuple(gate_inds::NamedEdge)
 end
 
 """
-    ITensors.op(::OpName"Rxxyy", ::SiteType"S=1/2"; θ::Float64)
+    ITensors.op(::OpName"Rxxyy", ::SiteType"S=1/2"; θ::Number)
 
 Gate for rotation by XXYY at a given angle
 """
 function ITensors.op(
-    ::OpName"Rxxyy", ::Union{SiteType"S=1/2", SiteType"Qubit"}; θ::Float64
+    ::OpName"Rxxyy", ::Union{SiteType"S=1/2", SiteType"Qubit"}; θ::Number
   )
     mat = zeros(ComplexF64, 4, 4)
     mat[1, 1] = 1
@@ -116,12 +115,12 @@ function ITensors.op(
 end
 
 """
-    ITensors.op(::OpName"Rxxyyzz", ::SiteType"S=1/2"; θ::Float64)
+    ITensors.op(::OpName"Rxxyyzz", ::SiteType"S=1/2"; θ::Number)
 
 Gate for rotation by XXYYZZ at a given angle
 """
 function ITensors.op(
-    ::OpName"Rxxyyzz", ::Union{SiteType"S=1/2", SiteType"Qubit"}; θ::Float64
+    ::OpName"Rxxyyzz", ::Union{SiteType"S=1/2", SiteType"Qubit"}; θ::Number
   )
     a = exp( im * θ * 0.5)
     mat = zeros(ComplexF64, 4, 4)
