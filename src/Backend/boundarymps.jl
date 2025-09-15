@@ -21,6 +21,20 @@ function default_message_update_kwargs(; cache_is_flat = false, cutoff = _defaul
     return (; cutoff = cutoff, kwargs...)
 end
 
+function is_correct_format(bmpsc::BoundaryMPSCache)
+    _ppg = ppg(bmpsc)
+    effective_graph = partitioned_graph(_ppg)
+    if !is_ring_graph(effective_graph) && !is_line_graph(effective_graph)
+        error("Upon partitioning, graph does not form a line or ring: can't run boundary MPS")
+    end
+    for pv in partitionvertices(_ppg)
+        if !is_line_graph(subgraph(_ppg, pv))
+            error("There's a partition that does not form a line: can't run boundary MPS")
+        end   
+    end
+    return true
+end
+
 default_cache_update_kwargs(alg::Algorithm"boundarymps") = default_boundarymps_update_kwargs()
 
 ITensorNetworks.default_update_alg(bmpsc::BoundaryMPSCache) = "bp"
@@ -41,9 +55,11 @@ function ITensorNetworks.set_default_kwargs(alg::Algorithm"orthogonal")
     return Algorithm("orthogonal"; tolerance, niters, normalize)
 end
 
+ITensorNetworks.default_normalize(alg::Algorithm"ITensorMPS") = true
 function ITensorNetworks.set_default_kwargs(alg::Algorithm"ITensorMPS")
     cutoff = get(alg.kwargs, :cutoff, _default_boundarymps_update_cutoff)
-    return Algorithm("ITensorMPS"; cutoff)
+    normalize = get(alg.kwargs, :normalize, ITensorNetworks.default_normalize(alg))
+    return Algorithm("ITensorMPS"; cutoff, normalize)
 end
 
 ## Frontend functions
@@ -240,6 +256,7 @@ function BoundaryMPSCache(
     vertex_groups = map(x -> sort(x; by = group_sorting_function), vertex_groups)
     ppg = PartitionedGraph(planar_graph, vertex_groups)
     bmpsc = BoundaryMPSCache(bpc, ppg, message_rank)
+    @assert is_correct_format(bmpsc)
     set_interpartition_messages!(bmpsc)
     return bmpsc
 end
@@ -497,7 +514,7 @@ function ITensorNetworks.update_message(
           m = extracter(alg, bmpsc, update_pe)
           n = norm(m)
           cf += n
-          if alg.kwargs.normalize 
+          if alg.kwargs.normalize
               m /= n
           end
           inserter!(alg, bmpsc, update_pe, m)
@@ -522,7 +539,6 @@ function prev_partitionpair(bmpsc::BoundaryMPSCache, partitionpair::Pair)
     last(partitionpair) == v1 && return v2 => first(partitionpair)
     last(partitionpair) == v2 && return v1 => first(partitionpair)
 end
-
 
 function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
     is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
@@ -555,8 +571,9 @@ function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
 
     O = ITensorNetworks.combine_linkinds(O)
     @assert is_tree(O)
-    O = ITensorMPS.MPS([O[v] for v in sort(vertices(O))])
-
+    O = ITensorMPS.MPS([O[v] for v in vertices(O)])
+    O = merge_internal_tensors(O)
+    
     if normalize
         O = ITensors.normalize(O)
     end
@@ -575,10 +592,16 @@ function ITensorNetworks.update_message(
     prev_pp = prev_partitionpair(bmpsc, partitionpair)
     O = ITensorMPS.MPO(bmpsc, first(partitionpair))
     O = ITensorMPS.truncate(O; alg.kwargs.cutoff, maxdim)
-    isnothing(prev_pp) && return set_interpartition_message!(bmpsc, merge_internal_tensors(O), partitionpair)
+    if isnothing(prev_pp)
+        O = merge_internal_tensors(O)
+        if alg.kwargs.normalize 
+            O = ITensor.normalize(O)
+        end
+        return set_interpartition_message!(bmpsc, O, partitionpair)
+    end
 
     M = ITensorMPS.MPS(bmpsc, prev_pp)
-    M_out = generic_apply(O, M; alg.kwargs.cutoff, maxdim)
+    M_out = generic_apply(O, M; cutoff = alg.kwargs.cutoff, normalize =  alg.kwargs.normalize, maxdim)
     return set_interpartition_message!(bmpsc, M_out, partitionpair)
 end
 
