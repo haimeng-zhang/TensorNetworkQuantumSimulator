@@ -68,6 +68,7 @@ using ITensorNetworks:
     IndsNetwork,
     ITensorNetwork,
     inner_network,
+    ket_network,
     PartitionVertex,
     PartitionEdge,
     Algorithm,
@@ -132,3 +133,5 @@ using EinExprs: Greedy
 
 import PauliPropagation
 const PP = PauliPropagation
+
+using TypeParameterAccessors: unspecify_type_parameters

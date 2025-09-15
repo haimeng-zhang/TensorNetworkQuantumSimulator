@@ -38,20 +38,22 @@ function main()
     apply_kwargs = (; cutoff = 1e-12, maxdim = χ)
 
     #Initial state
-    ψt = ITensorNetwork(v -> "↑", s)
+    ψ = ITensorNetwork(ComplexF32, v -> "↑", s)
 
     #BP cache for norm of the network
-    ψψ = build_normsqr_bp_cache(ψt)
+    ψψ = build_normsqr_bp_cache(ψ)
 
     #Do the evolution
     fidelities = []
     for i in 1:no_trotter_steps
         println("Applying gates for Trotter Step $(i)")
-        ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
+        ψψ, errs = apply(layer, ψψ; apply_kwargs)
         fidelity = prod(1.0 .- errs)
         println("Layer fidelity was $(fidelity)")
         push!(fidelities, fidelity)
     end
+
+    ψ = ket_network(ψψ)
 
     println("Total final fidelity is $(prod(fidelities))")
     ntwo_site_gates = length(edges(g)) * no_trotter_steps
@@ -60,18 +62,18 @@ function main()
     central_site = (11,5)
 
     #Use BP to get an observable
-    sz_bp = expect(ψt, [("Z", [central_site])]; alg = "bp")
+    sz_bp = expect(ψ, [("Z", [central_site])]; alg = "bp")
     println("BP measured magnetisation on central site is $(only(sz_bp))")
 
     #Use boundary MPS to get same observab;e
-    message_rank = 5
-    sz_bmps = expect(ψt, [("Z", [central_site])]; alg = "boundarymps", message_rank)
+    message_rank = 10
+    sz_bmps = expect(ψ, [("Z", [central_site])]; alg = "boundarymps", message_rank)
 
     println("Boundary MPS measured magnetisation on central site with rank $(message_rank) MPSs is $(only(sz_bmps))")
 
     #Sample from q(x) and get p(x) / q(x) for each sample too
     nsamples = 250
-    bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank = message_rank)
+    bitstrings = TN.sample_directly_certified(ψ, nsamples; norm_message_rank = message_rank)
 
     st_dev = Statistics.std(first.(bitstrings))
     println("Standard deviation of p(x) / q(x) is $(st_dev)")

@@ -34,6 +34,7 @@ export
     fidelity_boundarymps,
     fidelity_loopcorrect,
     make_hermitian,
+    ket_network,
     build_normsqr_bp_cache,
     truncate,
     maxlinkdim,

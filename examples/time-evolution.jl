@@ -24,7 +24,12 @@ function main()
     layer = []
     append!(layer, ("Rx", [v], 2*hx*dt) for v in vertices(g))
     append!(layer, ("Rz", [v], 2*hz*dt) for v in vertices(g))
-    append!(layer, ("Rzz", pair, 2*J*dt) for pair in edges(g));
+
+    #For two site gates do an edge coloring to Trotterise the circuit
+    ec = edge_color(g, 4)
+    for colored_edges in ec
+        append!(layer, ("Rzz", pair, 2*J*dt) for pair in colored_edges)
+    end
 
     # observables are tuples like `(pauli_string, [site_labels], optional:coefficient)`
     # it's important that the `site_labels` match the names of the vertices of the graph `g`
@@ -33,74 +38,40 @@ function main()
     # the number of circuit layers
     nl = 20
 
-    # the initial state
-    ψ = zerostate(g)
-
-    # an array to keep track of expectations
-    expectations = Float64[real(expect(ψ, obs))]
+    #The inds network
+    s = siteinds("S=1/2", g)
+    # the initial state (all up, use Float 32 precision)
+    ψ0 = ITensorNetwork(ComplexF32, v -> "↑", s)
 
     # max bond dimension for the TN
-    # we will use enough and just see how
     apply_kwargs = (maxdim = 5, cutoff = 1e-10, normalize_tensors = false)
 
-    # evolve! The first evaluation will take significantly longer because of compilation.
-    for l = 1:nl
-        #printing
-        println("Layer $l")
+    # create the BP cache representing the square of the tensor network
+    ψψ = build_normsqr_bp_cache(ψ0)
 
-        # apply layer
-        t = @timed ψ, errors = apply(layer, ψ; apply_kwargs);
+    # an array to keep track of expectations taken via two methods
+    expectations_boundarymps = [real(expect(ψψ, obs))]
+    expectations_bp = [real(expect(ψ0, obs))]
 
-        # push expectation to list
-        push!(expectations, real(expect(ψ, obs)))
-
-        # printing
-        println("    Took time: $(t.time) [s]. Max bond dimension: $(maxlinkdim(ψ))")
-        println("    Maximum Gate error for layer was $(maximum(errors))")
-    end
-
-
-    ## A few more advanced options
-    # we will still do exactly the same evolution but also do boundary mps for expectation values
-
-    # the initial state
-    ψ = zerostate(g)
-
-    # create the BP cache manually
-    ψψ = build_normsqr_bp_cache(ψ)
-
-    # an array to keep track of expectations
-    expectations_advanced = Float64[real(expect(ψ, obs))]
     boundarymps_rank = 4
 
-    # evolve! The first evaluation will take significantly longer because of compulation.
+    # evolve! (First step takes long due to compilation)
     for l = 1:nl
         println("Layer $l")
 
-        # pass BP cache manually
-        t1 = @timed ψ, ψψ, errors =
-            apply(layer, ψ, ψψ; apply_kwargs, verbose = false);
+        t1 = @timed ψψ, errors =
+            apply(layer, ψψ; apply_kwargs, verbose = false);
 
-        ## could also update outside 
-        # t2 = @timed ψψ = updatecache(ψψ)
+        ψ = ket_network(ψψ)
 
-        # push expectation to list
-        # pass the cache instead of the state so that things don't have to update over and over
-        push!(
-            expectations_advanced,
-            real(
-                expect(
-                    ψ,
-                    obs;
-                    alg = "boundarymps",
-                    cache_construction_kwargs = (; message_rank = boundarymps_rank),
-                ),
-            ),
-        )  # with some boundary mps correction
-
+        sz_boundarymps = expect(ψ,obs;alg = "boundarymps", message_rank = boundarymps_rank)
+        sz_bp = expect(ψψ,obs)
 
         println("    Took time: $(t1.time) [s]. Max bond dimension: $(maxlinkdim(ψ))")
         println("    Maximum Gate error for layer was $(maximum(errors))")
+
+        println("    BP Measured Sigmaz is $(sz_bp)")
+        println("    Boundary MPS Measured Sigmaz is $(sz_boundarymps)")
     end
 end
 
