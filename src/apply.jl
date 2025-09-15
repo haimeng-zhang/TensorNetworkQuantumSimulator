@@ -17,7 +17,7 @@ function ITensors.apply(
     ψ_bpc = BeliefPropagationCache(ψ)
     initialize_square_bp_messages!(ψ_bpc)
     ψ_bpc = update(ψ_bpc; bp_update_kwargs...)
-    ψ_bpc, truncation_errors = apply(circuit, siteinds(ψ), ψ_bpc; kwargs...)
+    ψ_bpc, truncation_errors = apply(circuit, ψ_bpc; kwargs...)
     return tensornetwork(ψ_bpc), truncation_errors
 end
 
@@ -30,8 +30,8 @@ Returns the final state and an approximate list of errors when applying each gat
 """
 function ITensors.apply(
     circuit::AbstractVector,
-    s::IndsNetwork,
-    bpc::BeliefPropagationCache;
+    bpc::BeliefPropagationCache,
+    s::IndsNetwork = siteinds(bpc);
     kwargs...,
 )
     gate_vertices = [_tovec(gate[2]) for gate in circuit]
@@ -41,13 +41,13 @@ function ITensors.apply(
     circuit = toitensor(circuit, s)
     circuit = [adapt(ComplexF32, gate) for gate in circuit]
     circuit = [adapt(unspecify_type_parameters(datatype(bpc)), gate) for gate in circuit]
-    return apply_itensors(circuit, bpc; gate_vertices, kwargs...)
+    return apply(circuit, bpc, gate_vertices; kwargs...)
 end
 
-function apply_itensors(
-    circuit::AbstractVector{<:ITensor},
-    ψ_bpc::BeliefPropagationCache;
-    gate_vertices = [ITensorNetworks.neighbor_vertices(ψ_bpc, gate) for gate in circuit],
+function ITensors.apply(
+    circuit::Vector{<:ITensor},
+    ψ_bpc::BeliefPropagationCache,
+    gate_vertices = [ITensorNetworks.neighbor_vertices(ψ_bpc, gate) for gate in circuit];
     apply_kwargs = _default_apply_kwargs,
     bp_update_kwargs = is_flat(ψ_bpc) ? default_square_bp_update_kwargs(; cache_is_tree = is_tree(ψ_bpc)) : default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ_bpc)),
     update_cache = true,

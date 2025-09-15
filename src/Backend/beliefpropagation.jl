@@ -267,3 +267,8 @@ function ITensorNetworks.updated_message(alg::Algorithm"squarebp", bpc::Abstract
     end
     return ITensor[m]
 end
+
+function ITensorNetworks.siteinds(bpc::BeliefPropagationCache)
+    is_flat(bpc) && return siteinds(tensornetwork(bpc))
+    return siteinds(ket_network(bpc))
+end

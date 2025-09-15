@@ -56,7 +56,7 @@ function main()
 
         #Apply the circuit
         t = @timed ψψ, errors =
-            apply(layer, s, ψψ; apply_kwargs, verbose = false);
+            apply(layer, ψψ; apply_kwargs, verbose = false);
         #Reset the Frobenius norm to unity
         ψψ = TN.rescale(ψψ)
         println("Frobenius norm of O(t) is $(scalar(ψψ))")

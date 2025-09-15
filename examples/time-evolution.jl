@@ -60,7 +60,7 @@ function main()
         println("Layer $l")
 
         t1 = @timed ψψ, errors =
-            apply(layer, s, ψψ; apply_kwargs, verbose = false);
+            apply(layer, ψψ; apply_kwargs, verbose = false);
 
         ψ = ket_network(ψψ)
 
