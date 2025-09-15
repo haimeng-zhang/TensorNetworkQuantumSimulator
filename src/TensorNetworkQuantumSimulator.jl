@@ -21,12 +21,11 @@ include("sample.jl")
 
 
 export
-    apply,
     updatecache,
     build_normsqr_bp_cache,
     vertices,
     edges,
-    apply,
+    apply_gates,
     truncate,
     expect,
     expect_boundarymps,
