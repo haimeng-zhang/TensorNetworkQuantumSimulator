@@ -21,6 +21,7 @@ include("sample.jl")
 
 
 export
+    apply,
     updatecache,
     build_normsqr_bp_cache,
     vertices,
