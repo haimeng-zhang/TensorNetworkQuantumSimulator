@@ -1,15 +1,21 @@
 const _default_apply_kwargs =
     (maxdim = Inf, cutoff = 1e-10, normalize_tensors = true)
 
-"""
-    TensorNetworkQuantumSimulator.apply(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
+function collect_gate_vertices(circuit::Vector{<:ITensor}, bpc::BeliefPropagationCache)
+    is_flat(bpc) && return ITensorNetworks.neighbor_vertices.((bpc, ), circuit)
+    gate_vertices = ITensorNetworks.neighbor_vertices.((ket_network(bpc), ), circuit)
+    return [[(v, "ket") for v in _gate_vertices] for _gate_vertices in gate_vertices]
+end
 
-Apply a circuit to a tensor network.
+"""
+    apply_gates(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
+
+Apply a circuit (list of gates) to a tensor network.
 The circuit should take the form of a vector of Tuples (gate_str, qubits_to_act_on, optional_param) or a vector of ITensors.
 Returns the final state and an approximate list of errors when applying each gate
 """
-function TensorNetworkQuantumSimulator.apply(
-    circuit::AbstractVector,
+function apply_gates(
+    circuit::Vector,
     ψ::ITensorNetwork;
     bp_update_kwargs = default_square_bp_update_kwargs(; cache_is_tree = is_tree(ψ)),
     kwargs...,
@@ -17,19 +23,19 @@ function TensorNetworkQuantumSimulator.apply(
     ψ_bpc = BeliefPropagationCache(ψ)
     initialize_square_bp_messages!(ψ_bpc)
     ψ_bpc = update(ψ_bpc; bp_update_kwargs...)
-    ψ_bpc, truncation_errors = TensorNetworkQuantumSimulator.apply(circuit, ψ_bpc; kwargs...)
+    ψ_bpc, truncation_errors = apply_gates(circuit, ψ_bpc; kwargs...)
     return tensornetwork(ψ_bpc), truncation_errors
 end
 
 """
-    TensorNetworkQuantumSimulator.apply(circuit::AbstractVector, s::IndsNetwork, bpc::BeliefPropagationCache; bp_update_kwargs, apply_kwargs = (; maxdim, cutoff))
+    apply_gates(circuit::AbstractVector, s::IndsNetwork, bpc::BeliefPropagationCache; bp_update_kwargs, apply_kwargs = (; maxdim, cutoff))
 
 Apply a circuit to a tensor network by passing the indsnetwork and either the BP cache for the ket network or the norm netwrok.
 The circuit should take the form of a vector of Tuples (gate_str, qubits_to_act_on, optional_param).
 Returns the final state and an approximate list of errors when applying each gate
 """
-function TensorNetworkQuantumSimulator.apply(
-    circuit::AbstractVector,
+function apply_gates(
+    circuit::Vector,
     bpc::BeliefPropagationCache,
     s::IndsNetwork = siteinds(bpc);
     kwargs...,
@@ -41,13 +47,13 @@ function TensorNetworkQuantumSimulator.apply(
     circuit = toitensor(circuit, s)
     circuit = [adapt(ComplexF32, gate) for gate in circuit]
     circuit = [adapt(unspecify_type_parameters(datatype(bpc)), gate) for gate in circuit]
-    return TensorNetworkQuantumSimulator.apply(circuit, bpc, gate_vertices; kwargs...)
+    return apply_gates(circuit, bpc, gate_vertices; kwargs...)
 end
 
-function TensorNetworkQuantumSimulator.apply(
+function apply_gates(
     circuit::Vector{<:ITensor},
     ψ_bpc::BeliefPropagationCache,
-    gate_vertices = [ITensorNetworks.neighbor_vertices(ψ_bpc, gate) for gate in circuit];
+    gate_vertices::Vector = collect_gate_vertices(circuit, ψ_bpc);
     apply_kwargs = _default_apply_kwargs,
     bp_update_kwargs = is_flat(ψ_bpc) ? default_square_bp_update_kwargs(; cache_is_tree = is_tree(ψ_bpc)) : default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ_bpc)),
     update_cache = true,
@@ -88,7 +94,7 @@ function TensorNetworkQuantumSimulator.apply(
         end
 
         # actually apply the gate
-        t = @timed ψ_bpc, truncation_errors[ii] = apply!(gate, ψ_bpc; v⃗ = gate_vertices[ii], update_bra_space, apply_kwargs)
+        t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], update_bra_space, apply_kwargs)
         affected_indices = union(affected_indices, Set(inds(gate)))
     end
 
@@ -100,7 +106,7 @@ function TensorNetworkQuantumSimulator.apply(
 end
 
 #Apply function for a single gate
-function apply!(
+function apply_gate!(
     gate::ITensor,
     ψ_bpc::BeliefPropagationCache;
     v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
@@ -171,10 +177,10 @@ function simple_update(
         Qᵥ₂, Rᵥ₂ = qr(ψᵥ₂, uniqueinds(uniqueinds(ψᵥ₂, ψᵥ₁), sᵥ₂))
         rᵥ₁ = commoninds(Qᵥ₁, Rᵥ₁)
         rᵥ₂ = commoninds(Qᵥ₂, Rᵥ₂)
-        oR = apply(o, Rᵥ₁ * Rᵥ₂)
+        oR = ITensors.apply(o, Rᵥ₁ * Rᵥ₂)
         e = v⃗[1] => v⃗[2]
         singular_values! = Ref(ITensor())
-        Rᵥ₁, Rᵥ₂, spec = ITensors.factorize_svd(
+        Rᵥ₁, Rᵥ₂, spec = factorize_svd(
         oR,
         unioninds(rᵥ₁, sᵥ₁);
         ortho="none",

@@ -61,7 +61,7 @@ function main()
 
         # pass BP cache manually
         t = @timed ψψ, errors =
-            apply(layer, ψψ; apply_kwargs, verbose = false);
+            apply_gates(layer, ψψ; apply_kwargs, verbose = false);
 
         # push BP measured expectation to list
         push!(Zs, only(real(expect(ψψ, observables))))

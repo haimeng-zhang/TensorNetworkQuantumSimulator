@@ -47,7 +47,7 @@ function main()
     fidelities = []
     for i in 1:no_trotter_steps
         println("Applying gates for Trotter Step $(i)")
-        ψψ, errs = apply(layer, ψψ; apply_kwargs)
+        ψψ, errs = apply_gates(layer, ψψ; apply_kwargs)
         fidelity = prod(1.0 .- errs)
         println("Layer fidelity was $(fidelity)")
         push!(fidelities, fidelity)
