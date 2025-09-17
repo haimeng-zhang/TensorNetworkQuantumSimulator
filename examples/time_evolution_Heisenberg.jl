@@ -21,7 +21,7 @@ function main()
     #Initial operator is Z on the designated site
     vz = first(center(g))
     init_state = ("Z", [vz])
-    ψ0 = TN.topaulitensornetwork(init_state, s)
+    ψ0 = TN.topaulitensornetwork(ComplexF32, init_state, s)
 
     maxdim, cutoff = 4, 1e-14
     apply_kwargs = (; maxdim, cutoff, normalize_tensors = false)
@@ -55,15 +55,16 @@ function main()
         println("Layer $l")
 
         #Apply the circuit
-        t = @timed ψ, ψψ, errors =
-            apply(layer, ψ, ψψ; apply_kwargs, verbose = false);
+        t = @timed ψψ, errors =
+            apply_gates(layer, ψψ; apply_kwargs, verbose = false);
         #Reset the Frobenius norm to unity
-        ψ, ψψ = normalize(ψ, ψψ)
+        ψψ = TN.rescale(ψψ)
         println("Frobenius norm of O(t) is $(scalar(ψψ))")
         
+        ψ = ket_network(ψψ)
         #Take traces
-        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; maxiter = 20))
-        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; maxiter = 20))
+        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; tol = 1e-7, maxiter = 20))
+        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; tol = 1e-7, maxiter = 20))
         println("Trace(O(t)) is $(tr_ψt)")
         println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
 

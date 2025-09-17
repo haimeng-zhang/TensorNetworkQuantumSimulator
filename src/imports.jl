@@ -51,11 +51,11 @@ using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_grap
 
 using TensorOperations
 
-using ITensors
-using ITensors: Index, ITensor, datatype, inner, itensor, apply, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str
+using ITensors: ITensors
+using ITensors: Index, ITensor, hasqns, combinedind, combiner, replaceinds, sim, onehot, delta, plev, dense, unioninds, uniqueinds, commonind, commoninds, replaceind, datatype, inds, dag, noprime, factorize_svd, prime, hascommoninds, inner, itensor, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str, denseblocks
 using ITensorMPS
 
-using ITensorNetworks
+using ITensorNetworks: ITensorNetworks
 using ITensorNetworks:
     AbstractBeliefPropagationCache,
     AbstractFormNetwork,
@@ -68,6 +68,7 @@ using ITensorNetworks:
     IndsNetwork,
     ITensorNetwork,
     inner_network,
+    ket_network,
     PartitionVertex,
     PartitionEdge,
     Algorithm,
@@ -86,7 +87,6 @@ using ITensorNetworks:
     siteinds,
     vertices,
     dim,
-    apply,
     neighbor_vertices,
     environment,
     incoming_messages,
@@ -125,10 +125,11 @@ using ITensorNetworks:
 
 using Adapt: adapt
 
-
 using ITensorNetworks.ITensorsExtensions: map_eigvals
 
 using EinExprs: Greedy
 
 import PauliPropagation
 const PP = PauliPropagation
+
+using TypeParameterAccessors: unspecify_type_parameters
