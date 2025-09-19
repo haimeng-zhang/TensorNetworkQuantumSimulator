@@ -587,7 +587,7 @@ function ITensorNetworks.update_message(
     if isnothing(prev_pp)
         O = merge_internal_tensors(O)
         if alg.kwargs.normalize 
-            O = ITensor.normalize(O)
+            O = ITensors.normalize(O)
         end
         return set_interpartition_message!(bmpsc, O, partitionpair)
     end
