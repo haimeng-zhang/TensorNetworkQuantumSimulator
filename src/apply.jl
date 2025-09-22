@@ -1,3 +1,5 @@
+using CUDA
+
 const _default_apply_kwargs =
     (maxdim = Inf, cutoff = 1e-10, normalize_tensors = true)
 
@@ -59,6 +61,7 @@ function apply_gates(
     update_cache = true,
     verbose = false,
     update_bra_space = !is_flat(ψ_bpc),
+    transfer_to_gpu = false,
 )
     ψ_bpc = copy(ψ_bpc)
     # merge all the kwargs with the defaults 
@@ -94,7 +97,7 @@ function apply_gates(
         end
 
         # actually apply the gate
-        t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], update_bra_space, apply_kwargs)
+        t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], update_bra_space, apply_kwargs, transfer_to_gpu)
         affected_indices = union(affected_indices, Set(inds(gate)))
     end
 
@@ -112,10 +115,15 @@ function apply_gate!(
     v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
     apply_kwargs = _default_apply_kwargs,
     update_bra_space = !is_flat(ψ_bpc),
+    transfer_to_gpu = false,
 )
     envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc,ITensorNetworks.partitionvertices(ψ_bpc, v⃗))
 
-    updated_tensors, s_values, err = simple_update(gate, ψ_bpc, v⃗; envs, apply_kwargs...)
+    if !transfer_to_gpu
+        updated_tensors, s_values, err = simple_update(gate, ψ_bpc, v⃗; envs, apply_kwargs...)
+    else
+        updated_tensors, s_values, err = simple_update_cuda(gate, ψ_bpc, v⃗; envs, apply_kwargs...)
+    end
 
     if length(v⃗) == 2
         v1, v2 = v⃗
@@ -198,6 +206,78 @@ function simple_update(
     if normalize_tensors
         updated_tensors = ITensor[ψᵥ / norm(ψᵥ) for ψᵥ in updated_tensors]
     end
+
+    return noprime.(updated_tensors), s_values, err
+end
+
+function simple_update_cuda(
+    o::ITensor, ψ, v⃗; envs, normalize_tensors = true, apply_kwargs...
+  )
+
+    dtype = datatype(ψ[first(v⃗)])
+    o = CUDA.cu(o)
+    if length(v⃗) == 1
+        ψ1 = CUDA.cu(ψ[first(v⃗)])
+        updated_tensors = ITensor[ITensors.apply(o, ψ1)]
+        s_values, err = nothing, 0
+    else
+        ψ1 = CUDA.cu(ψ[first(v⃗)])
+        ψ2 = CUDA.cu(ψ[last(v⃗)])
+        cutoff = 10 * eps(real(scalartype(ψ[v⃗[1]])))
+        envs_v1 = filter(env -> hascommoninds(env, ψ[v⃗[1]]), envs)
+        envs_v2 = filter(env -> hascommoninds(env, ψ[v⃗[2]]), envs)
+        sqrt_envs_v1 = [
+        ITensorNetworks.ITensorsExtensions.map_eigvals(
+            sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
+        ) for env in envs_v1
+        ]
+        sqrt_envs_v2 = [
+            ITensorNetworks.ITensorsExtensions.map_eigvals(
+            sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
+        ) for env in envs_v2
+        ]
+        inv_sqrt_envs_v1 = [
+            ITensorNetworks.ITensorsExtensions.map_eigvals(
+            inv ∘ sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
+        ) for env in envs_v1
+        ]
+        inv_sqrt_envs_v2 = [
+            ITensorNetworks.ITensorsExtensions.map_eigvals(
+            inv ∘ sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
+        ) for env in envs_v2
+        ]
+        ψᵥ₁ = contract([ψ1; sqrt_envs_v1])
+        ψᵥ₂ = contract([ψ2; sqrt_envs_v2])
+        sᵥ₁ = commoninds(ψ1, o)
+        sᵥ₂ = commoninds(ψ2, o)
+        Qᵥ₁, Rᵥ₁ = qr(ψᵥ₁, uniqueinds(uniqueinds(ψᵥ₁, ψᵥ₂), sᵥ₁))
+        Qᵥ₂, Rᵥ₂ = qr(ψᵥ₂, uniqueinds(uniqueinds(ψᵥ₂, ψᵥ₁), sᵥ₂))
+        rᵥ₁ = commoninds(Qᵥ₁, Rᵥ₁)
+        rᵥ₂ = commoninds(Qᵥ₂, Rᵥ₂)
+        oR = ITensors.apply(o, Rᵥ₁ * Rᵥ₂)
+        e = v⃗[1] => v⃗[2]
+        singular_values! = Ref(ITensor())
+        Rᵥ₁, Rᵥ₂, spec = factorize_svd(
+        oR,
+        unioninds(rᵥ₁, sᵥ₁);
+        ortho="none",
+        tags=edge_tag(e),
+        singular_values!,
+        apply_kwargs...,
+        )
+        err = spec.truncerr
+        s_values = singular_values![]
+        s_values = adapt(dtype)(s_values)
+        Qᵥ₁ = contract([Qᵥ₁; dag.(inv_sqrt_envs_v1)])
+        Qᵥ₂ = contract([Qᵥ₂; dag.(inv_sqrt_envs_v2)])
+        updated_tensors = [Qᵥ₁ * Rᵥ₁, Qᵥ₂ * Rᵥ₂]
+    end
+
+    if normalize_tensors
+        updated_tensors = ITensor[ψᵥ / norm(ψᵥ) for ψᵥ in updated_tensors]
+    end
+
+    updated_tensors = map(adapt(dtype), updated_tensors)
 
     return noprime.(updated_tensors), s_values, err
 end
