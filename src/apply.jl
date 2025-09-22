@@ -38,8 +38,8 @@ Returns the final state and an approximate list of errors when applying each gat
 """
 function apply_gates(
     circuit::Vector,
-    bpc::BeliefPropagationCache,
-    s::IndsNetwork = siteinds(bpc);
+    bpc::BeliefPropagationCache;
+    s::IndsNetwork = siteinds(bpc),
     kwargs...,
 )
     gate_vertices = [_tovec(gate[2]) for gate in circuit]
@@ -49,13 +49,13 @@ function apply_gates(
     circuit = toitensor(circuit, s)
     circuit = [adapt(ComplexF32, gate) for gate in circuit]
     circuit = [adapt(unspecify_type_parameters(datatype(bpc)), gate) for gate in circuit]
-    return apply_gates(circuit, bpc, gate_vertices; kwargs...)
+    return apply_gates(circuit, bpc; gate_vertices, kwargs...)
 end
 
 function apply_gates(
     circuit::Vector{<:ITensor},
-    ψ_bpc::BeliefPropagationCache,
-    gate_vertices::Vector = collect_gate_vertices(circuit, ψ_bpc);
+    ψ_bpc::BeliefPropagationCache;
+    gate_vertices::Vector = collect_gate_vertices(circuit, ψ_bpc),
     apply_kwargs = _default_apply_kwargs,
     bp_update_kwargs = is_flat(ψ_bpc) ? default_square_bp_update_kwargs(; cache_is_tree = is_tree(ψ_bpc)) : default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ_bpc)),
     update_cache = true,

@@ -52,7 +52,7 @@ using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_grap
 using TensorOperations
 
 using ITensors: ITensors
-using ITensors: Index, ITensor, onehot, delta, plev, dense, unioninds, uniqueinds, commonind, commoninds, replaceind, datatype, inds, dag, noprime, factorize_svd, prime, hascommoninds, inner, itensor, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str, denseblocks
+using ITensors: Index, ITensor, hasqns, combinedind, combiner, replaceinds, sim, onehot, delta, plev, dense, unioninds, uniqueinds, commonind, commoninds, replaceind, datatype, inds, dag, noprime, factorize_svd, prime, hascommoninds, inner, itensor, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str, denseblocks
 using ITensorMPS
 
 using ITensorNetworks: ITensorNetworks
