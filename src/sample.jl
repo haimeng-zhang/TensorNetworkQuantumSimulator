@@ -175,7 +175,7 @@ function certify_sample(
     certification_message_update_kwargs = (; normalize = false, certification_message_update_kwargs...)
 
     #This block is two times faster than the two lines below but likely less accurate for smaller maxdims
-    # pg = partitioned_graph(ppg(bmpsc))
+    # pg = partitions_graph(ppg(bmpsc))
     # partition = first(center(pg))
     # seq = [src(e) => dst(e) for e in post_order_dfs_edges(pg, partition)]
     #bmpsc = ITensorNetworks.update_iteration(Algorithm("bp"; message_update_alg = Algorithm("ITensorMPS"; certification_message_update_kwargs...)), bmpsc, seq)

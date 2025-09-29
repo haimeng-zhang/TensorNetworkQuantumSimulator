@@ -40,7 +40,7 @@ end
 
 Update the message tensors inside a bp-cache, running over the graph up to maxiter times until convergence to the desired tolerance `tol`.
 """
-function updatecache(bp_cache; maxiter=default_bp_update_maxiter(is_tree(partitioned_graph(bp_cache))), tol=_default_bp_update_tol, kwargs...)
+function updatecache(bp_cache; maxiter=default_bp_update_maxiter(is_tree(partitions_graph(bp_cache))), tol=_default_bp_update_tol, kwargs...)
     return update(bp_cache; maxiter, tol, kwargs...)
 end
 
@@ -132,7 +132,7 @@ function ITensorNetworks.region_scalar(bpc::BeliefPropagationCache, verts::Vecto
     length(partitions) == 1 && return region_scalar(bpc, only(partitions))
     if length(partitions) == 2
         p1, p2 = first(partitions), last(partitions)
-        if parent(p1) ∉ neighbors(partitioned_graph(bpc), parent(p2))
+        if parent(p1) ∉ neighbors(partitions_graph(bpc), parent(p2))
             error(
                 "Only contractions involving neighboring partitions are currently supported",
             )
@@ -182,7 +182,7 @@ end
 #Calculate the correlation flowing around single loop of the bp cache via an eigendecomposition
 function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:PartitionEdge}, target_pe::PartitionEdge)
 
-    is_tree(partitioned_graph(bpc)) && return 0
+    is_tree(partitions_graph(bpc)) && return 0
     bpc = copy(bpc)
 
     pes = vcat(loop, [target_pe])
@@ -227,7 +227,7 @@ end
 
 #Calculate the correlations flowing around each of the primitive loops of the BP cache
 function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Int; kwargs...)
-    pg = partitioned_graph(bpc)
+    pg = partitions_graph(bpc)
     cycles = NamedGraphs.cycle_to_path.(NamedGraphs.unique_simplecycles_limited_length(pg, smallest_loop_size))
     corrs = []
     for loop in cycles

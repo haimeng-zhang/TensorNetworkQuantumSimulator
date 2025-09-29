@@ -23,7 +23,7 @@ end
 
 function is_correct_format(bmpsc::BoundaryMPSCache)
     _ppg = ppg(bmpsc)
-    effective_graph = partitioned_graph(_ppg)
+    effective_graph = partitions_graph(_ppg)
     if !is_ring_graph(effective_graph) && !is_line_graph(effective_graph)
         error("Upon partitioning, graph does not form a line or ring: can't run boundary MPS")
     end
@@ -39,7 +39,7 @@ default_cache_update_kwargs(alg::Algorithm"boundarymps") = default_boundarymps_u
 
 ITensorNetworks.default_update_alg(bmpsc::BoundaryMPSCache) = "bp"
 function ITensorNetworks.set_default_kwargs(alg::Algorithm"bp", bmpsc::BoundaryMPSCache)
-    maxiter = get(alg.kwargs, :maxiter, is_tree(partitioned_graph(ppg(bmpsc))) ? 1 : nothing)
+    maxiter = get(alg.kwargs, :maxiter, is_tree(partitions_graph(ppg(bmpsc))) ? 1 : nothing)
     edge_sequence = get(alg.kwargs, :edge_sequence, pair.(default_edge_sequence(ppg(bmpsc))))
     verbose = get(alg.kwargs, :verbose, false)
     tol = get(alg.kwargs, :tol, nothing)
@@ -135,7 +135,7 @@ function ITensorNetworks.default_bp_maxiter(
     alg::Algorithm,
     bmpsc::BoundaryMPSCache,
 )
-    return default_bp_maxiter(partitioned_graph(ppg(bmpsc)))
+    return default_bp_maxiter(partitions_graph(ppg(bmpsc)))
 end
 function ITensorNetworks.default_edge_sequence(alg::Algorithm, bmpsc::BoundaryMPSCache)
     return pair.(default_edge_sequence(ppg(bmpsc)))
@@ -251,7 +251,7 @@ function BoundaryMPSCache(
 
 )
     bpc = insert_pseudo_planar_edges(bpc; grouping_function)
-    planar_graph = partitioned_graph(bpc)
+    planar_graph = partitions_graph(bpc)
     vertex_groups = group(grouping_function, collect(vertices(planar_graph)))
     vertex_groups = map(x -> sort(x; by = group_sorting_function), vertex_groups)
     ppg = PartitionedGraph(planar_graph, vertex_groups)
@@ -514,7 +514,7 @@ function ITensorNetworks.update_message(
 end
 
 function prev_partitionpair(bmpsc::BoundaryMPSCache, partitionpair::Pair)
-    pppg = partitioned_graph(ppg(bmpsc))
+    pppg = partitions_graph(ppg(bmpsc))
     vns = neighbors(pppg, first(partitionpair))
     length(vns) == 1 && return nothing
 
@@ -633,7 +633,7 @@ function ITensorNetworks.region_scalar(bmpsc::BoundaryMPSCache, partitionpair::P
 end
 
 function add_partitionedges(pg::PartitionedGraph, pes::Vector{<:PartitionEdge})
-    g = partitioned_graph(pg)
+    g = partitions_graph(pg)
     g = add_edges(g, parent.(pes))
     return PartitionedGraph(
         unpartitioned_graph(pg),
@@ -653,7 +653,7 @@ function insert_pseudo_planar_edges(
     bpc::BeliefPropagationCache;
     grouping_function = v -> first(v),
 )
-    pg = partitioned_graph(bpc)
+    pg = partitions_graph(bpc)
     partitions = unique(grouping_function.(collect(vertices(pg))))
     pseudo_edges = PartitionEdge[]
     for p in partitions
