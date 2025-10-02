@@ -102,7 +102,7 @@ end
 Gate for rotation by XXYY at a given angle
 """
 function ITensors.op(
-    ::OpName"Rxxyy", ::Union{SiteType"S=1/2", SiteType"Qubit"}; θ::Number
+    ::OpName"Rxxyy", ::SiteType"S=1/2"; θ::Number
   )
     mat = zeros(ComplexF64, 4, 4)
     mat[1, 1] = 1
@@ -120,7 +120,7 @@ end
 Gate for rotation by XXYYZZ at a given angle
 """
 function ITensors.op(
-    ::OpName"Rxxyyzz", ::Union{SiteType"S=1/2", SiteType"Qubit"}; θ::Number
+    ::OpName"Rxxyyzz", ::SiteType"S=1/2"; θ::Number
   )
     a = exp( im * θ * 0.5)
     mat = zeros(ComplexF64, 4, 4)
@@ -132,3 +132,6 @@ function ITensors.op(
     mat[4,4] = conj(a)
     return mat
 end
+
+ITensors.op(o::OpName"Rxxyy", ::SiteType"Qubit"; θ::Number) = ITensors.op(o, ITensorMPS.SiteType("S=1/2"); θ)
+ITensors.op(o::OpName"Rxxyyzz", ::SiteType"Qubit"; θ::Number) = ITensors.op(o, ITensorMPS.SiteType("S=1/2"); θ)
