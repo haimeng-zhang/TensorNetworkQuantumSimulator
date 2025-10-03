@@ -10,9 +10,10 @@ function ITensors.scalar(
 )
     zbp = scalar(bp_cache; alg = "bp")
     bp_cache = rescale(bp_cache)
+    #TODO: Fix edgeinduced_subgraphs_no_leaves for PartitionedGraphView type
     #Count the cycles using NamedGraphs
     egs =
-        edgeinduced_subgraphs_no_leaves(partitioned_graph(bp_cache), max_configuration_size)
+        edgeinduced_subgraphs_no_leaves(partitioned_tensornetwork(bp_cache).partitions_graph, max_configuration_size)
     isempty(egs) && return zbp
     ws = weights(bp_cache, egs)
     return zbp*(1 + sum(ws))

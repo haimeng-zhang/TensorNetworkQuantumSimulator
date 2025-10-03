@@ -104,7 +104,7 @@ using ITensorNetworks:
     region_scalar,
     rescale,
     partitionvertices,
-    partitioned_graph,
+    partitions_graph,
     powerset,
     boundary_partitionedges,
     message,

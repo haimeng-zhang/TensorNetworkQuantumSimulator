@@ -17,7 +17,7 @@ using Random
 Random.seed!(1634)
 
 function main()
-    nx, ny = 5, 5
+    nx, ny = 4,4
     χ = 3
     ITensors.disable_warn_order()
     gs = [
