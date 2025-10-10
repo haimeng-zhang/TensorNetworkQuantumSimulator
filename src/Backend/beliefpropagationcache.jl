@@ -304,3 +304,53 @@ function rescale_messages!(bp_cache::BeliefPropagationCache, edges::Vector{<:Abs
     end
     return bp_cache
 end
+
+#Calculate the correlation flowing around single loop of the bp cache via an eigendecomposition
+function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:NamedEdge}, target_e::NamedEdge)
+
+    is_tree(bpc) && return 0
+
+    es = vcat(loop, [target_e])
+    incoming_es = boundary_edges(bpc, es)
+    incoming_messages = ITensor[message(bpc, e) for e in incoming_es]
+    vs = unique(vcat(src.(loop), dst.(loop)))
+
+    src_vertex = src(target_e)
+    e_linkinds = inds(message(bpc, target_e))
+    e_linkinds_sim = sim.(e_linkinds)
+
+    local_tensors = ITensor[]
+    ts = bp_factors(bpc, src_vertex)
+
+    for t in ts
+        t_inds = filter(i -> i ∈ e_linkinds, inds(t))
+        if !isempty(t_inds)
+            t_ind = only(t_inds)
+            t_ind_pos = findfirst(x -> x == t_ind, e_linkinds)
+            t = replaceind(t, t_ind, e_linkinds_sim[t_ind_pos])
+        end
+        push!(local_tensors, t)
+    end
+
+    tensors = ITensor[local_tensors; reduce(vcat, [bp_factors(bpc, v) for v in setdiff(vs, [src_vertex])]); incoming_messages]
+    seq = ITensorNetworks.contraction_sequence(tensors; alg = "einexpr", optimizer = Greedy())
+    t = contract(tensors; sequence = seq)
+
+    row_combiner, col_combiner = ITensors.combiner(e_linkinds), ITensors.combiner(e_linkinds_sim)
+    t = t * row_combiner * col_combiner
+    t = ITensors.NDTensors.array(t)
+    λs = reverse(sort(LinearAlgebra.eigvals(t); by = abs))
+    err = 1.0 - abs(λs[1]) / sum(abs.(λs))
+    return err
+end
+
+#Calculate the correlations flowing around each of the primitive loops of the BP cache
+function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Int; kwargs...)
+    g = underlying_graph(bpc)
+    cycles = NamedGraphs.cycle_to_path.(NamedGraphs.unique_simplecycles_limited_length(g, smallest_loop_size))
+    corrs = []
+    for loop in cycles
+        corrs = append!(corrs, loop_correlation(bpc, loop[1:(length(loop)-1)], reverse(last(loop)); kwargs...))
+    end
+    return corrs
+end
