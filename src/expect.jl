@@ -11,13 +11,11 @@ function expect(
     alg::Algorithm"exact",
     ψ::TensorNetworkState,
     observables::Vector{<:Tuple};
-    contraction_sequence_kwargs=(; alg="einexpr", optimizer=Greedy()),
+    contraction_sequence_kwargs=(; alg="einexpr", optimizer=Greedy())
 )
     ITensors.disable_warn_order()
-    ψIψ_tensors = norm_factors(ψ, collect(vertices(ψ)))
-    denom_seq = contraction_sequence(ψIψ_tensors; contraction_sequence_kwargs...)
-    denom = contract(ψIψ_tensors; sequence=denom_seq)[]
 
+    denom = norm_sqr(alg, ψ; contraction_sequence_kwargs)
     out = []
     for obs in observables
         op_strings, vs, coeff = collectobservable(obs)

@@ -15,6 +15,9 @@ include("constructors.jl")
 include("gates.jl")
 include("apply.jl")
 include("expect.jl")
+include("norm_sqr.jl")
+include("normalize.jl")
+include("Backend/loopcorrection.jl")
 #include("sample.jl")
 
 

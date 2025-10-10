@@ -4,6 +4,7 @@ using Graphs: AbstractGraph, is_tree, connected_components
 using NamedGraphs.GraphsExtensions: default_root_vertex, forest_cover, post_order_dfs_edges
 using ITensors: dim, ITensor, delta, Algorithm
 using ITensors.NDTensors: scalartype
+using LinearAlgebra: normalize
 
 struct BeliefPropagationCache{V, N <: AbstractDataGraph{V}} <:
     AbstractBeliefPropagationCache{V}
@@ -81,7 +82,7 @@ function bp_factors(tn::ITensorNetwork, vertex)
 end
 
 function edge_scalar(bp_cache::BeliefPropagationCache, edge::AbstractEdge)
-    return dot(message(bp_cache, edge), message(bp_cache, reverse(edge)))
+    return (message(bp_cache, edge)* message(bp_cache, reverse(edge)))[]
 end
 
 function vertex_scalar(bp_cache::BeliefPropagationCache, vertex)
@@ -293,7 +294,7 @@ function rescale_messages!(bp_cache::BeliefPropagationCache, edges::Vector{<:Abs
     ms = messages(bp_cache)
     for e in edges
         me, mer = normalize(message(bp_cache, e)), normalize(message(bp_cache, reverse(e)))
-        n = dot(me, mer)
+        n = (me*mer)[]
         if isreal(n)
             me *= sign(n)
             n *= sign(n)

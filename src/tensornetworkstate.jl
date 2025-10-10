@@ -19,11 +19,22 @@ for f in [
     :(ITensorNetworks.data_graph_type),
     :(ITensorNetworks.data_graph),
     :(ITensors.datatype),
-    :(ITensors.NDTensors.scalartype)
+    :(ITensors.NDTensors.scalartype),
 ]
 @eval begin
     function $f(tns::TensorNetworkState, args...; kwargs...)
         return $f(tensornetwork(tns), args...; kwargs...)
+    end
+end
+end
+
+#Forward onto the underlying_graph
+for f in [
+    :(NamedGraphs.edgeinduced_subgraphs_no_leaves)
+]
+@eval begin
+    function $f(tns::TensorNetworkState, args...; kwargs...)
+        return $f(ITensorNetworks.underlying_graph(tensornetwork(tns)), args...; kwargs...)
     end
 end
 end
@@ -65,6 +76,8 @@ function setindex_preserve_all!(tns::TensorNetworkState, value, v)
     ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
     return tns
 end
+
+setindex_preserve_all!(tn::ITensorNetwork, value, v) = ITensorNetworks.setindex_preserve_graph!(tn, value, v)
 
 function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Function = v -> "I")
     factors = ITensor[]
@@ -133,6 +146,5 @@ function site_dimension(sitetype::String)
     sitetype ∈ ["Qutrit", "S=1", "Spin 1"] && return 3
     error("Don't know what physical space that site type should be")
 end
-    
-    
+
     

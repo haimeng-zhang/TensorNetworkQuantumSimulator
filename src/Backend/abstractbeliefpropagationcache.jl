@@ -147,3 +147,9 @@ function rescale!(bpc::AbstractBeliefPropagationCache, args...; kwargs...)
     rescale_vertices!(bpc, args...; kwargs...)
     return bpc
 end
+
+function rescale(bpc::AbstractBeliefPropagationCache, args...; kwargs...)
+    bpc = copy(bpc)
+    rescale!(bpc, args...;kwargs...)
+    return bpc
+end
