@@ -2,27 +2,23 @@ module TensorNetworkQuantumSimulator
 
 
 include("imports.jl")
-include("Backend/beliefpropagation.jl")
-include("Backend/loopcorrection.jl")
-include("Backend/boundarymps.jl")
-
-# a helpful union types for the caches that we use
-const CacheNetwork = Union{AbstractBeliefPropagationCache,BoundaryMPSCache}
-const TensorNetwork = Union{AbstractITensorNetwork,CacheNetwork}
+#include("Backend/loopcorrection.jl")
+#include("Backend/boundarymps.jl")
 
 
+include("tensornetworkstate.jl")
+include("Backend/abstractbeliefpropagationcache.jl")
+include("Backend/beliefpropagationcache.jl")
 include("graph_ops.jl")
 include("utils.jl")
 include("constructors.jl")
 include("gates.jl")
 include("apply.jl")
 include("expect.jl")
-include("sample.jl")
+#include("sample.jl")
 
 
 export
-    updatecache,
-    build_normsqr_bp_cache,
     vertices,
     edges,
     apply_gates,
@@ -35,7 +31,6 @@ export
     fidelity_loopcorrect,
     make_hermitian,
     ket_network,
-    build_normsqr_bp_cache,
     truncate,
     maxlinkdim,
     siteinds,
@@ -43,6 +38,12 @@ export
     zerostate,
     getnqubits,
     named_grid,
-    sample
+    sample,
+    TensorNetworkState,
+    tensornetworkstate,
+    random_tensornetworkstate,
+    BeliefPropagationCache,
+    rescale!,
+    message
 
 end
