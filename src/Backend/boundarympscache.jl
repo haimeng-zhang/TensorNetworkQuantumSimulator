@@ -5,7 +5,7 @@ struct BoundaryMPSCache{V, BPC<:BeliefPropagationCache{V}} <: AbstractBeliefProp
     bp_cache::BPC
     supergraph::PartitionedGraph
     sorted_edges::Dictionary
-    mps_bond_dimension::Int64
+    mps_bond_dimension::Int
 end
 
 default_update_alg(bmps_cache::BoundaryMPSCache) = "bp"
@@ -42,6 +42,17 @@ function set_default_kwargs(alg::Algorithm"ITensorMPS", bmps_cache::BoundaryMPSC
     cutoff = get(alg.kwargs, :cutoff, _default_boundarymps_update_cutoff)
     normalize = get(alg.kwargs, :normalize, default_normalize(alg))
     return Algorithm("ITensorMPS"; cutoff, normalize)
+end
+
+function default_bmps_update_kwargs(tns::TensorNetworkState)
+    verbose =false
+    tolerance = nothing
+    return (; tolerance, verbose)
+end
+
+function default_bmps_update_kwargs(bmps_cache::BoundaryMPSCache)
+    maxiter = default_bp_maxiter(bmps_cache)
+    return (; default_bmps_update_kwargs(network(bmps_cache))..., maxiter)
 end
 
 # const _default_boundarymps_update_alg = "orthogonal"
@@ -121,35 +132,13 @@ message(bmps_cache::BoundaryMPSCache, e::NamedEdge) = message(bp_cache(bmps_cach
 # )
 #     return default_bp_maxiter(partitions_graph(ppg(bmps_cache)))
 # end
-# function ITensorNetworks.default_edge_sequence(alg::Algorithm, bmps_cache::BoundaryMPSCache)
-#     return pair.(default_edge_sequence(ppg(bmps_cache)))
-# end
 
 # default_boundarymps_message_rank(tn::AbstractITensorNetwork) = maxlinkdim(tn)^2
 # ITensorNetworks.partitions(bmps_cache::BoundaryMPSCache) =
 #     parent.(collect(partitionvertices(ppg(bmps_cache))))
 # NamedGraphs.PartitionedGraphs.partitionedges(bmps_cache::BoundaryMPSCache) = pair.(partitionedges(ppg(bmps_cache)))
 
-# function ITensorNetworks.cache(
-#     alg::Algorithm"boundarymps",
-#     tn;
-#     bp_cache_construction_kwargs = default_cache_construction_kwargs(Algorithm("bp"), tn),
-#     kwargs...,
-# )
-#     return BoundaryMPSCache(
-#         BeliefPropagationCache(tn; bp_cache_construction_kwargs...);
-#         kwargs...,
-#     )
-# end
 
-# function ITensorNetworks.default_cache_construction_kwargs(alg::Algorithm"boundarymps", tn)
-#     return (;
-#         bp_cache_construction_kwargs = default_cache_construction_kwargs(
-#             Algorithm("bp"),
-#             tn,
-#         )
-#     )
-# end
 
 function Base.copy(bmps_cache::BoundaryMPSCache)
     return BoundaryMPSCache(
@@ -204,10 +193,10 @@ end
 #Constructor, inserts missing edge in the planar graph to ensure each partition is connected
 #allowing the code to work for arbitrary grids and not just square grids
 function BoundaryMPSCache(
-    bpc::BeliefPropagationCache;
+    bpc::BeliefPropagationCache,
+    mps_bond_dimension::Int;
     grouping_function::Function = v -> first(v),
     group_sorting_function::Function = v -> last(v),
-    mps_bond_dimension::Int,
 
 )
     pseudo_edges = pseudo_planar_edges(bpc; grouping_function)
@@ -226,7 +215,7 @@ function BoundaryMPSCache(
     return bmps_cache
 end
 
-BoundaryMPSCache(tns::Union{ITensorNetwork, TensorNetworkState}, args...; kwargs...) = BoundaryMPSCache(BeliefPropagationCache(tns); kwargs...)
+BoundaryMPSCache(tns::Union{ITensorNetwork, TensorNetworkState}, args...; kwargs...) = BoundaryMPSCache(BeliefPropagationCache(tns), args...; kwargs...)
 
 all_partitionedges(bmps_cache::BoundaryMPSCache) = vcat(partitionedges(supergraph(bmps_cache)), reverse.(partitionedges(supergraph(bmps_cache))))
 
