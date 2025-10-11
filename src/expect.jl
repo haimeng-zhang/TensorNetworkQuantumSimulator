@@ -1,5 +1,6 @@
 default_alg(bp_cache::BeliefPropagationCache) = "bp"
-default_alg(any) = error("You must specify a contraction algorithm.")
+default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
+default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")
 
 """
     ITensorNetworks.expect(alg::Algorithm"exact", ψ::AbstractITensorNetwork, observables::Vector{<:Tuple}, contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy()))
@@ -40,55 +41,95 @@ function expect(alg::Algorithm"exact",
     return only(expect(alg, ψ, [observable]; kwargs...))
 end
 
-function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache}, observable; alg::String = default_alg(ψ), kwargs...)
+function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}, observable; alg::String = default_alg(ψ), kwargs...)
     return expect(Algorithm(alg), ψ, observable; kwargs...)
 end
 
 function expect(
-    alg::Algorithm"bp",
-    ψ::BeliefPropagationCache,
-    obs::Tuple
+    alg::Union{Algorithm"bp", Algorithm"boundarymps"},
+    ψ::AbstractBeliefPropagationCache,
+    obs::Tuple;
+    bmps_messages_up_to_date = false,
 )
     op_strings, obs_vs, coeff = collectobservable(obs)
     iszero(coeff) && return 0
 
     #For boundary MPS, must stay in partition
-    steiner_vs = length(obs_vs) == 1 ? obs_vs : collect(vertices(steiner_tree(network(ψ), obs_vs)))
+    if length(obs_vs) == 1
+        steiner_vs = obs_vs
+    elseif alg == Algorithm("bp")
+        steiner_vs = collect(vertices(steiner_tree(network(ψ), obs_vs)))
+    elseif alg == Algorithm("boundarymps")
+        partitions = unique(partitionvertices(ψ, obs_vs))
+        length(partitions) > 1 && error("Observable support must be within a single partition (row/ column) of the graph for now.")
+        partition = only(partitions)
+        g = partition_graph(ψ, partition)
+        steiner_vs = collect(vertices(steiner_tree(g, obs_vs)))
+
+        if !bmps_messages_up_to_date
+            println("Here")
+            update_partition!(ψ, partition)
+        end
+    end
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x->x == v, obs_vs)] : "I"
 
     incoming_ms = incoming_messages(ψ, steiner_vs)
     ψIψ_tensors = ITensor[norm_factors(network(ψ), steiner_vs); incoming_ms]
-    denom_seq = contraction_sequence(ψIψ_tensors; alg = "optimal")
+    denom_seq = contraction_sequence(ψIψ_tensors; alg="einexpr", optimizer=Greedy())
     denom = contract(ψIψ_tensors; sequence=denom_seq)[]
 
     ψOψ_tensors = ITensor[norm_factors(network(ψ), steiner_vs; op_strings = op_string_f); incoming_ms]
-    numer_seq = contraction_sequence(ψOψ_tensors; alg = "optimal")
+    numer_seq = contraction_sequence(ψOψ_tensors; alg="einexpr", optimizer=Greedy())
     numer = contract(ψOψ_tensors; sequence=numer_seq)[]
 
     return coeff * numer/ denom
 end
 
 function expect(
+    alg::Algorithm,
+    cache::AbstractBeliefPropagationCache,
+    observables::Vector{<:Tuple};
+    bmps_messages_up_to_date = false,
+    kwargs...,
+)
+    obs_vs = observables_vertices(observables)
+    !bmps_messages_up_to_date && update_partitions!(cache, obs_vs)
+    out = map(obs -> expect(alg, cache, obs; bmps_messages_up_to_date = true, kwargs...), observables)
+    !bmps_messages_up_to_date && delete_partition_messages!(cache, obs_vs)
+    return out
+end
+
+function expect(
     alg::Algorithm"bp",
     ψ::TensorNetworkState,
-    observable;
-    bp_update_kwargs = default_bp_update_kwargs(ψ),
+    observable::Union{Tuple, Vector{<:Tuple}};
+    cache_update_kwargs = default_bp_update_kwargs(ψ),
     kwargs...,
 )
 
     ψ_bpc = BeliefPropagationCache(ψ)
-    ψ_bpc = update(ψ_bpc; bp_update_kwargs...)
+    ψ_bpc = update(ψ_bpc; cache_update_kwargs...)
 
     return expect(alg, ψ_bpc, observable; kwargs...)
 end
 
 function expect(
-    alg::Algorithm,
-    bp_cache::AbstractBeliefPropagationCache,
-    observables::Vector{<:Tuple};
+    alg::Algorithm"boundarymps",
+    ψ::TensorNetworkState,
+    observable::Union{Tuple, Vector{<:Tuple}};
+    cache_update_kwargs = default_bmps_update_kwargs(ψ),
+    mps_bond_dimension::Int,
     kwargs...,
 )
-    return map(obs -> expect(alg, bp_cache, obs; kwargs...), observables)
+
+    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension)
+    cache_update_kwargs = (; cache_update_kwargs..., maxiter = default_bp_maxiter(ψ_bmps))
+    ψ_bmps = update(ψ_bmps; cache_update_kwargs...)
+
+    obs_vs = observables_vertices(observable)
+    update_partitions!(ψ_bmps, obs_vs)
+
+    return expect(alg, ψ_bmps, observable; bmps_messages_up_to_date = true, kwargs...)
 end
 
 #Process an observable into more readable form
@@ -105,5 +146,10 @@ function collectobservable(obs::Tuple)
     return op_vec, qinds_vec, coeff
 end
 
+function observables_vertices(observables::Vector{<:Tuple})
+    return reduce(vcat, [obs[2] for obs in observables])
+end
+
+observables_vertices(obs::Tuple) = obs[2]
 _tovec(qinds) = vec(collect(qinds))
 _tovec(qinds::NamedEdge) = [qinds.src, qinds.dst]

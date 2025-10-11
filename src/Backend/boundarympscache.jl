@@ -112,11 +112,24 @@ for f in [
     :(ITensors.datatype),
     :(ITensorNetworks.linkinds),
     :(ITensors.NDTensors.scalartype),
-    :(network)
+    :(network),
+    :(NamedGraphs.GraphsExtensions.boundary_edges)
 ]
 @eval begin
     function $f(bmps_cache::BoundaryMPSCache, args...; kwargs...)
         return $f(bp_cache(bmps_cache), args...; kwargs...)
+    end
+end
+end
+
+#Forward onto the supergraph
+for f in [
+    :(NamedGraphs.PartitionedGraphs.partitionvertices),
+    :(NamedGraphs.PartitionedGraphs.partitionedges),
+]
+@eval begin
+    function $f(bmps_cache::BoundaryMPSCache, args...; kwargs...)
+        return $f(supergraph(bmps_cache), args...; kwargs...)
     end
 end
 end
@@ -137,8 +150,6 @@ message(bmps_cache::BoundaryMPSCache, e::NamedEdge) = message(bp_cache(bmps_cach
 # ITensorNetworks.partitions(bmps_cache::BoundaryMPSCache) =
 #     parent.(collect(partitionvertices(ppg(bmps_cache))))
 # NamedGraphs.PartitionedGraphs.partitionedges(bmps_cache::BoundaryMPSCache) = pair.(partitionedges(ppg(bmps_cache)))
-
-
 
 function Base.copy(bmps_cache::BoundaryMPSCache)
     return BoundaryMPSCache(
@@ -217,7 +228,7 @@ end
 
 BoundaryMPSCache(tns::Union{ITensorNetwork, TensorNetworkState}, args...; kwargs...) = BoundaryMPSCache(BeliefPropagationCache(tns), args...; kwargs...)
 
-all_partitionedges(bmps_cache::BoundaryMPSCache) = vcat(partitionedges(supergraph(bmps_cache)), reverse.(partitionedges(supergraph(bmps_cache))))
+all_partitionedges(bmps_cache::BoundaryMPSCache) = vcat(partitionedges(bmps_cache), reverse.(partitionedges(bmps_cache)))
 
 #Initialise all the interpartition message tensors
 function set_interpartition_messages!(
@@ -268,7 +279,14 @@ function partition_graph(bmps_cache::BoundaryMPSCache, partition::PartitionVerte
     return g
 end
 
-function partition_update!(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge})
+function update_partition!(bmps_cache::BoundaryMPSCache, partition::PartitionVertex)
+    g = partition_graph(bmps_cache, partition)
+    seq = forest_cover_edge_sequence(g)
+    update_partition!(bmps_cache, seq)
+    return bmps_cache
+end
+
+function update_partition!(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge})
     alg = set_default_kwargs(Algorithm("contract", normalize = false, enforce_hermiticity = false), bp_cache(bmps_cache))
     for e in seq
         m = updated_message(alg, bp_cache(bmps_cache), e)
@@ -277,9 +295,22 @@ function partition_update!(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge
     return bmps_cache
 end
 
-function partition_update(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge})
+function update_partition(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge})
     bmps_cache = copy(bmps_cache)
-    return partition_update!(bmps_cache, seq)
+    return update_partition!(bmps_cache, seq)
+end
+
+#Update the messages to be corrected within the given partitions
+function update_partitions!(bmps_cache::BoundaryMPSCache, partitions::Vector{<:PartitionVertex})
+    for p in partitions
+        update_partition!(bmps_cache, p)
+    end
+    return bmps_cache
+end
+
+function update_partitions!(bmps_cache::BoundaryMPSCache, vertices::Vector{<:Any})
+    partitions = unique(partitionvertices(bmps_cache, vertices))
+    return update_partitions!(bmps_cache, partitions)
 end
 
 # #Move the orthogonality centre one step on an interpartition from the message tensor on pe1 to that on pe2
@@ -390,7 +421,7 @@ function updater!(alg::Algorithm"orthogonal", bmps_cache::BoundaryMPSCache, part
 
     gauge_step!(alg, bmps_cache, reverse(prev_e), reverse(update_e))
     update_seq = a_star(partition_graph, src(prev_e), src(update_e))
-    partition_update!(bmps_cache, update_seq)
+    update_partition!(bmps_cache, update_seq)
     return bmps_cache
 end
   
@@ -405,7 +436,7 @@ function update_message!(
   init_gauge_seq = [(reverse(es[i]), reverse(es[i-1])) for i in length(es):-1:2]
   init_update_seq = post_order_dfs_edges(g, src(first(update_seq)))
   !isempty(init_gauge_seq) && gauge_walk!(alg, bmps_cache, init_gauge_seq)
-  !isempty(init_update_seq) && partition_update!(bmps_cache, init_update_seq)
+  !isempty(init_update_seq) && update_partition!(bmps_cache, init_update_seq)
 
   prev_cf, prev_e = 0, nothing
   for i = 1:alg.kwargs.niters
@@ -524,7 +555,7 @@ end
 #     partition = only(planargraph_partitions(bmps_cache, parent.(partitionvertices(bmps_cache, verts))))
 #     pg = partition_graph(bmps_cache, partition)
 #     update_seq = post_order_dfs_edges(pg,first(vs))
-#     bmps_cache = partition_update(bmps_cache, PartitionEdge.(update_seq))
+#     bmps_cache = update_partition(bmps_cache, PartitionEdge.(update_seq))
 #     return environment(bp_cache(bmps_cache), verts; kwargs...)
 # end
 
@@ -532,7 +563,7 @@ function vertex_scalar(bmps_cache::BoundaryMPSCache, partition::PartitionVertex)
     g = partition_graph(bmps_cache, partition)
     v = first(center(g))
     update_seq = post_order_dfs_edges(g,v)
-    bmps_cache = partition_update(bmps_cache, update_seq)
+    bmps_cache = update_partition(bmps_cache, update_seq)
     return vertex_scalar(bp_cache(bmps_cache), v)
 end
 
@@ -552,6 +583,18 @@ function delete_partition_messages!(bmps_cache::BoundaryMPSCache, partition::Par
     return deletemessages!(bmps_cache, filter(e -> e ∈ keys(messages(bmps_cache)), es))
 end
 
+function delete_partition_messages!(bmps_cache::BoundaryMPSCache, partitions::Vector{<:PartitionVertex})
+    for p in partitions
+        delete_partition_messages!(bmps_cache, p)
+    end
+    return bmps_cache
+end
+
+function delete_partition_messages!(bmps_cache::BoundaryMPSCache, vertices::Vector{<:Any})
+    partitions = unique(partitionvertices(bmps_cache, vertices))
+    return delete_partition_messages!(bmps_cache, partitions)
+end
+
 
 function vertex_scalars(
     bmps_cache::BoundaryMPSCache, vertices = partitionvertices(supergraph(bmps_cache)); kwargs...
@@ -560,7 +603,7 @@ function vertex_scalars(
 end
 
 function edge_scalars(
-    bmps_cache::BoundaryMPSCache, edges = partitionedges(supergraph(bmps_cache)); kwargs...
+    bmps_cache::BoundaryMPSCache, edges = partitionedges(bmps_cache); kwargs...
 )
 return map(e -> edge_scalar(bmps_cache, e; kwargs...), edges)
 end
