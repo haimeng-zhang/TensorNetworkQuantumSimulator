@@ -55,15 +55,16 @@ function main()
 
     central_site = (11,5)
 
-    #Use BP to get an observable
-    sz_bp = expect(ψ_bpc, [("Z", [central_site])]; alg = "bp")
+    #Use BP to get an observable, as we have the BP cache with messages already in it. We can use that.
+    sz_bp = expect(ψ_bpc, [("Z", [central_site])])
     println("BP measured magnetisation on central site is $(only(sz_bp))")
 
     #Use boundary MPS to get same observab;e
-    #message_rank = 10
-    #sz_bmps = expect(ψ_bpc, [("Z", [central_site])]; alg = "boundarymps", message_rank)
+    mps_bond_dimension = 10
+    ψ = network(ψ_bpc)
+    sz_bmps = expect(ψ, [("Z", [central_site])]; alg = "boundarymps", mps_bond_dimension)
 
-    #println("Boundary MPS measured magnetisation on central site with rank $(message_rank) MPSs is $(only(sz_bmps))")
+    println("Boundary MPS measured magnetisation on central site with MPS rank $(mps_bond_dimension) MPSs is $(only(sz_bmps))")
 
     #Sample from q(x) and get p(x) / q(x) for each sample too
     #nsamples = 250

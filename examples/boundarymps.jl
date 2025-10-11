@@ -28,27 +28,24 @@ function main()
     ]
     for (g, g_str) in gs
         println("Testing for $g_str lattice with $(nv(g)) vertices")
-        s = siteinds("S=1/2", g)
-        ψ = ITN.random_tensornetwork(ComplexF32, s; link_space = χ)
-        s = ITN.siteinds(ψ)
+        ψ = random_tensornetworkstate(ComplexF32, g, "S=1/2"; bond_dimension = χ)
         v_centre = first(G.center(g))
 
-        ψ, _ = TN.symmetric_gauge(ψ)
-
-        println("Computing single site expectation value via various means")
-
+        #ψ, _ = TN.symmetric_gauge(ψ)
         sz_bp = expect(ψ, ("Z", [v_centre]); alg = "bp")
         println("BP value for Z is $sz_bp")
 
+        println("Computing single site expectation value via various means")
+
         boundary_mps_ranks = [1, 2, 4, 8, 16, 32]
-        for r in boundary_mps_ranks
+        for Rmps in boundary_mps_ranks
             sz_boundarymps = expect(
                 ψ,
                 ("Z", [v_centre]);
                 alg = "boundarymps",
-                cache_construction_kwargs = (; message_rank = r),
+                mps_bond_dimension = Rmps,
             )
-            println("Boundary MPS Value for Z at Rank $r is $sz_boundarymps")
+            println("Boundary MPS Value for Z at Rank $Rmps is $sz_boundarymps")
         end
 
         sz_exact = expect(ψ, ("Z", [v_centre]); alg = "exact")
@@ -63,14 +60,14 @@ function main()
             println("BP value for ZZ is $sz_bp")
 
             boundary_mps_ranks = [1, 2, 4, 8, 16, 32]
-            for r in boundary_mps_ranks
+            for Rmps in boundary_mps_ranks
                 sz_boundarymps = expect(
                     ψ,
                     ("ZZ", [v_centre, v_centre_neighbor]);
                     alg = "boundarymps",
-                    message_rank = r,
+                    mps_bond_dimension = Rmps,
                 )
-                println("Boundary MPS Value for ZZ at Rank $r is $sz_boundarymps")
+                println("Boundary MPS Value for ZZ at Rank $Rmps is $sz_boundarymps")
             end
 
             sz_exact = expect(ψ, ("ZZ", [v_centre, v_centre_neighbor]); alg = "exact")

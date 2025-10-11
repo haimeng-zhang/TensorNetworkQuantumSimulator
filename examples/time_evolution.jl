@@ -51,7 +51,7 @@ function main()
     #expectations_boundarymps = [real(expect(ψψ, obs))]
     #expectations_bp = [real(expect(ψ0, obs))]
 
-    boundarymps_rank = 4
+    mps_bond_dimension = 4
 
     # evolve! (First step takes long due to compilation)
     for l = 1:nl
@@ -60,14 +60,18 @@ function main()
         t1 = @timed ψ_bpc, errors =
             apply_gates(layer, ψ_bpc; apply_kwargs, verbose = false);
 
-        #sz_boundarymps = expect(ψ,obs;alg = "boundarymps", message_rank = boundarymps_rank)
-        sz_bp = expect(ψ_bpc,obs)
+        #BP expectation (already have an up-to-date BP cache)
+        sz_bp = expect(ψ_bpc, obs)
+
+        #Boundary MPS expectation 
+        ψ = network(ψ_bpc)
+        sz_boundarymps = expect(ψ,obs;alg = "boundarymps", mps_bond_dimension)
 
         println("    Took time: $(t1.time) [s]. Max bond dimension: $(maxlinkdim(ψ_bpc))")
         println("    Maximum Gate error for layer was $(maximum(errors))")
 
         println("    BP Measured Sigmaz is $(sz_bp)")
-        #println("    Boundary MPS Measured Sigmaz is $(sz_boundarymps)")
+        println("    Boundary MPS Measured Sigmaz is $(sz_boundarymps)")
     end
 end
 

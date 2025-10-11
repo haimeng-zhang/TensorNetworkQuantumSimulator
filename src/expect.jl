@@ -67,8 +67,7 @@ function expect(
         steiner_vs = collect(vertices(steiner_tree(g, obs_vs)))
 
         if !bmps_messages_up_to_date
-            println("Here")
-            update_partition!(ψ, partition)
+            ψ = update_partition(ψ, partition)
         end
     end
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x->x == v, obs_vs)] : "I"
@@ -86,17 +85,27 @@ function expect(
 end
 
 function expect(
-    alg::Algorithm,
-    cache::AbstractBeliefPropagationCache,
+    alg::Algorithm"boundarymps",
+    cache::BoundaryMPSCache,
     observables::Vector{<:Tuple};
     bmps_messages_up_to_date = false,
     kwargs...,
 )
     obs_vs = observables_vertices(observables)
-    !bmps_messages_up_to_date && update_partitions!(cache, obs_vs)
+    if !bmps_messages_up_to_date
+        cache = update_partitions(cache, obs_vs)
+    end
     out = map(obs -> expect(alg, cache, obs; bmps_messages_up_to_date = true, kwargs...), observables)
-    !bmps_messages_up_to_date && delete_partition_messages!(cache, obs_vs)
     return out
+end
+
+function expect(
+    alg::Algorithm"bp",
+    cache::BeliefPropagationCache,
+    observables::Vector{<:Tuple};
+    kwargs...,
+)
+    return map(obs -> expect(alg, cache, obs; kwargs...), observables)
 end
 
 function expect(
@@ -127,7 +136,7 @@ function expect(
     ψ_bmps = update(ψ_bmps; cache_update_kwargs...)
 
     obs_vs = observables_vertices(observable)
-    update_partitions!(ψ_bmps, obs_vs)
+    ψ_bmps = update_partitions(ψ_bmps, obs_vs)
 
     return expect(alg, ψ_bmps, observable; bmps_messages_up_to_date = true, kwargs...)
 end

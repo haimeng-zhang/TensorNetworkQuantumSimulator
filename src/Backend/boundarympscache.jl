@@ -55,23 +55,6 @@ function default_bmps_update_kwargs(bmps_cache::BoundaryMPSCache)
     return (; default_bmps_update_kwargs(network(bmps_cache))..., maxiter)
 end
 
-# const _default_boundarymps_update_alg = "orthogonal"
-# const _default_boundarymps_update_niters = 40
-# const _default_boundarymps_update_tolerance = 1e-12
-# const _default_boundarymps_update_cutoff = 1e-12
-
-# function default_boundarymps_update_kwargs(; cache_is_flat = false, kwargs...)
-#     message_update_alg = Algorithm(ITensorNetworks.default_message_update_alg(cache_is_flat))
-#     return (; message_update_alg, default_message_update_kwargs(; cache_is_flat, kwargs...)...)
-# end
-
-# ITensorNetworks.default_message_update_alg(cache_is_flat::Bool = false) = cache_is_flat ? "ITensorMPS" : "orthogonal"
-
-# function default_message_update_kwargs(; cache_is_flat = false, cutoff = _default_boundarymps_update_cutoff, kwargs...)
-#     !cache_is_flat && return return (; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance)
-#     return (; cutoff = cutoff, kwargs...)
-# end
-
 function is_correct_format(bmps_cache::BoundaryMPSCache)
     s = supergraph(bmps_cache)
     effective_graph = partitions_graph(s)
@@ -85,18 +68,6 @@ function is_correct_format(bmps_cache::BoundaryMPSCache)
     end
     return true
 end
-
-# default_cache_update_kwargs(alg::Algorithm"boundarymps") = default_boundarymps_update_kwargs()
-
-# ITensorNetworks.default_update_alg(bmps_cache::BoundaryMPSCache) = "bp"
-# function ITensorNetworks.set_default_kwargs(alg::Algorithm"bp", bmps_cache::BoundaryMPSCache)
-#     maxiter = get(alg.kwargs, :maxiter, is_tree(partitions_graph(ppg(bmps_cache))) ? 1 : nothing)
-#     edge_sequence = get(alg.kwargs, :edge_sequence, pair.(default_edge_sequence(ppg(bmps_cache))))
-#     verbose = get(alg.kwargs, :verbose, false)
-#     tol = get(alg.kwargs, :tol, nothing)
-#     message_update_alg = ITensorNetworks.set_default_kwargs(get(alg.kwargs, :message_update_alg, Algorithm(ITensorNetworks.default_message_update_alg(is_flat(bmps_cache)))))
-#     return Algorithm("bp"; tol, message_update_alg, maxiter, edge_sequence, verbose)
-# end
 
 bp_cache(bmps_cache::BoundaryMPSCache) = bmps_cache.bp_cache
 supergraph(bmps_cache::BoundaryMPSCache) = bmps_cache.supergraph
@@ -187,20 +158,6 @@ function virtual_index_dimension(
     end
 end
 
-# #Vertices of the planargraph
-# function planargraph_vertices(bmps_cache::BoundaryMPSCache, partition)
-#     return vertices(ppg(bmps_cache), PartitionVertex(partition))
-# end
-
-# #Get partition(s) of vertices of the planargraph
-# function planargraph_partitions(bmps_cache::BoundaryMPSCache, vertices::Vector)
-#     return parent.(partitionvertices(ppg(bmps_cache), vertices))
-# end
-
-# function planargraph_partition(bmps_cache::BoundaryMPSCache, vertex)
-#     return only(planargraph_partitions(bmps_cache, [vertex]))
-# end
-
 #Constructor, inserts missing edge in the planar graph to ensure each partition is connected
 #allowing the code to work for arbitrary grids and not just square grids
 function BoundaryMPSCache(
@@ -210,6 +167,7 @@ function BoundaryMPSCache(
     group_sorting_function::Function = v -> last(v),
 
 )
+    bpc = copy(bpc)
     pseudo_edges = pseudo_planar_edges(bpc; grouping_function)
     planar_graph = underlying_graph(bpc)
     NamedGraphs.add_edges!(planar_graph, pseudo_edges)
@@ -295,9 +253,9 @@ function update_partition!(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge
     return bmps_cache
 end
 
-function update_partition(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge})
+function update_partition(bmps_cache::BoundaryMPSCache, args...)
     bmps_cache = copy(bmps_cache)
-    return update_partition!(bmps_cache, seq)
+    return update_partition!(bmps_cache, args...)
 end
 
 #Update the messages to be corrected within the given partitions
@@ -311,6 +269,11 @@ end
 function update_partitions!(bmps_cache::BoundaryMPSCache, vertices::Vector{<:Any})
     partitions = unique(partitionvertices(bmps_cache, vertices))
     return update_partitions!(bmps_cache, partitions)
+end
+
+function update_partitions(bmps_cache::BoundaryMPSCache, args...)
+    bmps_cache = copy(bmps_cache)
+    return update_partitions!(bmps_cache, args...)
 end
 
 # #Move the orthogonality centre one step on an interpartition from the message tensor on pe1 to that on pe2
@@ -547,16 +510,6 @@ end
 #     M = ITensorMPS.MPS(bmps_cache, prev_pp)
 #     M_out = generic_apply(O, M; cutoff = alg.kwargs.cutoff, normalize =  alg.kwargs.normalize, maxdim)
 #     return set_interpartition_message!(bmps_cache, M_out, partitionpair)
-# end
-
-# #Environment support, assume all vertices live in the same partition for now
-# function ITensorNetworks.environment(bmps_cache::BoundaryMPSCache, verts::Vector; kwargs...)
-#     vs = parent.((partitionvertices(bp_cache(bmps_cache), verts)))
-#     partition = only(planargraph_partitions(bmps_cache, parent.(partitionvertices(bmps_cache, verts))))
-#     pg = partition_graph(bmps_cache, partition)
-#     update_seq = post_order_dfs_edges(pg,first(vs))
-#     bmps_cache = update_partition(bmps_cache, PartitionEdge.(update_seq))
-#     return environment(bp_cache(bmps_cache), verts; kwargs...)
 # end
 
 function vertex_scalar(bmps_cache::BoundaryMPSCache, partition::PartitionVertex)

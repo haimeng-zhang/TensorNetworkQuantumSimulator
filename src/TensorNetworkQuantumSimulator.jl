@@ -48,6 +48,7 @@ export
     random_tensornetworkstate,
     BeliefPropagationCache,
     rescale!,
-    message
-
+    message,
+    network,
+    update
 end
