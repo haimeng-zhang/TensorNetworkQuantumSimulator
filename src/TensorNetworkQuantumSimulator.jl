@@ -41,7 +41,6 @@ export
     siteinds,
     edge_color,
     zerostate,
-    getnqubits,
     named_grid,
     sample,
     TensorNetworkState,

@@ -1,9 +1,3 @@
-function collect_gate_vertices(circuit::Vector{<:ITensor}, bpc::BeliefPropagationCache)
-    is_flat(bpc) && return ITensorNetworks.neighbor_vertices.((bpc, ), circuit)
-    gate_vertices = ITensorNetworks.neighbor_vertices.((ket_network(bpc), ), circuit)
-    return [[(v, "ket") for v in _gate_vertices] for _gate_vertices in gate_vertices]
-end
-
 """
     apply_gates(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
 
@@ -23,13 +17,6 @@ function apply_gates(
     return network(ψ_bpc), truncation_errors
 end
 
-"""
-    apply_gates(circuit::AbstractVector, s::IndsNetwork, bpc::BeliefPropagationCache; bp_update_kwargs, apply_kwargs = (; maxdim, cutoff))
-
-Apply a circuit to a tensor network by passing the indsnetwork and either the BP cache for the ket network or the norm netwrok.
-The circuit should take the form of a vector of Tuples (gate_str, qubits_to_act_on, optional_param).
-Returns the final state and an approximate list of errors when applying each gate
-"""
 function apply_gates(
     circuit::Vector,
     ψ_bpc::BeliefPropagationCache;
@@ -45,7 +32,7 @@ end
 function apply_gates(
     circuit::Vector{<:ITensor},
     ψ_bpc::BeliefPropagationCache;
-    gate_vertices::Vector = collect_gate_vertices(circuit, ψ_bpc),
+    gate_vertices::Vector = neighbor_vertices.((network(ψ_bpc), ), circuit),
     apply_kwargs = (; ),
     bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
     update_cache = true,

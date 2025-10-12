@@ -3,7 +3,7 @@ using StatsBase
 
 using Dictionaries: Dictionary, set!
 
-using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree
+using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree, vertices
 
 using SimpleGraphConverter
 using SimpleGraphAlgorithms: edge_color
@@ -52,13 +52,7 @@ using ITensorMPS
 using ITensorNetworks: ITensorNetworks
 using ITensorNetworks:
     AbstractITensorNetwork,
-    AbstractIndsNetwork,
-    Indices,
-    IndsNetwork,
     ITensorNetwork,
-    Algorithm,
-    vertices,
-    dim,
     neighbor_vertices,
     contraction_sequence,
     group,
@@ -66,10 +60,7 @@ using ITensorNetworks:
     generic_state,
     setindex_preserve_graph!,
     edge_tag,
-    tree_orthogonalize,
-    gauge_walk,
-    maxlinkdim,
-    default_cache_construction_kwargs
+    maxlinkdim
 
 using Adapt: adapt
 
