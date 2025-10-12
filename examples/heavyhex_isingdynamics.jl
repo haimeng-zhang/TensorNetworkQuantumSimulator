@@ -32,7 +32,7 @@ function main()
     #Depth of the circuit and apply parameters
     no_trotter_steps = 20
     χ = 8
-    apply_kwargs = (; cutoff = 1e-12, maxdim = χ, normalize_tensors = false)
+    apply_kwargs = (; cutoff = 1e-12, maxdim = χ, normalize_tensors = true)
 
     #Initial state
     ψ = tensornetworkstate(ComplexF32, v -> "↑", g, "S=1/2")
