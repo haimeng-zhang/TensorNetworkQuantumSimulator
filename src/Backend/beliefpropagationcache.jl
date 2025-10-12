@@ -34,7 +34,7 @@ function deletemessage!(bp_cache::BeliefPropagationCache, e::AbstractEdge)
     return bp_cache
 end
 
-function setmessage!(bp_cache::BeliefPropagationCache, e::AbstractEdge, message)
+function setmessage!(bp_cache::BeliefPropagationCache, e::AbstractEdge, message::Union{ITensor, Vector{<:ITensor}})
     ms = messages(bp_cache)
     set!(ms, e, message)
     return bp_cache
@@ -46,7 +46,7 @@ function message(bp_cache::BeliefPropagationCache, edge::AbstractEdge; kwargs...
 end
 
 function messages(bp_cache::BeliefPropagationCache, edges::Vector{<:AbstractEdge})
-    return [message(bp_cache, e) for e in edges]
+    return reduce(vcat, [message(bp_cache, e) for e in edges])
 end
 
 default_bp_maxiter(g::AbstractGraph) = is_tree(g) ? 1 : nothing

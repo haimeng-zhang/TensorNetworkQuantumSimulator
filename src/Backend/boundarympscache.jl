@@ -39,7 +39,7 @@ end
 
 default_normalize(alg::Algorithm"ITensorMPS") = true
 function set_default_kwargs(alg::Algorithm"ITensorMPS", bmps_cache::BoundaryMPSCache)
-    cutoff = get(alg.kwargs, :cutoff, _default_boundarymps_update_cutoff)
+    cutoff = get(alg.kwargs, :cutoff, 1e-12)
     normalize = get(alg.kwargs, :normalize, default_normalize(alg))
     return Algorithm("ITensorMPS"; cutoff, normalize)
 end
@@ -84,7 +84,8 @@ for f in [
     :(ITensorNetworks.linkinds),
     :(ITensors.NDTensors.scalartype),
     :(network),
-    :(NamedGraphs.GraphsExtensions.boundary_edges)
+    :(NamedGraphs.GraphsExtensions.boundary_edges),
+    :(setindex_preserve_all!)
 ]
 @eval begin
     function $f(bmps_cache::BoundaryMPSCache, args...; kwargs...)
@@ -106,21 +107,9 @@ end
 end
 
 default_message(bmps_cache::BoundaryMPSCache, e::NamedEdge) = default_message(bp_cache(bmps_cache), e)
-setmessage!(bmps_cache::BoundaryMPSCache, e::NamedEdge, m::ITensor) = setmessage!(bp_cache(bmps_cache), e, m)
+setmessage!(bmps_cache::BoundaryMPSCache, e::NamedEdge, m::Union{ITensor, Vector{<:ITensor}}) = setmessage!(bp_cache(bmps_cache), e, m)
 deletemessages!(bmps_cache::BoundaryMPSCache, es::Vector{<:NamedEdge}) = deletemessages!(bp_cache(bmps_cache), es)
 message(bmps_cache::BoundaryMPSCache, e::NamedEdge) = message(bp_cache(bmps_cache), e)
-
-# function ITensorNetworks.default_bp_maxiter(
-#     alg::Algorithm,
-#     bmps_cache::BoundaryMPSCache,
-# )
-#     return default_bp_maxiter(partitions_graph(ppg(bmps_cache)))
-# end
-
-# default_boundarymps_message_rank(tn::AbstractITensorNetwork) = maxlinkdim(tn)^2
-# ITensorNetworks.partitions(bmps_cache::BoundaryMPSCache) =
-#     parent.(collect(partitionvertices(ppg(bmps_cache))))
-# NamedGraphs.PartitionedGraphs.partitionedges(bmps_cache::BoundaryMPSCache) = pair.(partitionedges(ppg(bmps_cache)))
 
 function Base.copy(bmps_cache::BoundaryMPSCache)
     return BoundaryMPSCache(
@@ -328,57 +317,6 @@ function extracter(
     return m
 end
 
-# function ITensors.commonind(bmps_cache::BoundaryMPSCache, pe1::PartitionEdge, pe2::PartitionEdge)
-#     m1, m2 = message(bmps_cache, pe1), message(bmps_cache, pe2)
-#     return commonind(only(m1), only(m2))
-# end
-
-# function merge_internal_tensors(O::Union{MPS, MPO})
-#     internal_inds = filter(i -> isempty(ITensorMPS.siteinds(O, i)), [i for i in 1:length(O)])
-
-#     while !isempty(internal_inds)
-#         site = first(internal_inds)
-#         tensors = [O[i] for i in setdiff([i for i in 1:length(O)], [site])]
-#         if site != length(O)
-#             tensors[site] = tensors[site] * O[site]
-#         else
-#             tensors[site - 1] = tensors[site - 1] * O[site]
-#         end
-
-#         O = typeof(O)(tensors)
-
-#         internal_inds = filter(i -> isempty(ITensorMPS.siteinds(O, i)), [i for i in 1:length(O)])
-#     end
-#     return O
-# end
-
-# function ITensorMPS.MPO(bmps_cache::BoundaryMPSCache, partition)
-#     sorted_vs = sort(planargraph_vertices(bmps_cache, partition))
-#     ts = [copy(bmps_cache[v]) for v in sorted_vs]
-#     O = ITensorMPS.MPO(ts)
-#     return O
-# end
-
-# function ITensorMPS.MPS(bmps_cache::BoundaryMPSCache, partitionpair::Pair)
-#     sorted_pes = planargraph_sorted_partitionedges(bmps_cache, partitionpair)
-#     ms = [only(message(bmps_cache, pe)) for pe in sorted_pes]
-#     return ITensorMPS.MPS(ms)
-# end
-
-# function truncate!(bmps_cache::BoundaryMPSCache, partitionpair::Pair; truncate_kwargs...)
-#     M = ITensorMPS.MPS(bmps_cache, partitionpair)
-#     M = ITensorMPS.truncate(M; truncate_kwargs...)
-#     return set_interpartition_message!(bmps_cache, M, partitionpair)
-# end
-
-# function set_interpartition_message!(bmps_cache::BoundaryMPSCache, M::Union{MPS, MPO}, partitionpair::Pair)
-#     sorted_pes = planargraph_sorted_partitionedges(bmps_cache, partitionpair)
-#     for i in 1:length(M)
-#         set_message!(bmps_cache, sorted_pes[i], ITensor[M[i]])
-#     end
-#     return bmps_cache
-# end
-
 function updater!(alg::Algorithm"orthogonal", bmps_cache::BoundaryMPSCache, partition_graph::AbstractGraph, prev_e, update_e)
     prev_e == nothing && return bmps_cache
 
@@ -428,89 +366,135 @@ function update_message!(
   return bmps_cache
 end
 
-# function prev_partitionpair(bmps_cache::BoundaryMPSCache, partitionpair::Pair)
-#     pppg = partitions_graph(ppg(bmps_cache))
-#     vns = neighbors(pppg, first(partitionpair))
-#     length(vns) == 1 && return nothing
+function prev_partitionedge(bmps_cache::BoundaryMPSCache, pe::PartitionEdge)
+    g = partitions_graph(supergraph(bmps_cache))
+    vns = neighbors(g, parent(src(pe)))
+    length(vns) == 1 && return nothing
+    @assert length(vns) == 2
+    v1, v2 = first(vns), last(vns)
+    parent(dst(pe)) == v1 && return PartitionEdge(v2 => parent(src(pe)))
+    parent(dst(pe)) == v2 && return PartitionEdge(v1 => parent(src(pe)))
+end
 
-#     @assert length(vns) == 2
-#     v1, v2 = first(vns), last(vns)
-#     last(partitionpair) == v1 && return v2 => first(partitionpair)
-#     last(partitionpair) == v2 && return v1 => first(partitionpair)
-# end
+function merge_internal_tensors(O::Union{MPS, MPO})
+    internal_inds = filter(i -> isempty(ITensorMPS.siteinds(O, i)), [i for i in 1:length(O)])
 
-# function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
-#     is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
+    while !isempty(internal_inds)
+        site = first(internal_inds)
+        tensors = [O[i] for i in setdiff([i for i in 1:length(O)], [site])]
+        if site != length(O)
+            tensors[site] = tensors[site] * O[site]
+        else
+            tensors[site - 1] = tensors[site - 1] * O[site]
+        end
 
-#     if is_simple_mpo
-#         out = ITensorMPS.apply(O, M; alg = "naive", kwargs...)
-#         if normalize
-#             out = ITensors.normalize(out)
-#         end
-#         return out
-#     end
+        O = typeof(O)(tensors)
 
-#     O_tensors = ITensor[]
-#     for i in 1:length(O)
-#         m_ind = filter(j -> !isempty(ITensors.commoninds(O[i], M[j])), [j for j in 1:length(M)])
-#         if isempty(m_ind)
-#             push!(O_tensors, O[i])
-#         else
-#             m_ind = only(m_ind)
-#             push!(O_tensors, O[i] * M[m_ind])
-#         end
-#     end
-#     O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
+        internal_inds = filter(i -> isempty(ITensorMPS.siteinds(O, i)), [i for i in 1:length(O)])
+    end
+    return O
+end
+
+function ITensorMPS.MPO(bmps_cache::BoundaryMPSCache, partition; interpet_as_flat = false)
+    @assert network(bmps_cache) isa ITensorNetwork || interpet_as_flat
+    sorted_vs = sort(vertices(supergraph(bmps_cache), partition))
+    ts = [copy(network(bmps_cache)[v]) for v in sorted_vs]
+    O = ITensorMPS.MPO(ts)
+    return O
+end
+
+function ITensorMPS.MPS(bmps_cache::BoundaryMPSCache, pe::PartitionEdge)
+    sorted_es = sorted_edges(bmps_cache, pe)
+    ms = [message(bmps_cache, e) for e in sorted_es]
+    return ITensorMPS.MPS(ms)
+end
+
+function truncate!(bmps_cache::BoundaryMPSCache, pe::PartitionEdge; truncate_kwargs...)
+    M = ITensorMPS.MPS(bmps_cache, pe)
+    M = ITensorMPS.truncate(M; truncate_kwargs...)
+    return set_interpartition_message!(bmps_cache, M, pe)
+end
+
+function set_interpartition_message!(bmps_cache::BoundaryMPSCache, M::Union{MPS, MPO}, pe::PartitionEdge)
+    sorted_es = sorted_edges(bmps_cache, pe)
+    for i in 1:length(M)
+        setmessage!(bmps_cache, sorted_es[i], M[i])
+    end
+    return bmps_cache
+end
+
+#TODO: Write a generalized zip up fitter
+function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
+    is_simple_mpo = (length(O) == length(M) && all([length(ITensors.siteinds(O, i)) == 2 for i in 1:length(O)]))
+
+    if is_simple_mpo
+        out = ITensorMPS.apply(O, M; alg = "naive", kwargs...)
+        if normalize
+            out = ITensors.normalize(out)
+        end
+        return out
+    end
+
+    O_tensors = ITensor[]
+    for i in 1:length(O)
+        m_ind = filter(j -> !isempty(ITensors.commoninds(O[i], M[j])), [j for j in 1:length(M)])
+        if isempty(m_ind)
+            push!(O_tensors, O[i])
+        else
+            m_ind = only(m_ind)
+            push!(O_tensors, O[i] * M[m_ind])
+        end
+    end
+    O = ITensorNetwork([i for i in 1:length(O_tensors)], O_tensors)
     
-#     #Transform away edges that make a loop
-#     loop_edges = filter(e -> abs(src(e) - dst(e)) != 1, edges(O))
-#     for e in loop_edges
-#         edge_to_split = e
-#         inbetween_vertices = [i for i in (minimum((src(e), dst(e)))+1):(maximum((src(e), dst(e)))-1)]
-#         for v in inbetween_vertices
-#             edge_to_split_ind = only(linkinds(O, edge_to_split))
-#             O = ITensorNetworks.split_index(O, [edge_to_split])
-#             d = adapt(datatype(O[v]))(denseblocks(delta(edge_to_split_ind, edge_to_split_ind')))
-#             O[v] *= d
-#             edge_to_split = NamedEdge(v => maximum((src(e), dst(e))))
-#         end
-#     end
+    #Transform away edges that make a loop
+    loop_edges = filter(e -> abs(src(e) - dst(e)) != 1, edges(O))
+    for e in loop_edges
+        edge_to_split = e
+        inbetween_vertices = [i for i in (minimum((src(e), dst(e)))+1):(maximum((src(e), dst(e)))-1)]
+        for v in inbetween_vertices
+            edge_to_split_ind = only(linkinds(O, edge_to_split))
+            O = ITensorNetworks.split_index(O, [edge_to_split])
+            d = adapt(datatype(O[v]))(denseblocks(delta(edge_to_split_ind, edge_to_split_ind')))
+            O[v] *= d
+            edge_to_split = NamedEdge(v => maximum((src(e), dst(e))))
+        end
+    end
 
-#     O = ITensorNetworks.combine_linkinds(O)
-#     @assert is_tree(O)
-#     O = ITensorMPS.MPS([O[v] for v in vertices(O)])
-#     O = merge_internal_tensors(O)
+    O = ITensorNetworks.combine_linkinds(O)
+    @assert is_tree(O)
+    O = ITensorMPS.MPS([O[v] for v in vertices(O)])
+    O = merge_internal_tensors(O)
     
-#     if normalize
-#         O = ITensors.normalize(O)
-#     end
+    if normalize
+        O = ITensors.normalize(O)
+    end
 
-#     return truncate(O; kwargs...)
-# end
+    return truncate(O; kwargs...)
+end
 
 # #Update all the message tensors on an interpartition via the ITensorMPS apply function
-# function ITensorNetworks.update_message(
-#     alg::Algorithm"ITensorMPS",
-#     bmps_cache::BoundaryMPSCache,
-#     partitionpair::Pair;
-#     maxdim::Int = maximum_virtual_dimension(bmps_cache),
-# )
-#     bmps_cache = copy(bmps_cache)
-#     prev_pp = prev_partitionpair(bmps_cache, partitionpair)
-#     O = ITensorMPS.MPO(bmps_cache, first(partitionpair))
-#     O = ITensorMPS.truncate(O; alg.kwargs.cutoff, maxdim)
-#     if isnothing(prev_pp)
-#         O = merge_internal_tensors(O)
-#         if alg.kwargs.normalize 
-#             O = ITensors.normalize(O)
-#         end
-#         return set_interpartition_message!(bmps_cache, O, partitionpair)
-#     end
+function update_message!(
+    alg::Algorithm"ITensorMPS",
+    bmps_cache::BoundaryMPSCache,
+    pe::PartitionEdge;
+    maxdim::Int = mps_bond_dimension(bmps_cache),
+)
+    prev_pe = prev_partitionedge(bmps_cache, pe)
+    O = ITensorMPS.MPO(bmps_cache, src(pe))
+    O = ITensorMPS.truncate(O; alg.kwargs.cutoff, maxdim)
+    if isnothing(prev_pe)
+        O = merge_internal_tensors(O)
+        if alg.kwargs.normalize 
+            O = ITensors.normalize(O)
+        end
+        return set_interpartition_message!(bmps_cache, O, pe)
+    end
 
-#     M = ITensorMPS.MPS(bmps_cache, prev_pp)
-#     M_out = generic_apply(O, M; cutoff = alg.kwargs.cutoff, normalize =  alg.kwargs.normalize, maxdim)
-#     return set_interpartition_message!(bmps_cache, M_out, partitionpair)
-# end
+    M = ITensorMPS.MPS(bmps_cache, prev_pe)
+    M_out = generic_apply(O, M; cutoff = alg.kwargs.cutoff, normalize =  alg.kwargs.normalize, maxdim)
+    return set_interpartition_message!(bmps_cache, M_out, pe)
+end
 
 function vertex_scalar(bmps_cache::BoundaryMPSCache, partition::PartitionVertex)
     g = partition_graph(bmps_cache, partition)
@@ -533,6 +517,11 @@ function delete_partition_messages!(bmps_cache::BoundaryMPSCache, partition::Par
     g = partition_graph(bmps_cache, partition)
     es = edges(g)
     es = vcat(es, reverse.(es))
+    return deletemessages!(bmps_cache, filter(e -> e ∈ keys(messages(bmps_cache)), es))
+end
+
+function delete_interpartition_messages!(bmps_cache::BoundaryMPSCache, pe::PartitionEdge)
+    es = sorted_edges(bmps_cache, pe)
     return deletemessages!(bmps_cache, filter(e -> e ∈ keys(messages(bmps_cache)), es))
 end
 
@@ -560,12 +549,6 @@ function edge_scalars(
 )
 return map(e -> edge_scalar(bmps_cache, e; kwargs...), edges)
 end
-
-# function delete_partitionpair_messages!(bmps_cache::BoundaryMPSCache, partitionpair::Pair)
-#     pes = planargraph_sorted_partitionedges(bmps_cache, partitionpair)
-#     return delete_messages!(bmps_cache, filter(pe -> pe ∈ keys(messages(bmps_cache)), pes))
-# end
-
 
 #PartitionedGraph Helpers
 #Add edges necessary to connect up all vertices in a partition in the planar graph created by the sort function

@@ -67,15 +67,15 @@ function main()
     println("Boundary MPS measured magnetisation on central site with MPS rank $(mps_bond_dimension) MPSs is $(only(sz_bmps))")
 
     #Sample from q(x) and get p(x) / q(x) for each sample too
-    #nsamples = 250
-    #bitstrings = TN.sample_directly_certified(ψ, nsamples; norm_message_rank = message_rank)
+    nsamples = 250
+    bitstrings = TN.sample_directly_certified(ψ, nsamples; norm_mps_bond_dimension = mps_bond_dimension)
 
-    #st_dev = Statistics.std(first.(bitstrings))
-    #println("Standard deviation of p(x) / q(x) is $(st_dev)")
+    st_dev = Statistics.std(first.(bitstrings))
+    println("Standard deviation of p(x) / q(x) is $(st_dev)")
 
     #Measure observable with sample approach (use importance sampling to correct)
-    #sampled_sz = sum([first(b) * (-2*last(b)[central_site] + 1) for b in bitstrings]) / Statistics.sum(first.(bitstrings))
-    #println("Importance sampled value for magnetisation is $(sampled_sz)")
+    sampled_sz = sum([first(b) * (-2*last(b)[central_site] + 1) for b in bitstrings]) / Statistics.sum(first.(bitstrings))
+    println("Importance sampled value for magnetisation is $(sampled_sz)")
 
 end
 
