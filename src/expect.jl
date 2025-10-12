@@ -145,14 +145,19 @@ end
 function collectobservable(obs::Tuple)
     # unpack
     op = obs[1]
-    qinds = obs[2]
+    verts = _tovec(obs[2])
     coeff = length(obs) == 2 ? 1 : last(obs)
 
-    @assert !(op == "" && isempty(qinds))
+    @assert !(op == "" && isempty(verts))
 
-    op_vec = [string(o) for o in op]
-    qinds_vec = _tovec(qinds)
-    return op_vec, qinds_vec, coeff
+    length(op) != length(verts) && error("Invalid observable: need as many operators as vertices passed.")
+    if op isa String
+        op_strings = [string(o) for o in op]
+    elseif op isa Vector{<:String}
+        op_strings = [o for o in op]
+    end
+
+    return op_strings, verts, coeff
 end
 
 function observables_vertices(observables::Vector{<:Tuple})
@@ -160,5 +165,5 @@ function observables_vertices(observables::Vector{<:Tuple})
 end
 
 observables_vertices(obs::Tuple) = obs[2]
-_tovec(qinds) = vec(collect(qinds))
-_tovec(qinds::NamedEdge) = [qinds.src, qinds.dst]
+_tovec(verts::Union{Tuple, AbstractVector}) = verts isa Tuple ? [verts] : collect(verts)
+_tovec(verts::NamedEdge) = [src(verts), dst(verts)]

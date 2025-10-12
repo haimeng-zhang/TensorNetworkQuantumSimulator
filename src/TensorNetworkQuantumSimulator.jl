@@ -55,5 +55,7 @@ export
     symmetric_gauge,
     symmetric_gauge!,
     messages,
-    gauge_and_scale
+    gauge_and_scale,
+    paulitensornetworkstate,
+    identitytensornetworkstate
 end

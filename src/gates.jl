@@ -1,3 +1,5 @@
+using ITensors: hastags
+
 # conversion of a tuple circuit to an ITensor circuit
 function toitensor(circuit::Vector, sinds::Dictionary)
     return [toitensor(gate, sinds) for gate in circuit]
@@ -36,7 +38,7 @@ function toitensor(gate::Tuple, siteinds::Dictionary)
     gate_inds = _ensuretuple(gate_inds)
     s_inds = [only(siteinds[v]) for v in gate_inds]
 
-    all(map(sind -> dim(sind) == 4, s_inds)) &&
+    all(map(sind -> hastags(sind, "Pauli"), s_inds)) &&
         return toitensor_heisenberg(gate_symbol, gate[3], s_inds)
 
     if _ispaulistring(gate_symbol)
