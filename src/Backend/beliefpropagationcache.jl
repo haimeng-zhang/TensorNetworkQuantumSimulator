@@ -46,10 +46,11 @@ function message(bp_cache::BeliefPropagationCache, edge::AbstractEdge; kwargs...
 end
 
 function messages(bp_cache::BeliefPropagationCache, edges::Vector{<:AbstractEdge})
+    isempty(edges) && return ITensor[]
     return reduce(vcat, [message(bp_cache, e) for e in edges])
 end
 
-default_bp_maxiter(g::AbstractGraph) = is_tree(g) ? 1 : nothing
+default_bp_maxiter(g::AbstractGraph) = is_tree(g) ? 1 : _default_bp_update_maxiter
 #Forward onto the network
 for f in [
         :(Graphs.vertices),

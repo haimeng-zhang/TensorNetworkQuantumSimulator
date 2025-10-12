@@ -12,8 +12,7 @@ function _sample(
 
     grouping_function = partition_by == "Column" ? v -> last(v) : v -> first(v)
     group_sorting_function = partition_by == "Column" ? v -> first(v) : v -> last(v)
-    ψ = normalize(ψ; alg = "bp")
-    #ψ, ψψ = symmetric_gauge(ψ)
+    ψ = gauge_and_scale(ψ)
 
     norm_bmps_cache = BoundaryMPSCache(ψ, norm_mps_bond_dimension; grouping_function, group_sorting_function)
     leaves = leaf_vertices(partitions_graph(supergraph(norm_bmps_cache)))
@@ -192,8 +191,7 @@ function certify_sample(
     symmetrize_and_normalize=true,
 )
     if symmetrize_and_normalize
-        ψ = normalize(ψ, alg = "bp")
-        #ψ, ψψ = symmetric_gauge(ψ)
+        ψ = gauge_and_scale(ψ)
     end
 
     ψproj = copy(tensornetwork(ψ))

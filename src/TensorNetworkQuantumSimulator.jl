@@ -20,6 +20,7 @@ include("norm_sqr.jl")
 include("normalize.jl")
 include("Backend/loopcorrection.jl")
 include("sampling.jl")
+include("symmetric_gauge.jl")
 
 
 export
@@ -50,5 +51,9 @@ export
     rescale!,
     message,
     network,
-    update
+    update,
+    symmetric_gauge,
+    symmetric_gauge!,
+    messages,
+    gauge_and_scale
 end
