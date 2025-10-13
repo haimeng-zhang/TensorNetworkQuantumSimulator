@@ -86,6 +86,8 @@ end
 
 #Forward onto the BP Cache
 for f in [
+    :(Graphs.vertices),
+    :(Graphs.edges),
     :(messages),
     :(ITensors.datatype),
     :(ITensorNetworks.linkinds),

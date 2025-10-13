@@ -1,4 +1,5 @@
 using Graphs: Graphs
+using Adapt
 
 abstract type AbstractBeliefPropagationCache{V} <: AbstractGraph{V} end
 
@@ -102,7 +103,7 @@ end
 function map_factors(f, bp_cache::AbstractBeliefPropagationCache, vs = vertices(bp_cache))
     bp_cache = copy(bp_cache)
     for v in vs
-        setindex_preserve_graph!(bp_cache, v, f(factor(bp_cache, v)))
+        setindex_preserve_graph!(bp_cache, f(factor(bp_cache, v)), v)
     end
     return bp_cache
 end
@@ -112,6 +113,12 @@ end
 function adapt_factors(to, bp_cache::AbstractBeliefPropagationCache, args...)
     return map_factors(adapt(to), bp_cache, args...)
 end
+
+function Adapt.adapt_structure(to, bpc::AbstractBeliefPropagationCache)
+    bpc = adapt_messages(to, bpc)
+    bpc = adapt_factors(to, bpc)
+    return bpc
+  end
 
 function freenergy(bp_cache::AbstractBeliefPropagationCache)
     numerator_terms, denominator_terms = scalar_factors_quotient(bp_cache)
