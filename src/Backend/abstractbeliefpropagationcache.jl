@@ -93,7 +93,7 @@ function incoming_messages(bp_cache::AbstractBeliefPropagationCache, vertex; kwa
 end
 
 #Adapt interface for changing device
-function map_messages(f, bp_cache::AbstractBeliefPropagationCache, es = edges(bp_cache))
+function map_messages(f, bp_cache::AbstractBeliefPropagationCache, es = keys(messages(bp_cache)))
     bp_cache = copy(bp_cache)
     for e in es
         setmessage!(bp_cache, e, f(message(bp_cache, e)))
