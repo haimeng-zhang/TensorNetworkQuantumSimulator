@@ -1,5 +1,6 @@
 using NamedGraphs.PartitionedGraphs: PartitionedGraph, partitions_graph, partitionvertices, PartitionEdge, partitionedges, partitionedge, PartitionVertex
 using NamedGraphs: add_edges!
+using SplitApplyCombine: group
 
 struct BoundaryMPSCache{V, BPC<:BeliefPropagationCache{V}} <: AbstractBeliefPropagationCache{V}
     bp_cache::BPC
