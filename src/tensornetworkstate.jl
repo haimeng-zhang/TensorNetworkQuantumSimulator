@@ -55,7 +55,6 @@ end
 
 ITensorNetworks.uniqueinds(tns::TensorNetworkState, edge::AbstractEdge) = ITensorNetworks.uniqueinds(tensornetwork(tns), edge)
 
-
 function Base.setindex!(tns::TensorNetworkState, value, v)
     setindex!(tensornetwork(tns), value, v)
     sinds = siteinds(tns)
@@ -64,22 +63,6 @@ function Base.setindex!(tns::TensorNetworkState, value, v)
     end
     return tns
 end
-
-# function ITensorNetworks.setindex_preserve_graph!(tns::TensorNetworkState, value, v)
-#     ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
-#     sinds = siteinds(tns)
-#     for vn in vcat(neighbors(tns, v), [v])
-#         set!(sinds, vn, uniqueinds(tns, vn))
-#     end
-#     return tns
-# end
-
-# function setindex_preserve_all!(tns::TensorNetworkState, value, v)
-#     ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
-#     return tns
-# end
-
-#setindex_preserve_all!(tn::ITensorNetwork, value, v) = ITensorNetworks.setindex_preserve_graph!(tn, value, v)
 
 function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Function = v -> "I")
     factors = ITensor[]
