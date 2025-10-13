@@ -2,12 +2,6 @@ default_alg(bp_cache::BeliefPropagationCache) = "bp"
 default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
 default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")
 
-"""
-    ITensorNetworks.expect(alg::Algorithm"exact", ψ::AbstractITensorNetwork, observables::Vector{<:Tuple}, contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy()))
-
-Function for computing expectation values for any vector of pauli strings via exact contraction.
-This will be infeasible for larger networks with high bond dimension.
-"""
 function expect(
     alg::Algorithm"exact",
     ψ::TensorNetworkState,

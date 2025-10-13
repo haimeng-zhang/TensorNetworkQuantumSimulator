@@ -1,8 +1,6 @@
 using TensorNetworkQuantumSimulator
 const TN = TensorNetworkQuantumSimulator
 
-using ITensorNetworks
-const ITN = ITensorNetworks
 using ITensors
 
 using NamedGraphs

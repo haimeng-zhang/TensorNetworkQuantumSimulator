@@ -23,8 +23,14 @@ function default_bp_edge_sequence(bmps_cache::BoundaryMPSCache)
 end
 default_bp_maxiter(bmps_cache::BoundaryMPSCache) = is_tree(partitions_graph(supergraph(bmps_cache))) ? 1 : 5
 function default_message_update_alg(bmps_cache::BoundaryMPSCache)
-    network(bp_cache(bmps_cache)) isa TensorNetworkState && return "orthogonal"
-    network(bp_cache(bmps_cache)) isa ITensorNetwork && return "ITensorMPS"
+    tn = network(bp_cache(bmps_cache))
+    if tn isa TensorNetworkState || tn isa BilinearForm
+        return "orthogonal"
+    elseif tn isa ITensorNetwork
+        return "ITensorMPS"
+    else
+        return error("Unrecognized network type inside the cache. Don't know what message update alg to use.")
+    end
 end
 
 default_normalize(alg::Algorithm"orthogonal") = true
@@ -173,7 +179,7 @@ function BoundaryMPSCache(
     return bmps_cache
 end
 
-BoundaryMPSCache(tns::Union{ITensorNetwork, TensorNetworkState}, args...; kwargs...) = BoundaryMPSCache(BeliefPropagationCache(tns), args...; kwargs...)
+BoundaryMPSCache(tns::Union{ITensorNetwork, TensorNetworkState, BilinearForm}, args...; kwargs...) = BoundaryMPSCache(BeliefPropagationCache(tns), args...; kwargs...)
 
 all_partitionedges(bmps_cache::BoundaryMPSCache) = vcat(partitionedges(bmps_cache), reverse.(partitionedges(bmps_cache)))
 
@@ -233,7 +239,8 @@ function update_partition!(bmps_cache::BoundaryMPSCache, partition::PartitionVer
     return bmps_cache
 end
 
-function update_partition!(bmps_cache::BoundaryMPSCache, seq::Vector{<:NamedEdge})
+function update_partition!(bmps_cache::BoundaryMPSCache, seq::Vector)
+    isempty(seq) && return bmps_cache
     alg = set_default_kwargs(Algorithm("contract", normalize = false, enforce_hermiticity = false), bp_cache(bmps_cache))
     for e in seq
         m = updated_message(alg, bp_cache(bmps_cache), e)

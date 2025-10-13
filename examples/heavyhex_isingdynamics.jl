@@ -1,9 +1,6 @@
 using TensorNetworkQuantumSimulator
 const TN = TensorNetworkQuantumSimulator
 
-using ITensorNetworks
-const ITN = ITensorNetworks
-
 using Statistics
 
 using NamedGraphs: NamedGraphs, neighbors

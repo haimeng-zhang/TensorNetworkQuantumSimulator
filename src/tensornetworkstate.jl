@@ -12,6 +12,7 @@ Base.copy(tns::TensorNetworkState) = TensorNetworkState(copy(tensornetwork(tns))
 
 siteinds(tn::ITensorNetwork) = Dictionary(collect(vertices(tn)), [uniqueinds(tn, v) for v in collect(vertices(tn))])
 TensorNetworkState(tn::ITensorNetwork) = TensorNetworkState(tn, siteinds(tn))
+TensorNetworkState(vertices::Vector, tensors::Vector{<:ITensor}) = TensorNetworkState(ITensorNetwork(vertices, tensors))
 
 #Forward onto the itn
 for f in [
@@ -104,9 +105,8 @@ function default_message(tns::TensorNetworkState, edge::AbstractEdge)
     return adapt(datatype(tns))(denseblocks(delta(vcat(linds, prime(dag(linds))))))
 end
 
-function random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype); bond_dimension::Int = 1)
+function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Int = 1)
     vs = collect(vertices(g))
-    siteinds = Dictionary(vs, [Index[Index(d, site_tag(sitetype))] for v in vs])
     l = Dict(e => Index(bond_dimension) for e in edges(g))
     l = merge(l, Dict(reverse(e) => l[e] for e in edges(g)))
     tn = ITensorNetwork(g)
@@ -117,9 +117,12 @@ function random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d
     return TensorNetworkState(tn, siteinds)
 end
 
-function tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype))
+function random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype); bond_dimension::Int = 1)
+    return random_tensornetworkstate(eltype, g, siteinds(g, sitetype, d); bond_dimension)
+end
+
+function tensornetworkstate(eltype, f::Function, g::AbstractGraph, siteinds::Dictionary)
     vs = collect(vertices(g))
-    siteinds = Dictionary(vs, [Index[Index(d, site_tag(sitetype))] for v in vs])
     tn = ITensorNetwork(g)
     for v in vs
         tnv = f(v)
@@ -140,28 +143,15 @@ function tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::Str
     return TensorNetworkState(tn, siteinds)
 end
 
-function random_tensornetworkstate(g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype); bond_dimension::Int = 1)
-    return random_tensornetworkstate(Float64, sitetype, d; bond_dimension)
+function tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype))
+    return tensornetworkstate(eltype, f, g, siteinds(g, sitetype, d))
 end
 
-function tensornetworkstate(f::Function, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype))
-    return tensornetworkstate(Float64, f, sitetype, d)
+function random_tensornetworkstate(g::AbstractGraph, args...; kwargs...)
+    return random_tensornetworkstate(Float64, g, args...; kwargs...)
 end
 
-function site_dimension(sitetype::String)
-    sitetype = replace(lowercase(sitetype), " " => "")
-    sitetype ∈ ["s=1/2", "qubit", "spin1/2", "spinhalf"] && return 2
-    sitetype ∈ ["qutrit", "s=1", "spin1"]  && return 3
-    sitetype ∈ ["pauli"] && return 4
-    error("Don't know what physical space that site type should be")
+function tensornetworkstate(f::Function, args...)
+    return tensornetworkstate(Float64, args...)
 end
-
-function site_tag(sitetype::String)
-    sitetype = replace(lowercase(sitetype), " " => "")
-    sitetype ∈ ["s=1/2", "qubit", "spin1/2", "spinhalf"] && return "S=1/2"
-    sitetype ∈ ["qutrit", "s=1", "spin1"] && return "S=1"
-    sitetype ∈ ["pauli"] && return "Pauli"
-    error("Don't know how to interpret that site type. Supported: S=1/2, S=1, Pauli")
-end
-
     
