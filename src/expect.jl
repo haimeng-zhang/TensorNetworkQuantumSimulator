@@ -121,11 +121,12 @@ function expect(
     ψ::TensorNetworkState,
     observable::Union{Tuple, Vector{<:Tuple}};
     cache_update_kwargs = default_bmps_update_kwargs(ψ),
+    partition_by = boundarymps_partitioning(observable),
     mps_bond_dimension::Int,
     kwargs...,
 )
 
-    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension)
+    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by)
     cache_update_kwargs = (; cache_update_kwargs..., maxiter = default_bp_maxiter(ψ_bmps))
     ψ_bmps = update(ψ_bmps; cache_update_kwargs...)
 
@@ -161,3 +162,19 @@ end
 observables_vertices(obs::Tuple) = obs[2]
 _tovec(verts::Union{Tuple, AbstractVector}) = verts isa Tuple ? [verts] : collect(verts)
 _tovec(verts::NamedEdge) = [src(verts), dst(verts)]
+
+function boundarymps_partitioning(observable::Union{Tuple, Vector{<:Tuple}})
+    observables = observable isa Tuple ? [observable] : observable
+    partitioning = nothing
+    for o in observables
+        vs = observables_vertices(o)
+        if allequal(first.(vs)) && (partitioning == "row" || partitioning == nothing)
+            partitioning = "row"
+        elseif allequal(last.(vs)) && (partitioning == "col" || partitioning == nothing)
+            partitioning = "col"
+        else
+            error("Observables must all be aligned in either the same column or the same row to do BoundaryMPS measurements.")
+        end
+    end
+    return partitioning
+end

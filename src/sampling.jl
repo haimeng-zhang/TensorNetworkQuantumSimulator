@@ -6,15 +6,12 @@ function _sample(
     projected_mps_bond_dimension::Int,
     norm_mps_bond_dimension::Int,
     norm_cache_message_update_kwargs=(; ),
-    partition_by = "Row",
+    partition_by = "row",
     kwargs...,
 )
-
-    grouping_function = partition_by == "Column" ? v -> last(v) : v -> first(v)
-    group_sorting_function = partition_by == "Column" ? v -> first(v) : v -> last(v)
     ψ = gauge_and_scale(ψ)
 
-    norm_bmps_cache = BoundaryMPSCache(ψ, norm_mps_bond_dimension; grouping_function, group_sorting_function)
+    norm_bmps_cache = BoundaryMPSCache(ψ, norm_mps_bond_dimension; partition_by)
     leaves = leaf_vertices(partitions_graph(supergraph(norm_bmps_cache)))
     seq = PartitionEdge.(a_star(partitions_graph(supergraph(norm_bmps_cache)), last(leaves), first(leaves)))
     norm_cache_message_update_kwargs = (; norm_cache_message_update_kwargs..., normalize=false)

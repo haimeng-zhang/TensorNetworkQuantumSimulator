@@ -39,8 +39,8 @@ function norm_sqr(alg::Union{Algorithm"bp", Algorithm"loopcorrections"}, ψ::Ten
     return norm_sqr(alg, ψ_bpc; kwargs...)
 end
 
-function norm_sqr(alg::Algorithm"boundarymps", ψ::TensorNetworkState; mps_bond_dimension::Int, cache_update_kwargs = default_bmps_update_kwargs(ψ), kwargs...)
-    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension)
+function norm_sqr(alg::Algorithm"boundarymps", ψ::TensorNetworkState; mps_bond_dimension::Int, partition_by = "row", cache_update_kwargs = default_bmps_update_kwargs(ψ), kwargs...)
+    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by)
     maxiter = get(cache_update_kwargs, :maxiter,  default_bp_maxiter(ψ_bmps))
     cache_update_kwargs = (; cache_update_kwargs..., maxiter)
     ψ_bmps = update(ψ_bmps; cache_update_kwargs...)

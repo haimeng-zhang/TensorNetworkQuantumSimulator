@@ -161,10 +161,11 @@ end
 function BoundaryMPSCache(
     bpc::BeliefPropagationCache,
     mps_bond_dimension::Int;
-    grouping_function::Function = v -> first(v),
-    group_sorting_function::Function = v -> last(v),
-
+    partition_by = "row",
 )
+    grouping_function = partition_by == "row" ? v -> first(v) : v -> last(v)
+    group_sorting_function = partition_by == "row" ? v -> last(v) : v -> first(v)
+
     bpc = copy(bpc)
     pseudo_edges = pseudo_planar_edges(bpc; grouping_function)
     planar_graph = underlying_graph(bpc)

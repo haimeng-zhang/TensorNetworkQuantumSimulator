@@ -52,8 +52,7 @@ function main()
         println("Exact value for Z is $sz_exact")
 
         if !is_tree(g)
-            v_centre_neighbor =
-                first(filter(v -> first(v) == first(v_centre), neighbors(g, v_centre)))
+            v_centre_neighbor = first(neighbors(g, v_centre))
             println("Computing two site, neighboring, expectation value via various means")
 
             sz_bp = expect(ψ, ("ZZ", [v_centre, v_centre_neighbor]); alg = "bp")

@@ -37,8 +37,8 @@ function ITensors.inner(alg::Union{Algorithm"bp", Algorithm"loopcorrections"}, �
     return inner(alg, ψϕ_bpc; kwargs...)
 end
 
-function ITensors.inner(alg::Algorithm"boundarymps", ψ::TensorNetworkState, ϕ::TensorNetworkState; mps_bond_dimension::Int, cache_update_kwargs = (; ), kwargs...)
-    ψϕ_bmps = BoundaryMPSCache(BilinearForm(ψ, ϕ), mps_bond_dimension)
+function ITensors.inner(alg::Algorithm"boundarymps", ψ::TensorNetworkState, ϕ::TensorNetworkState; mps_bond_dimension::Int, partition_by = "row", cache_update_kwargs = (; ), kwargs...)
+    ψϕ_bmps = BoundaryMPSCache(BilinearForm(ψ, ϕ), mps_bond_dimension; partition_by)
     maxiter = get(cache_update_kwargs, :maxiter,  default_bp_maxiter(ψϕ_bmps))
     cache_update_kwargs = (; cache_update_kwargs..., maxiter)
     ψϕ_bmps = update(ψϕ_bmps; cache_update_kwargs...)
