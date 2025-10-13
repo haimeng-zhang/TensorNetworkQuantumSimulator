@@ -1,5 +1,6 @@
 using NamedGraphs.PartitionedGraphs: PartitionedGraph, partitions_graph, partitionvertices, PartitionEdge, partitionedges, partitionedge, PartitionVertex
 using NamedGraphs: add_edges!
+using SplitApplyCombine: group
 
 struct BoundaryMPSCache{V, BPC<:BeliefPropagationCache{V}} <: AbstractBeliefPropagationCache{V}
     bp_cache::BPC
@@ -91,7 +92,7 @@ for f in [
     :(ITensors.NDTensors.scalartype),
     :(network),
     :(NamedGraphs.GraphsExtensions.boundary_edges),
-    :(setindex_preserve_all!)
+    :(ITensorNetworks.setindex_preserve_graph!)
 ]
 @eval begin
     function $f(bmps_cache::BoundaryMPSCache, args...; kwargs...)

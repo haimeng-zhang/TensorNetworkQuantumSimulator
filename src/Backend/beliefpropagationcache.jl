@@ -63,7 +63,7 @@ for f in [
         :(ITensorNetworks.underlying_graph),
         :(ITensors.datatype),
         :(ITensors.scalartype),
-        :(setindex_preserve_all!),
+        :(ITensorNetworks.setindex_preserve_graph!),
         :(ITensorNetworks.maxlinkdim)
     ]
     @eval begin
@@ -259,7 +259,7 @@ function rescale_vertices!(
     vn = vertex_scalar(bpc, v)
     s = isreal(vn) ? sign(vn) : one(vn)
     if tn isa TensorNetworkState
-        setindex_preserve_all!(tn, tn[v]*s*inv(sqrt(vn)), v)
+        setindex_preserve_graph!(tn, tn[v]*s*inv(sqrt(vn)), v)
     elseif tn isa ITensorNetwork
         setindex_preserve_graph!(tn, tn[v]*s*inv(vn), v)
     else

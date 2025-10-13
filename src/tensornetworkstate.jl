@@ -21,6 +21,7 @@ for f in [
     :(ITensorNetworks.data_graph),
     :(ITensors.datatype),
     :(ITensors.NDTensors.scalartype),
+    :(ITensorNetworks.setindex_preserve_graph!)
 ]
 @eval begin
     function $f(tns::TensorNetworkState, args...; kwargs...)
@@ -64,21 +65,21 @@ function Base.setindex!(tns::TensorNetworkState, value, v)
     return tns
 end
 
-function ITensorNetworks.setindex_preserve_graph!(tns::TensorNetworkState, value, v)
-    ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
-    sinds = siteinds(tns)
-    for vn in vcat(neighbors(tns, v), [v])
-        set!(sinds, vn, uniqueinds(tns, vn))
-    end
-    return tns
-end
+# function ITensorNetworks.setindex_preserve_graph!(tns::TensorNetworkState, value, v)
+#     ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
+#     sinds = siteinds(tns)
+#     for vn in vcat(neighbors(tns, v), [v])
+#         set!(sinds, vn, uniqueinds(tns, vn))
+#     end
+#     return tns
+# end
 
-function setindex_preserve_all!(tns::TensorNetworkState, value, v)
-    ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
-    return tns
-end
+# function setindex_preserve_all!(tns::TensorNetworkState, value, v)
+#     ITensorNetworks.setindex_preserve_graph!(tensornetwork(tns), value, v)
+#     return tns
+# end
 
-setindex_preserve_all!(tn::ITensorNetwork, value, v) = ITensorNetworks.setindex_preserve_graph!(tn, value, v)
+#setindex_preserve_all!(tn::ITensorNetwork, value, v) = ITensorNetworks.setindex_preserve_graph!(tn, value, v)
 
 function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Function = v -> "I")
     factors = ITensor[]

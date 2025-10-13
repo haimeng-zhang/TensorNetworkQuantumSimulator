@@ -1,6 +1,6 @@
 using ITensorNetworks.ITensorsExtensions: ITensorsExtensions
 
-function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 * eps(real(scalartype(bp_cache))))
+function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 * eps(real(scalartype(bp_cache))), kwargs...)
     tn = network(bp_cache)
     !(tn isa TensorNetworkState) && error("Can only transform TensorNetworkStates to the symmetric gauge")
     for e in edges(tn)
@@ -28,7 +28,7 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
         Ce = rootX
         Ce = Ce * replaceinds(rootY, edge_ind, edge_ind_sim)
 
-        U, S, V = svd(Ce, edge_ind; cutoff = nothing)
+        U, S, V = svd(Ce, edge_ind; kwargs...)
 
         new_edge_ind = Index[Index(dim(commoninds(S, U)), tags(first(edge_ind)))]
 
@@ -46,8 +46,8 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
         sqrtS = ITensorsExtensions.map_diag(sqrt, S)
         ψvsrc = noprime(ψvsrc * sqrtS)
         ψvdst = noprime(ψvdst * sqrtS)
-        setindex_preserve_all!(bp_cache, ψvsrc, vsrc)
-        setindex_preserve_all!(bp_cache, ψvdst, vdst)
+        setindex_preserve_graph!(bp_cache, ψvsrc, vsrc)
+        setindex_preserve_graph!(bp_cache, ψvdst, vdst)
 
         setmessage!(bp_cache, e, S)
         setmessage!(bp_cache, reverse(e), dag(S))
@@ -105,4 +105,24 @@ function entanglement(alg::Algorithm"bp", tns::TensorNetworkState, e::NamedEdge;
     bp_cache = BeliefPropagationCache(tns)
     bp_cache = update(bp_cache)
     return entanglement(bp_cache, e)
+end
+
+function truncate!(bp_cache::BeliefPropagationCache; maxdim = nothing, cutoff = nothing, kwargs...)
+    return symmetric_gauge!(bp_cache; maxdim, cutoff, kwargs...)
+end
+
+function ITensors.truncate(bp_cache::BeliefPropagationCache; maxdim = nothing, cutoff = nothing, kwargs...)
+    bp_cache = copy(bp_cache)
+    return truncate!(bp_cache; maxdim, cutoff, kwargs...)
+end
+
+function ITensors.truncate(alg::Algorithm"bp", tns::TensorNetworkState; maxdim = nothing, cutoff = nothing, cache_update_kwargs = (; maxiter =40), kwargs...)
+    bp_cache = BeliefPropagationCache(tns)
+    bp_cache = update(bp_cache; cache_update_kwargs...)
+    return network(truncate(bp_cache; maxdim, cutoff, kwargs...))
+end
+
+function ITensors.truncate(tns::TensorNetworkState, args...; alg = nothing, kwargs...)
+    isnothing(alg) && error("Must specify contraction backend to truncate the state. Currently supported: BP")
+    return truncate(Algorithm(alg), tns, args...; kwargs...)
 end

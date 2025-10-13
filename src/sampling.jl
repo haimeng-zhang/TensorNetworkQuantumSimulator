@@ -175,7 +175,7 @@ function sample_partition!(
         q = ρ_diag[config]
         logq += log(q)
         Pψv = copy(network(norm_bmps_cache)[v]) * inv(sqrt(q)) * P
-        setindex_preserve_all!(norm_bmps_cache, Pψv, v)
+        setindex_preserve_graph!(norm_bmps_cache, Pψv, v)
         prev_v = v
     end
 
