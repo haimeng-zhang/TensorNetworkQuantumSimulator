@@ -1,8 +1,6 @@
 using TensorNetworkQuantumSimulator
 const TN = TensorNetworkQuantumSimulator
 
-using ITensorNetworks
-const ITN = ITensorNetworks
 using ITensors
 
 using NamedGraphs
@@ -17,11 +15,8 @@ function main()
 
     nqubits = length(vertices(g))
     #Physical indices represent "Identity, X, Y, Z" in that order
-    s = ITN.siteinds(4, g)
-    #Initial operator is Z on the designated site
     vz = first(center(g))
-    init_state = ("Z", [vz])
-    ψ0 = TN.topaulitensornetwork(ComplexF32, init_state, s)
+    ψ0 = paulitensornetworkstate(ComplexF32, v -> v == vz ? "Z" : "I", g)
 
     maxdim, cutoff = 4, 1e-14
     apply_kwargs = (; maxdim, cutoff, normalize_tensors = false)
@@ -29,7 +24,7 @@ function main()
 
     ψ = copy(ψ0)
 
-    ψψ = build_normsqr_bp_cache(ψ)
+    ψ_bpc = BeliefPropagationCache(ψ)
 
     h, J = -1.0, -1.0
     no_trotter_steps = 10
@@ -55,21 +50,21 @@ function main()
         println("Layer $l")
 
         #Apply the circuit
-        t = @timed ψψ, errors =
-            apply_gates(layer, ψψ; apply_kwargs, verbose = false);
+        t = @timed ψ_bpc, errors =
+            apply_gates(layer, ψ_bpc; apply_kwargs, verbose = false);
         #Reset the Frobenius norm to unity
-        ψψ = TN.rescale(ψψ)
-        println("Frobenius norm of O(t) is $(scalar(ψψ))")
+        ψ_bpc = TN.rescale(ψ_bpc)
+        println("Frobenius norm of O(t) is $(TN.partitionfunction(ψ_bpc))")
         
-        ψ = ket_network(ψψ)
+        ψ = network(ψ_bpc)
         #Take traces
-        tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; tol = 1e-7, maxiter = 20))
-        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; tol = 1e-7, maxiter = 20))
+        tr_ψt = inner(ψ, TN.identitytensornetworkstate(g, siteinds(ψ)); alg = "bp")
+        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp")
         println("Trace(O(t)) is $(tr_ψt)")
         println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
 
         # printing
-        println("Took time: $(t.time) [s]. Max bond dimension: $(maxlinkdim(ψ))")
+        println("Took time: $(t.time) [s]. Max bond dimension: $(maxlinkdim(ψ_bpc))")
         println("Maximum Gate error for layer was $(maximum(errors))")
     end
 end

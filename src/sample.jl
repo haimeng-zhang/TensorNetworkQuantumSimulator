@@ -242,3 +242,4 @@ function sample_partition!(
 
     return first(traces), logq, bit_string
 end
+
