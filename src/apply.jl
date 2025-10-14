@@ -1,9 +1,15 @@
-"""
-    apply_gates(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
 
-Apply a circuit (list of gates) to a tensor network.
-The circuit should take the form of a vector of Tuples (gate_str, qubits_to_act_on, optional_param) or a vector of ITensors.
-Returns the final state and an approximate list of errors when applying each gate
+"""
+    apply_gates(circuit::Vector, ψ::Union{TensorNetworkState, BeliefPropagationCache}; bp_update_kwargs = default_bp_update_kwargs(ψ), kwargs...)
+    Apply a sequence of gates to a `TensorNetworkState` or a `BeliefPropagationCache`` wrapping a `TensorNetworkState`` using Belief Propagation to update the environment.
+    # Arguments
+    - `circuit::Vector`: A vector of tuples where each tuple contains a gate (as an `ITensor`) and the vertices it acts on.
+    - `ψ::TensorNetworkState`: The tensor network state to which the gates will be applied.
+    - `bp_update_kwargs`: Keyword arguments for updating the Belief Propagation cache (reasonable default is set).
+    - `kwargs...`: Additional keyword arguments for gate application and BP updates.
+    # Returns
+    - A tuple containing the updated `TensorNetworkState` or `BeliefPropagationCache` and a vector of truncation errors for each gate application.
+end
 """
 function apply_gates(
     circuit::Vector,

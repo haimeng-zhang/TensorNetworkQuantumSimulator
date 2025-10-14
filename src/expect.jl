@@ -38,9 +38,9 @@ end
 """
     expect(ψ, observable; alg="exact", kwargs...) -> Number 
     expect(ψ, observables; alg="exact", kwargs...) -> Vector{Number}
-Compute the expectation value of one or more observables with respect to a TensorNetworkState or a BeliefPropagationCache or BoundaryMPSCache wrapping a TensorNetworkState.
+Compute the expectation value of one or more observables with respect to a TensorNetworkState or an updated BeliefPropagationCache or BoundaryMPSCache wrapping a TensorNetworkState.
 The observable(s) should be passed as a tuple or vector of tuples of the form `(op, vertices, coeff=1)`, where `op` is either a string of single character operators (e.g. `"ZZIY"`) or a vector of strings (e.g. `["Z", "Z", "I", "Y"]`), `vertices` is either a vertex or a vector of vertices (e.g. `(1,2)` or `[(1,2), (1,3)]`), and `coeff` is an optional coefficient multiplying the observable (default is 1). The vertices should correspond to the sites of the TensorNetworkState.
-The supported algorithms are: exact (contraction via ITensors.jl), belief propagation (bp) and boundary MPS (boundarymps).  
+The supported algorithms are: exact (exact contraction of all tensors in the network), belief propagation (bp) and boundary MPS (boundarymps).  
 For `bp` and `boundarymps`, the TensorNetworkState is first converted into a BeliefPropagationCache or BoundaryMPSCache respectively, and the cache is updated before measuring. The update can be controlled via the keyword arguments `cache_update_kwargs`, which are passed to the `update` function. For `boundarymps`, the partitioning of the graph can be controlled via the keyword argument `partition_by`, which can be either `"row"` or `"column"`. The MPS bond dimension can be set via the keyword argument `mps_bond_dimension`.
 For `exact`, the contraction sequence can be controlled via the keyword argument `contraction_sequence_kwargs`, which is a named tuple of keyword arguments passed to the `contraction_sequence` function. The default is to use the `einexpr` algorithm with a greedy optimizer.
 """

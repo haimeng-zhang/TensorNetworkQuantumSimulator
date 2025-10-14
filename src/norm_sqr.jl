@@ -6,6 +6,39 @@ function state_error()
     error("Network type inside is not a TensorNetworkState.")
 end
 
+"""
+    norm_sqr(ψ::Union{TensorNetworkState, AbstractBeliefPropagationCache}; alg = nothing, kwargs...)
+    Compute the squared norm of a `TensorNetworkState` or the state wrapped in an updated  `Cache` using the specified algorithm.
+    # Arguments
+    - `ψ::Union{TensorNetworkState, AbstractBeliefPropagationCache}`: The tensor network state or updated cache wrapping the state.
+    - `alg`: The algorithm to use for the norm calculation. Options include:
+        - `"exact"`: Exact contraction of the tensor network.
+        - `"bp"`: Belief propagation approximation.
+        - `"boundarymps"`: Boundary MPS approximation (requires `mps_bond_dimension`).
+        - `"loopcorrections"`: Loop corrections to belief propagation (requires `max_configuration_size`).
+    # Keyword Arguments
+    - For `alg = "boundarymps"`:
+        - `mps_bond_dimension::Int`: The bond dimension for the boundary MPS approximation.
+        - `partition_by`: How to partition the graph for boundary MPS (default is `"row"`).
+        - `cache_update_kwargs`: Additional keyword arguments for updating the cache.
+    - For `alg = "bp"` or `"loopcorrections"`:
+        - `cache_update_kwargs`: Additional keyword arguments for updating the cache.
+        - `max_configuration_size`: Maximum configuration size for loop corrections (only for `"loopcorrections"`).
+    # Returns
+    - The computed squared norm as a scalar value.
+    # Example
+    ```julia
+    s = siteinds(g, "S=1/2")
+    ψ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
+    # Exact norm
+    norm_exact = LinearAlgebra.norm(ψ; alg = "exact")    
+    # Belief propagation norm   
+    norm_bp = LinearAlgebra.norm(ψ; alg = "bp")
+    # Boundary MPS norm with bond dimension 10
+    norm_bmps = LinearAlgebra.norm(ψ; alg = "boundarymps", mps_bond_dimension = 10)
+    ```
+"""
+
 function norm_sqr(tns::Union{TensorNetworkState, BeliefPropagationCache}; alg = nothing, kwargs...)
     norm_sqr(Algorithm(alg), tns; kwargs...)
 end

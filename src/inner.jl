@@ -6,6 +6,47 @@ function inner_state_error()
     error("Network type inside the cache is not a BilinearForm.")
 end
 
+"""
+    Compute the inner product between two TensorNetworkStates using the specified algorithm.
+    The two states should have the same graph structure and physical indices on each site.
+
+    # Arguments
+    - `ψ::TensorNetworkState`: The first tensor network state.
+    - `ϕ::TensorNetworkState`: The second tensor network state.
+    - `alg`: The algorithm to use for the inner product calculation. Options include:
+        - `"exact"`: Exact contraction of the tensor network.
+        - `"bp"`: Belief propagation approximation.
+        - `"boundarymps"`: Boundary MPS approximation (requires `mps_bond_dimension`).
+        - `"loopcorrections"`: Loop corrections to belief propagation.
+
+    # Keyword Arguments
+    - For `alg = "boundarymps"`:
+        - `mps_bond_dimension::Int`: The bond dimension for the boundary MPS approximation.
+        - `partition_by`: How to partition the graph for boundary MPS (default is `"row"`).
+        - `cache_update_kwargs`: Additional keyword arguments for updating the cache.
+    - For `alg = "bp"` or `"loopcorrections"`:
+        - `cache_update_kwargs`: Additional keyword arguments for updating the cache.
+        - `max_configuration_size`: Maximum configuration size for loop corrections (only for `"loopcorrections"`).
+
+    # Returns
+    - The computed inner product as a scalar value.
+
+    # Example
+    ```julia
+    s = siteinds(g, "S=1/2")
+    ψ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
+    ϕ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
+
+    # Exact inner product
+    ip_exact = ITensors.inner(ψ, ϕ; alg = "exact")
+
+    # Belief propagation inner product
+    ip_bp = ITensors.inner(ψ, ϕ; alg = "bp")
+
+    # Boundary MPS inner product with bond dimension 10
+    ip_bmps = ITensors.inner(ψ, ϕ; alg = "boundarymps", mps_bond_dimension = 10)
+    ```
+"""
 function ITensors.inner(ψ::TensorNetworkState, ϕ::TensorNetworkState; alg = nothing, kwargs...)
     inner(Algorithm(alg), ψ, ϕ; kwargs...)
 end
