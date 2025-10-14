@@ -33,6 +33,7 @@ function main()
 
     #Initial state
     ψ = tensornetworkstate(ComplexF32, v -> "↑", g, "S=1/2")
+
     #Wrap in BP cache for the environment messages
     ψ_bpc = BeliefPropagationCache(ψ)
 

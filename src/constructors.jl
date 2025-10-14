@@ -19,6 +19,7 @@ Tensor network (in Heisenberg picture). Function should map vertices of the grap
 function paulitensornetworkstate(eltype, f::Function, g::NamedGraph, s::Dictionary= siteinds(g, "Pauli"))
     h = v -> stringtostatemap[f(v)]
     return tensornetworkstate(eltype, h, g, s)
+    return tensornetworkstate(eltype, h, g, s)
 end
 
 topaulitensornetwork(f::Function, g::NamedGraph, s::Dictionary=siteinds(g, "Pauli")) = topaulitensornetwork(Float64, f, g, s)

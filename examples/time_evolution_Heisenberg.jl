@@ -56,12 +56,12 @@ function main()
         ψ_bpc = TN.rescale(ψ_bpc)
         println("Frobenius norm of O(t) is $(TN.partitionfunction(ψ_bpc))")
         
-        # ψ = ket_network(ψψ)
-        # #Take traces
-        # tr_ψt = inner(ψ, TN.identitytensornetwork(s); alg = "bp", cache_update_kwargs = (; tol = 1e-7, maxiter = 20))
-        # tr_ψtψ0 = inner(ψ, ψ0; alg = "bp", cache_update_kwargs = (; tol = 1e-7, maxiter = 20))
-        # println("Trace(O(t)) is $(tr_ψt)")
-        # println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
+        ψ = network(ψ_bpc)
+        #Take traces
+        tr_ψt = inner(ψ, TN.identitytensornetworkstate(g, siteinds(ψ)); alg = "bp")
+        tr_ψtψ0 = inner(ψ, ψ0; alg = "bp")
+        println("Trace(O(t)) is $(tr_ψt)")
+        println("Trace(O(t)O(0)) is $(tr_ψtψ0)")
 
         # printing
         println("Took time: $(t.time) [s]. Max bond dimension: $(maxlinkdim(ψ_bpc))")

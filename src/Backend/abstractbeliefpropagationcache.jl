@@ -103,7 +103,7 @@ end
 function map_factors(f, bp_cache::AbstractBeliefPropagationCache, vs = vertices(bp_cache))
     bp_cache = copy(bp_cache)
     for v in vs
-        setindex_preserve_graph!(bp_cache, f(factor(bp_cache, v)), v)
+        setindex_preserve_graph!(bp_cache, f(network(bp_cache)[v]), v)
     end
     return bp_cache
 end
