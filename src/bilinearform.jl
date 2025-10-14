@@ -28,7 +28,6 @@ end
 
 #Constructor, bra is taken to be in the vector space of ket so the dual is taken
 function BilinearForm(ket::TensorNetworkState, bra::TensorNetworkState)
-    @assert datatype(ket) == datatype(bra)
     @assert underlying_graph(ket) == underlying_graph(bra)
     @assert siteinds(ket) == siteinds(bra)
     bra = prime(dag(bra))
