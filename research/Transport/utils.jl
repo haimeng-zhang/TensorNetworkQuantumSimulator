@@ -71,11 +71,7 @@ function named_heavy_hexagonal_cylinder(ny::Int64)
 end
 
 function transport_graph_constructor(g_str::String, ny::Int64)
-    if  g_str == "Hexagonal"
-        g = half_periodic_hexagonal_lattice(2, ny)
-        return g, filter(v -> first(v) <= ny / 2, collect(vertices(g)))
-    end
-
+    g_str == "Hexagonal" && return named_hexagonal_cylinder(ny)
     g_str == "Square" && return named_square_cylinder(ny)
     g_str == "HeavyHexagonal" && return named_heavy_hexagonal_cylinder(ny)
     g_str == "Chain" && return named_chain(ny)

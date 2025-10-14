@@ -76,7 +76,7 @@ function main_diamond()
     end
     ψ = f["Wavefunction"]
 
-    ψIψ = build_bp_cache(ψ)
+    ψIψ = build_normsqr_bp_cache(ψ)
     vs = collect(vertices(ψ))
     Random.seed!(instance*123)
     v1v2s = [(v1, v2) for (i,v1) in enumerate(vs) for v2 in vs[i+1:length(vs)]]

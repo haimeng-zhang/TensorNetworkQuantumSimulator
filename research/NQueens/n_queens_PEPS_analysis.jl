@@ -153,6 +153,8 @@ function project_state(ψ; pre_placed_queens = [], pre_placed_no_queens = [])
     return ψ
 end
 
+
+
 function contract_projected_queens_state_bp(ψ, n::Int; kwargs...)
     left_col = [(row, 1) for row in 1:n]
     ms = Dictionary()
@@ -232,31 +234,6 @@ function squarify(ψ::ITensorNetwork)
     return ψ
 end
 
-function hadamard_walsh(n)
-    H = zeros((2^n,2^n))
-    s = 1 / (2^(n/2))
-    for i in 1:2^n
-        for j in 1:2^n
-            λ = isodd(count_ones((i-1) & (j-1))) ? -1 : 1
-            H[i,j] = s*λ
-        end
-    end
-    return H
-end
-
-function gauge(ψ::ITensorNetwork)
-    Random.seed!(1234)
-    ψ = copy(ψ)
-    for e in edges(ψ)
-        lind = only(ITensorNetworks.linkinds(ψ, e))
-        n = Int(log2(dim(lind)))
-        Q = ITensor(hadamard_walsh(n), lind, lind')
-        ψ[src(e)] = noprime(Q*ψ[src(e)])
-        ψ[dst(e)] = noprime(dag(Q)*ψ[dst(e)])
-    end
-    return ψ
-end
-
 function main(n ,maxdims)  
 
     CUDA.reclaim()
@@ -269,51 +246,48 @@ function main(n ,maxdims)
     g = queen_graph(n)
     s = siteinds("S=1/2", g)
     ψ_cpu = build_queenstate(s, n)
-    ψ_cpu,_ = TensorNetworkQuantumSimulator.symmetric_gauge(ψ_cpu)
+
     ψ_cpu = squarify(ψ_cpu)
-    
-
-    jldsave("/mnt/home/jtindall/ceph/Data/NQueens/States/Staten"*string(n)*"UnProjected.jld2", tensornetwork = ψ_cpu)
-
     ψ_cpu = project_state(ψ_cpu)
-
-    ψ_cpu = gauge(ψ_cpu)
 
 
     z = 1
-    sf = (n *0.146)^(1/n)
-    for v in vertices(ψ_cpu)
-        ψ_cpu[v] =  (1/sf) *  ψ_cpu[v]
-        z *= sf
+    # sf = (n *0.146)^(1/n)
+    # for v in vertices(ψ_cpu)
+    #     ψ_cpu[v] =  (1/sf) *  ψ_cpu[v]
+    #     z *= sf
+    # end
+
+    T = ITensorMPS.MPO([ψ_cpu[(i,2)] for i in 1:n])
+    s = Index[commonind(ψ_cpu[(i,1)], ψ_cpu[(i,2)]) for i in 1:n]
+
+    for i in 1:n
+        T[n] = replaceind(T[n], commonind(ψ_cpu[(i,2)], ψ_cpu[(i,3)]), prime(s[i]))
+        #T[n] = dag(swapprime(T[n], 0 => 1))
     end
 
-    println("State loaded and rescaled for n is $(n)")
+    χ = 50
+    #T = ITensorMPS.random_mpo(s, 1)
+    Xi = ITensorMPS.normalize(ITensorMPS.randomMPS(s; linkdims = χ))
+    ITensorMPS.orthogonalize!(Xi, 1)
+    niters=  1000
 
-    for maxdim in maxdims
+    Xis = []
+    for i in 1:niters
+        Xip1 = normalize(ITensorMPS.apply(T, Xi; maxdim =χ, cutoff = 0))
+        ITensorMPS.orthogonalize!(Xip1, 1)
+        c = conj(inner(Xip1, Xi))
+        Xip1 *= conj(c) / abs(c)
+        Xi = copy(Xip1)
+        push!(Xis, Xi)
 
-        CUDA.reclaim()
-
-        ψ_gpu = adapt(CuArray{Float64}, ψ_cpu)
-        cutoff = nothing
-        apply_kwargs = (; cutoff, maxdim)
-        t1 = time()
-        approx_no_solutions = contract_projected_queens_state_bp(ψ_gpu, n; apply_kwargs...)
-        t2 = time()
-        approx_no_solutions = approx_no_solutions * z
-        println("Took $(t2 - t1) seconds to contract")
-        println("Found $(approx_no_solutions) solutions")
-
-        if n <= 27
-            no_sols =solcounts[n]
-            err = 100 * abs(approx_no_solutions - no_sols) / no_sols
-            println("Percentage error was $(err)")
-        end
-
-        npzwrite("/mnt/home/jtindall/ceph/Data/NQueens/SolutionCounts/NoSolutionsn"*string(n)*"maxdim"*string(maxdim)*".npz", approx_no_solutions=approx_no_solutions)
+        i > 1 && @show inner(Xis[i], Xis[i-1])
     end
+
+    
 end
 
 #n = parse(Int64, ARGS[1])
-n =27
-maxdims = [256]
+n =4
+maxdims = [128]
 main(n, maxdims)

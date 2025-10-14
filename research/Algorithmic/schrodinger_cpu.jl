@@ -28,8 +28,6 @@ using Base.Threads
 using MKL
 using LinearAlgebra
 
-using CUDA
-
 using Adapt: adapt
 
 BLAS.set_num_threads(min(2, Sys.CPU_THREADS))
@@ -215,27 +213,6 @@ function ITensorNetworks.set_default_kwargs(alg::Algorithm"adapt_square_update")
     return Algorithm("adapt_square_update"; adapt=alg.kwargs.adapt, normalize=true, sequence_alg = "optimal")
 end
 
-function ITensorNetworks.updated_message(
-    alg::Algorithm"adapt_square_update", bpc::AbstractBeliefPropagationCache, edge::PartitionEdge
-  )
-
-    state = only(ITensorNetworks.factors(bpc, src(edge)))
-    adapted_state = CUDA.cu(state)
-    adapted_factors = [adapted_state, noprime(dag(prime(adapted_state)), tags = "Site")]
-    adapted_messages = [CUDA.cu(m) for m in ITensorNetworks.incoming_messages(bpc, src(edge); ignore_edges = PartitionEdge[reverse(edge)])]
-
-    contract_list = ITensor[adapted_messages; adapted_factors]
-    sequence = ITensorNetworks.contraction_sequence(contract_list; alg = alg.kwargs.sequence_alg)
-    m = make_hermitian(ITensors.contract(contract_list; sequence))
-    message_norm = norm(m)
-    if alg.kwargs.normalize && !iszero(message_norm)
-        m /= message_norm
-    end
-    updated_messages = ITensor[m]
-    dtype = mapreduce(datatype, promote_type, ITensorNetworks.message(bpc, edge))
-    return map(adapt(Vector{ComplexF32}), updated_messages)
-  end
-
 function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _version)
     version = _version == 1 ? "" : "V2"
     #Input file location
@@ -243,11 +220,6 @@ function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _ver
     f = root *"49q_FL="*string(L)*"_b="*string(b)*"_delta="*string(delta)*version*".txt"
     circuit = read_qasm_circuit(f)
     g = graph_from_circuit(circuit)
-
-    label = _version == 1 ? "CZCircuitb0.25" : "FractionalRzzCircuit"
-    save_file = "/mnt/home/jtindall/ceph/Data/Algorthmic/Schrodinger/Seed"*string(seed)*"Maxdim"*string(maxdim)*"FL"*string(L)*"delta"*string(delta)*label*".npz"
-
-    isfile(save_file) && return nothing
 
     #Look at Gates involved
     @show unique(first.(circuit))
@@ -267,18 +239,12 @@ function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _ver
     #Initial state based off bitstring
     ψ = ITensorNetwork(ComplexF32, v -> initial_bitstring[v] == -1 ? "Z-" : "Z+", s)
 
-    #If you want BP to run on GPU instead of CPU
-    bp_update_kwargs = (; maxiter = 10, tol = 1e-4, message_update_alg = Algorithm("adapt_square_update"; adapt = CUDA.cu))
-
     #If you want BP to run on CPU
-    #bp_update_kwargs = (; maxiter = 25, tol = 1e-5, message_update_alg = Algorithm("squarebp"))
+    bp_update_kwargs = (; maxiter = 25, tol = 1e-5, message_update_alg = Algorithm("squarebp"))
     
     ψ_bpc = ITensorNetworks.BeliefPropagationCache(ψ)
     TN.initialize_square_bp_messages!(ψ_bpc)
     ψ_bpc = ITensorNetworks.update(ψ_bpc; bp_update_kwargs...)
-
-    #If you want everything to run on GPU
-    #ψ_bpc = CUDA.cu(ψ_bpc)
 
     #Measure things
     st = NamedGraphs.steiner_tree(g, z_vertices)
@@ -292,7 +258,7 @@ function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _ver
 
     #Apply the circuit to get O. U
     t = time()
-    ψ_bpc, errs = apply_gates(circuit, ψ_bpc; bp_update_kwargs, apply_kwargs, verbose = true, transfer_to_gpu = true)
+    ψ_bpc, errs = apply_gates(circuit, ψ_bpc; bp_update_kwargs, apply_kwargs, verbose = true, transfer_to_gpu = false)
     t = time() - t
     println("Simulation O -> OU took $(t) seconds")
     println("Average gate error was $(Statistics.mean(errs))")
@@ -300,6 +266,8 @@ function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _ver
 
     O_final_V2 = measure_observable_V2(ψ_bpc, obs)
 
+    label = _version == 1 ? "CZCircuitb0.25" : "FractionalRzzCircuit"
+    save_file = "/mnt/home/jtindall/ceph/Data/Algorthmic/Schrodinger/Seed"*string(seed)*"Maxdim"*string(maxdim)*"FL"*string(L)*"delta"*string(delta)*label*".npz"
     npzwrite(save_file, O_init = O_init, O_final = O_final_V2, errs = errs)
 end
 

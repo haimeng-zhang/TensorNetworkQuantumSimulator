@@ -53,9 +53,9 @@ function main(nx::Int64, ny::Int64, nz::Int64, χ::Int64, boundary::String, anne
 
     χ_GS = 4
 
-    apply_kwargs = (maxdim = χ, cutoff, normalize = true)
-    gs_apply_kwargs = (maxdim = χ_GS, cutoff, normalize = true)
-    ψIψ = build_bp_cache(ψ)
+    apply_kwargs = (maxdim = χ, cutoff, normalize_tensors = true)
+    gs_apply_kwargs = (maxdim = χ_GS, cutoff, normalize_tensors = true)
+    ψIψ = build_normsqr_bp_cache(ψ)
 
     t = 0
 
@@ -72,7 +72,7 @@ function main(nx::Int64, ny::Int64, nz::Int64, χ::Int64, boundary::String, anne
     end
 
     s = siteinds(ψ)
-    ψIψ = build_bp_cache(ψ)
+    ψIψ = build_normsqr_bp_cache(ψ)
     ψ, ψIψ  = normalize(ψ, ψIψ; update_cache = false)
 
     sf = 1.0 * pi

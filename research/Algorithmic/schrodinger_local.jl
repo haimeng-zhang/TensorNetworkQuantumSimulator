@@ -236,18 +236,13 @@ function ITensorNetworks.updated_message(
     return map(adapt(Vector{ComplexF32}), updated_messages)
   end
 
-function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _version)
+function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _version::Int64)
     version = _version == 1 ? "" : "V2"
     #Input file location
     root = "/mnt/home/jtindall/ceph/Data/Algorthmic/Circuits/49q_circuits/"
     f = root *"49q_FL="*string(L)*"_b="*string(b)*"_delta="*string(delta)*version*".txt"
     circuit = read_qasm_circuit(f)
     g = graph_from_circuit(circuit)
-
-    label = _version == 1 ? "CZCircuitb0.25" : "FractionalRzzCircuit"
-    save_file = "/mnt/home/jtindall/ceph/Data/Algorthmic/Schrodinger/Seed"*string(seed)*"Maxdim"*string(maxdim)*"FL"*string(L)*"delta"*string(delta)*label*".npz"
-
-    isfile(save_file) && return nothing
 
     #Look at Gates involved
     @show unique(first.(circuit))
@@ -268,17 +263,17 @@ function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _ver
     ψ = ITensorNetwork(ComplexF32, v -> initial_bitstring[v] == -1 ? "Z-" : "Z+", s)
 
     #If you want BP to run on GPU instead of CPU
-    bp_update_kwargs = (; maxiter = 10, tol = 1e-4, message_update_alg = Algorithm("adapt_square_update"; adapt = CUDA.cu))
+    #bp_update_kwargs = (; maxiter = 25, tol = 1e-5, message_update_alg = Algorithm("adapt_square_update"; adapt = CUDA.cu))
 
     #If you want BP to run on CPU
-    #bp_update_kwargs = (; maxiter = 25, tol = 1e-5, message_update_alg = Algorithm("squarebp"))
+    bp_update_kwargs = (; maxiter = 25, tol = 1e-5, message_update_alg = Algorithm("squarebp"))
     
     ψ_bpc = ITensorNetworks.BeliefPropagationCache(ψ)
     TN.initialize_square_bp_messages!(ψ_bpc)
     ψ_bpc = ITensorNetworks.update(ψ_bpc; bp_update_kwargs...)
 
     #If you want everything to run on GPU
-    #ψ_bpc = CUDA.cu(ψ_bpc)
+    ψ_bpc = CUDA.cu(ψ_bpc)
 
     #Measure things
     st = NamedGraphs.steiner_tree(g, z_vertices)
@@ -292,17 +287,43 @@ function main(seed::Int, maxdim::Int, L::Int64, b::Float64, delta::Float64, _ver
 
     #Apply the circuit to get O. U
     t = time()
-    ψ_bpc, errs = apply_gates(circuit, ψ_bpc; bp_update_kwargs, apply_kwargs, verbose = true, transfer_to_gpu = true)
+    ψ_bpc, errs = apply_gates(circuit, ψ_bpc; bp_update_kwargs, apply_kwargs, verbose = true, transfer_to_gpu = false)
     t = time() - t
     println("Simulation O -> OU took $(t) seconds")
     println("Average gate error was $(Statistics.mean(errs))")
     println("Rough fidility approximation (square overlap with correct state) is $(prod(1.0 .- errs))")
 
+    #O_final_V1 = measure_observable_V1(ψ_bpc, s, obs)
     O_final_V2 = measure_observable_V2(ψ_bpc, obs)
 
+    label = _version == 1 ? "CZCircuitb0.25" : "FractionalRzzCircuit"
+    save_file = "/mnt/home/jtindall/ceph/Data/Algorthmic/Schrodinger/Seed"*string(seed)*"Maxdim"*string(maxdim)*"FL"*string(L)*"delta"*string(delta)*label*".npz"
     npzwrite(save_file, O_init = O_init, O_final = O_final_V2, errs = errs)
 end
 
-seed, χ, L, b, delta, _version = parse(Int64, ARGS[1]), parse(Int64, ARGS[2]), parse(Int64, ARGS[3]), parse(Float64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6])
-#seed, χ, L, b, delta = 1, 32, 3, 0.25, 0.10
-main(seed, χ, L, b, delta, _version)
+
+function run_over_stuff()
+    seeds = [1,2,3,4,5]
+    χs = [196]
+    deltas = [0.0, 0.05, 0.1, 0.15,0.2]
+    L = 6
+    b= 0.25
+    _versions = [1]
+
+    for _version in _versions
+        for χ in χs
+            println("Chi is $(χ)")
+            for delta in deltas
+                println("Delta is $(delta)")
+                for seed in seeds
+                    println("Seed is $(seed)")
+                    main(seed, χ, L, b, delta, _version)
+                    CUDA.reclaim()
+                    GC.gc()
+                end
+            end
+        end
+    end
+end
+
+run_over_stuff()

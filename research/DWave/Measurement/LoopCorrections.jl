@@ -135,13 +135,13 @@ function main_diamond()
 
     f = nothing
     try
-        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).jld2")
+        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/DiamondArchive/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time).jld2")
     catch
-        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/Diamond/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time)Cutoff.jld2")
+        f= load("/mnt/home/jtindall/ceph/Data/DWave/Wavefunctions/DiamondArchive/nx$(nx)ny$(ny)nz$(nz)Chi$(χ_state)DisorderNo$(disorder_no)AnnealingTime$(annealing_time)Cutoff.jld2")
     end
     ψ = f["Wavefunction"]
 
-    ψIψ = build_bp_cache(ψ)
+    ψIψ = TensorNetworkQuantumSimulator.build_normsqr_bp_cache(ψ)
     ψ, ψIψ = normalize(ψ, ψIψ; update_cache = false)
     ψ = ITN.VidalITensorNetwork(ψ; cache! = Ref(ψIψ), cache_update_kwargs = (; maxiter = 0))
     ψ = ITensorNetwork(ψ)
@@ -150,7 +150,8 @@ function main_diamond()
     
     egs = NG.edgeinduced_subgraphs_no_leaves(ITN.partitioned_graph(ψIψ), max_loop_length)
     circuit_lengths = vcat([0], sort(unique(length.(edges.(egs)))))
-    corrs = zeros(ComplexF64, (length(v1v2s), length(circuit_lengths)))
+    corrs_loop = zeros(ComplexF64, (length(v1v2s), length(circuit_lengths)))
+    corrs_cluster = zeros(ComplexF64, (length(v1v2s), length(circuit_lengths)))
 
     @show length(egs)
     @show length.(edges.(egs))
@@ -158,18 +159,19 @@ function main_diamond()
 
     for (i, (v1, v2)) in enumerate(v1v2s)
         println("Computing Correlations No. $i")
-        corrs[i, :] = zz_correlation_bp_loopcorrectfull(ψ, v1, v2, egs)
+        corrs_loop[i, :], corrs_cluster[i, :] = zz_correlation_bp_loopcorrectfull(ψ, v1, v2, egs)
         flush(stdout)
     end
 
     for (i, cl) in enumerate(circuit_lengths)
-        cs = corrs[:, i]
-        corr_dict=  Dictionary()
+        cs_loop, cs_cluster = corrs_loop[:, i], corrs_cluster[:, i]
+        corr_dict_loop, corr_dict_cluster =  Dictionary(), Dictionary()
         for (j, (v1, v2)) in enumerate(v1v2s)
-            set!(corr_dict, NamedEdge(v1 => v2), cs[j])
+            set!(corr_dict_loop, NamedEdge(v1 => v2), cs_loop[j])
+            set!(corr_dict_cluster, NamedEdge(v1 => v2), cs_cluster[j])
         end
-        save("/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/LoopLength$(cl)Corrsnx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no)/JobNo$(job_no)NCorrs$(no_corrs_per_job).jld2",
-        "corrs", corr_dict)
+        save("/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/ClusterExpansion/LoopLength$(cl)Corrsnx$(nx)ny$(ny)nz$(nz)AnnealingTime$(annealing_time)Chi$(χ_state)DisorderNo$(disorder_no)/JobNo$(job_no)NCorrs$(no_corrs_per_job).jld2",
+        "corrs_loop", corr_dict_loop, "corrs_cluster", corr_dict_cluster)
     end
 end
 

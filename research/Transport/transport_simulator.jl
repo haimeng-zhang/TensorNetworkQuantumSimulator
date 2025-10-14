@@ -3,7 +3,7 @@ const TN = TensorNetworkQuantumSimulator
 
 using ITensorNetworks
 const ITN = ITensorNetworks
-using ITensors
+using ITensors: Algorithm
 
 using ITensorNetworks: AbstractBeliefPropagationCache, IndsNetwork
 using NamedGraphs
@@ -27,25 +27,28 @@ using JLD2
 
 using Statistics
 
+using Dictionaries: Dictionary, set!
+
 BLAS.set_num_threads(min(6, Sys.CPU_THREADS))
 println("Julia is using "*string(nthreads()))
 println("BLAS is using "*string(BLAS.get_num_threads()))
 @show BLAS.get_config()
 
 function high_temperature_initial_state(sphysical, sancilla, mu, vertex_lower_half_filter)
-    ψ = ITensorNetworks.random_tensornetwork(sphysical; link_space = 1)
+    ψ = ITensorNetworks.random_tensornetwork(ComplexF64, sphysical; link_space = 1)
     for v in vertices(ψ)
         array = vertex_lower_half_filter(v) ? (1/2)*[1 + mu 0; 0 1 - mu] : (1/2)*[1 - mu 0; 0 1 + mu]
-        ITensorNetworks.@preserve_graph ψ[v] = ITensors.ITensor(array, only(sphysical[v]), only(sancilla[v]))
+        ITensorNetworks.@preserve_graph ψ[v] = ITensors.ITensor(ComplexF32, array, only(sphysical[v]), only(sancilla[v]))
     end
+
     return ITensorNetworks.insert_linkinds(ψ)
 end
 
 function sqrt_high_temperature_initial_state(sphysical, sancilla, mu, vertex_lower_half_filter)
-    ψ = ITensorNetworks.random_tensornetwork(sphysical; link_space = 1)
+    ψ = ITensorNetworks.random_tensornetwork(ComplexF64, sphysical; link_space = 1)
     for v in vertices(ψ)
         array = vertex_lower_half_filter(v) ? (1/sqrt(2))*[sqrt(1 + mu) 0; 0 sqrt(1 - mu)] : (1/sqrt(2))*[sqrt(1 - mu) 0; 0 sqrt(1 + mu)]
-        ITensorNetworks.@preserve_graph ψ[v] = ITensors.ITensor(array, only(sphysical[v]), only(sancilla[v]))
+        ITensorNetworks.@preserve_graph ψ[v] = ITensors.ITensor(ComplexF64, array, only(sphysical[v]), only(sancilla[v]))
     end
     return ITensorNetworks.insert_linkinds(ψ)
 end
@@ -115,12 +118,16 @@ function form_tr_ρ(ρ::ITensorNetwork, sphysical, sancilla)
     return tr_ρ
 end
 
-function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obs::Tuple)
+function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obs::Tuple; use_gpu = false)
     op_vec, vs, coeff = TN.collectobservable(obs)
 
     ρOρ = copy(ρρ)
     for (i, v) in enumerate(vs)
-        ITensorNetworks.@preserve_graph ρOρ[(v,"operator")] = ITensors.op("Id", only(sancilla[v])) * ITensors.op(op_vec[i], only(sphysical[v]))
+        if use_gpu
+            ITensorNetworks.@preserve_graph ρOρ[(v,"operator")] = CUDA.cu(ITensors.op("Id", only(sancilla[v])) * ITensors.op(op_vec[i], only(sphysical[v])))
+        else
+            ITensorNetworks.@preserve_graph ρOρ[(v,"operator")] = ITensors.op("Id", only(sancilla[v])) * ITensors.op(op_vec[i], only(sphysical[v]))
+        end
     end
 
     numerator = ITensorNetworks.region_scalar(ρOρ, [(v, "ket") for v in vs])
@@ -129,14 +136,14 @@ function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork,
     return coeff * numerator / denominator
 end
 
-function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obss::Vector{<:Tuple})
-    return [TN.expect(ρρ, sphysical, sancilla, obs) for obs in obss]
+function TN.expect(ρρ::AbstractBeliefPropagationCache, sphysical::IndsNetwork, sancilla::IndsNetwork, obss::Vector{<:Tuple}; kwargs...)
+    return [TN.expect(ρρ, sphysical, sancilla, obs; kwargs...) for obs in obss]
 end
-
 
 
 function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float64, δt::Float64, J::Float64)
 
+    use_gpu =false
     Random.seed!(12*seed)
     println("Begining simulation on a $(lattice) lattice with maxdim of $(χ), cylinder length of $(ny), mu of $(mu), dt of $(δt), J of $(J)")
 
@@ -150,7 +157,6 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
 
     in_bottom_half = Int64[v ∈ bottom_half_vertices ? 1 : 0 for v in collect(vertices(g))]
 
-
     a_vertices = filter(v -> isodd(sum(v)), collect(vertices(g)))
     b_vertices = filter(v -> !isodd(sum(v)), collect(vertices(g)))
 
@@ -159,12 +165,17 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
     #@assert all([isempty(intersect(neighbors(g, v), a_vertices)) for v in a_vertices])
 
     ρ = sqrt_high_temperature_initial_state(sphysical, sancilla, mu, v -> v ∈ bottom_half_vertices)
-    ρρ = build_bp_cache(ρ)
+
+    if use_gpu
+        ρ = adapt(CuArray{ComplexF64}, ρ)
+    end
+
+    ρρ = TensorNetworkQuantumSimulator.build_normsqr_bp_cache(ρ)
     println("Intial trace is $(scalar(ρρ))")
 
     obs = [("Z", [v]) for v in collect(vertices(g))]
 
-    init_mags = ComplexF64[o for o in TensorNetworkQuantumSimulator.expect(ρρ, sphysical, sancilla, obs)]
+    init_mags = ComplexF64[o for o in TensorNetworkQuantumSimulator.expect(ρρ, sphysical, sancilla, obs; use_gpu)]
     println("Initial magnetisation is $(sum(init_mags))")
 
     mags_vs_row = [Statistics.mean(init_mags[filter(i -> first(vs[i]) == r, [i for i in 1:length(vs)])]) for r in unique(rows)]
@@ -172,18 +183,24 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
     init_mag_top = sum([v ∉ bottom_half_vertices ? init_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
 
     #Do a 4-way edge coloring then Trotterise the Hamiltonian into commuting groups
-    layer = []
     k = lattice ∈ ["Hexagonal", "HeavyHexagonal"] ? 3 : lattice == "Chain" ? 2 : 4
     ec = edge_color(g, k)
 
-    layer = []
-    for colored_edges in ec
-        _layer = reduce(vcat, [[ITensors.op("RxxyyRzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θxy = 2*J*δt, θz = 2*J*δt), ITensors.op("RxxyyRzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θxy = -2*J*δt, θz = -2*J*δt)] for pair in colored_edges])
+    layer = ITensor[]
+    for (i, colored_edges) in enumerate(ec[1:(k)])
+        θ = J*δt
+        _layer = reduce(vcat, [[ITensors.op("Rxxyyzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θ = θ),ITensors.op("Rxxyyzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θ = -θ)] for pair in colored_edges])
         append!(layer, _layer)
     end
 
+    if use_gpu
+        layer = [adapt(CuArray{ComplexF64}, gate) for gate in layer]
+    end
+
+    #gate_vertices = length.(TensorNetworkQuantumSimulator.collect_gate_vertices(layer, ρρ))
+
     no_trotter_steps = 1000
-    ρ_save_steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    ρ_save_steps = [10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000,2500]
     measure_freq = 1
 
     t = 0
@@ -192,45 +209,78 @@ function main_heisenberg_sqrt(lattice::String, seed::Int, χ::Int, ny::Int, mu::
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
     file_name = f * "TrotterStep0.npz"
-    npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half, mags_vs_row = mags_vs_row)
+    #npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half, mags_vs_row = mags_vs_row)
 
-    apply_kwargs = (; maxdim = χ, cutoff = 1e-10, normalize = false)
+    apply_kwargs = (; maxdim = χ, cutoff = 1e-8, normalize_tensors = false)
+    bp_update_kwargs = (; maxiter=5, tol=1e-4, message_update_alg = Algorithm("posdef_contract"))
+
+    bp_mags = zeros(ComplexF64, (length(obs), no_trotter_steps + 1))
+    bmps_mags = zeros(ComplexF64, (length(obs), no_trotter_steps + 1))
+    bp_mags[:, 1] = init_mags
+    bmps_mags[:, 1] = init_mags
+
+    times = [0.0]
+
+    transferred_mags = ComplexF64[0.0]
+
     for i in 1:no_trotter_steps
-        ρ, ρρ, errs = apply(layer, ρ, ρρ; apply_kwargs)
-        ρ, ρρ = TN.normalize(ρ, ρρ)
-        ρ, ρρ = TN.symmetric_gauge(ρ; cache! = Ref(ρρ))
+        ρρ, errs = apply_gates(layer, ρρ; apply_kwargs, bp_update_kwargs, inds_per_site = 2)
+        ρρ = ITensorNetworks.rescale(ρρ; verts = vcat([(v, "ket") for v in vertices(ρ)], [(v, "bra") for v in vertices(ρ)]))
+
+        flush(stdout)
+        t += δt
+        append!(times, t)
 
         if i % measure_freq == 0
             println("Time is $(t)")
-            println("Maximum bond dimension is $(ITN.maxlinkdim(ρ))")
+            println("Maximum bond dimension is $(ITN.maxlinkdim(ρρ))")
             println("Average gate fidelity  was $(mean_gate_fidelity(errs))")
 
             println("Trace is $(scalar(ρρ))")
 
-            bp_mags = TN.expect(ρρ, sphysical, sancilla, obs)
+            bp_mags[:, i+1] = TN.expect(ρρ, sphysical, sancilla, obs; use_gpu)
 
             mags_vs_row = [Statistics.mean(bp_mags[filter(i -> first(vs[i]) == r, [i for i in 1:length(vs)])]) for r in unique(rows)]
 
             file_name = f * "TrotterStep"*string(i)*".npz"
             println("Current BP Measured magnetisation is $(sum(bp_mags))")
 
-            bp_mag_top = sum([v ∉ bottom_half_vertices ? bp_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
+            bp_mag_top = sum([v ∉ bottom_half_vertices ? bp_mags[j, i+1] : 0 for (j, v) in enumerate(collect(vertices(g)))])
 
             println("Current BP Measured magnetisation transfer is $(bp_mag_top - init_mag_top)")
 
-            bp_mags = ComplexF64[b for b in bp_mags]
+            push!(transferred_mags, bp_mag_top - init_mag_top)
+
+            logts, logms = log.(times), log.(transferred_mags)
+            #alphas = gradient(logms, logts)
+
+            i > 1 && println("Rough alpha is $((logms[i] - logms[i-1]) / (logts[i] - logts[i-1]))")
+
+            # grouping_function = v -> last(v)
+            # group_sorting_function  = v -> first(v)
+            # ρρ_bmps = TensorNetworkQuantumSimulator.BoundaryMPSCache(deepcopy(ρρ); message_rank = χ, group_sorting_function, grouping_function)
+            # ρρ_bmps = ITensorNetworks.update(ρρ_bmps; alg = "bp", maxiter = 5)
+
+            # bmps_mags[:, i+1] = TN.expect(ρρ_bmps, sphysical, sancilla, obs; use_gpu)
 
 
-            npzwrite(file_name, bp_mags = bp_mags, rows = rows,mags_vs_row = mags_vs_row, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
+            # bmps_mag_top = sum([v ∉ bottom_half_vertices ? bmps_mags[j, i+1] : 0 for (j, v) in enumerate(collect(vertices(g)))])
+
+            # println("Current BMPS Measured magnetisation is $(sum(bmps_mags))")
+            # println("Current BMPS Measured magnetisation transfer is $(bmps_mag_top - init_mag_top)")
+
+
+            #npzwrite(file_name, bp_mags = bp_mags, rows = rows,mags_vs_row = mags_vs_row, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
         end
+
+
 
         if i ∈ ρ_save_steps
-            file_name = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/DensityMatrices/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)*"TimeStep"*string(i)*".jld2"
-            jldsave(file_name, density_matrix = ρ)
+            file_name = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPictureSqrtApproach/Results/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)*"TimeStep"*string(i)*".jld2"
+            jldsave(file_name, bp_mags = bp_mags, times= times, density_matrix = ρρ, sphysical = sphysical, sancilla = sancilla)
         end
             
-        flush(stdout)
-        t += δt
+
     end
 end
 
@@ -324,7 +374,7 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
     sancilla = siteinds("S=1/2", g)
 
     ρ = high_temperature_initial_state(sphysical, sancilla, mu, v -> v ∈ bottom_half_vertices)
-    ρρ = build_bp_cache(ρ)
+    ρρ = build_normsqr_bp_cache(ρ)
     println("Intial trace is $(scalar(ρρ))")
 
     tr_ρ = form_tr_ρ(ρ, sphysical, sancilla)
@@ -341,11 +391,11 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
     println("Initial magnetisation is $(sum(init_mags))")
 
     #Do a 4-way edge coloring then Trotterise the Hamiltonian into commuting groups
-    layer = []
+    layer = ITensor[]
     k = lattice ∈ ["Hexagonal", "HeavyHexagonal"] ? 3 : lattice == "Chain" ? 2 : 4
     ec = edge_color(g, k)
     for colored_edges in ec
-        _layer = reduce(vcat, [[ITensors.op("RxxyyRzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θxy = 2*J*δt, θz = 2*J*δt), ITensors.op("RxxyyRzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θxy = -2*J*δt, θz = -2*J*δt)] for pair in colored_edges])
+        _layer = reduce(vcat, [[ITensors.op("Rxxyyzz", only(sphysical[src(pair)]), only(sphysical[dst(pair)]); θ = 2*J*δt), ITensors.op("Rxxyyzz", only(sancilla[src(pair)]), only(sancilla[dst(pair)]); θ = -2*J*δt)] for pair in colored_edges])
         append!(layer, _layer)
     end
 
@@ -353,18 +403,20 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
     measure_freq = 1
 
     t = 0
-    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPicture/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)*"hz"*string(hz)
+    f = "/mnt/home/jtindall/ceph/Data/Transport/"*lattice*"/HeisenbergPicture/ny"*string(ny)*"maxdim"*string(χ)*"dt"*string(δt)*"mu"*string(mu)*"J"*string(J)
 
     rows = Int64[r for r in first.(collect(vertices(g)))]
     cols = Int64[r for r in last.(collect(vertices(g)))]
     file_name = f * "TrotterStep0.npz"
-    npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols)
+    #npzwrite(file_name, bp_mags = init_mags, bmps_mags = init_mags, rows = rows, cols = cols)
 
     init_mag_top = sum([v ∉ bottom_half_vertices ? init_mags[i] : 0 for (i, v) in enumerate(collect(vertices(g)))])
 
-    apply_kwargs = (; maxdim = χ, cutoff = 1e-10, normalize = false)
+    apply_kwargs = (; maxdim = χ, cutoff = 1e-10, normalize_tensors = true)
     for i in 1:no_trotter_steps
-        ρ, ρρ, errs = apply(layer, ρ, ρρ; apply_kwargs)
+        ρρ, errs = apply_gates(layer, ρρ; apply_kwargs, inds_per_site = 2)
+
+        ρ = ket_network(ρρ)
 
         if i % measure_freq == 0
             println("Time is $(t)")
@@ -383,7 +435,7 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
 
             tr_ρ_bmps = TN.BoundaryMPSCache(ITensorNetworks.BeliefPropagationCache(tr_ρ); message_rank = 5*ITensorNetworks.maxlinkdim(ρ),
             grouping_function = v -> last(v), group_sorting_function = v -> first(v))
-            tr_ρ_bmps = TN.updatecache(tr_ρ_bmps; alg = "orthogonal", maxiter = 5, message_update_kwargs = (; niters = 75, tolerance = 1e-12))
+            tr_ρ_bmps = ITensorNetworks.update(tr_ρ_bmps; alg = "bp", maxiter = 5)
             bmps_mags = trace_expect(tr_ρ_bmps, ρ, obs, sphysical, sancilla)
             println("Current BMPS Measured magnetisation is $(sum(bmps_mags))")
 
@@ -395,15 +447,16 @@ function main_heisenberg(lattice::String, seed::Int, χ::Int, ny::Int, mu::Float
 
             println("Current BP Measured magnetisation transfer is $(bp_mag_top - init_mag_top)")
             println("Current BMPS Measured magnetisation transfer is $(bmps_mag_top - init_mag_top)")
-            npzwrite(file_name, bp_mags = bp_mags, bmps_mags = bmps_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
+            #npzwrite(file_name, bp_mags = bp_mags, bmps_mags = bmps_mags, rows = rows, cols = cols, in_bottom_half = in_bottom_half, errs = errs)
         end
         flush(stdout)
         t += δt
     end
 end
 
-mode, lattice, χ, ny, mu, δt, J, seed = ARGS[1], ARGS[2], parse(Int64, ARGS[3]), parse(Int64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6]), parse(Float64, ARGS[7]), parse(Int64, ARGS[8])
-#mode, lattice, χ, ny, mu, δt, J, seed = "HeisenbergSqrt", "Square", 4, 10, 0.1, 0.1, 1.0, 1
+#mode, lattice, χ, ny, mu, δt, J, seed = ARGS[1], ARGS[2], parse(Int64, ARGS[3]), parse(Int64, ARGS[4]), parse(Float64, ARGS[5]), parse(Float64, ARGS[6]), parse(Float64, ARGS[7]), parse(Int64, ARGS[8])
+#mode, lattice, χ, ny, mu, δt, J, seed = "HeisenbergSqrt", "Hexagonal", 16, 50, 0.05, 0.05, 1.0, 1
+mode, lattice, χ, ny, mu, δt, J, seed = "HeisenbergSqrt", "Square", 8, 40, 0.05, 0.05, 1.0, 1
 mode == "HeisenbergSqrt" && main_heisenberg_sqrt(lattice, seed, χ, ny, mu, δt, J)
 mode == "Heisenberg" && main_heisenberg(lattice, seed, χ, ny, mu, δt, J)
 mode == "Schrodinger" && main_schrodinger(lattice, seed, χ, ny, mu, δt, J)

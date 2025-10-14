@@ -262,16 +262,19 @@ function compute_ps(ψ::ITensorNetwork, v1, v2, v1_val, v2_val, egs::Vector{<:Ab
     p_bp = exp(logscalar(ψIψ))
     ψIψ = ITensorNetworks.rescale(ψIψ)
     cfes = cumulative_weights(ψIψ, egs; kwargs...)
-    return [p_bp*cfe for cfe in cfes]
+    cfes_loop = [p_bp*cfe for cfe in cfes]
+    cfes_cluster = [p_bp * exp(cfe - 1) for cfe in cfes]
+    return cfes_loop, cfes_cluster
 end
 
 #Compute zz with loop correction and all bells and whistles
 function zz_correlation_bp_loopcorrectfull(ψ::ITensorNetwork, v1, v2, egs::Vector{<:AbstractNamedGraph}; kwargs...)
-    p_upups = compute_ps(ψ, v1, v2, 2, 2, egs; kwargs...)
-    p_updowns = compute_ps(ψ, v1, v2, 2, 1, egs; kwargs...)
+    p_upups_loop, p_upups_cluster = compute_ps(ψ, v1, v2, 2, 2, egs; kwargs...)
+    p_updowns_loop, p_updowns_cluster = compute_ps(ψ, v1, v2, 2, 1, egs; kwargs...)
 
-    szszs = [(p_upup - p_updown) / (p_upup + p_updown) for (p_upup, p_updown) in zip(p_upups, p_updowns)]
-    return szszs
+    szszs_loop = [(p_upup - p_updown) / (p_upup + p_updown) for (p_upup, p_updown) in zip(p_upups_loop, p_updowns_loop)]
+    szszs_cluster = [(p_upup - p_updown) / (p_upup + p_updown) for (p_upup, p_updown) in zip(p_upups_cluster, p_updowns_cluster)]
+    return szszs_loop, szszs_cluster
 end
 
 function _quadraticformnetwork(ψ)

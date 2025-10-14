@@ -62,6 +62,7 @@ function apply_gates(
     verbose = false,
     update_bra_space = !is_flat(ψ_bpc),
     transfer_to_gpu = false,
+    inds_per_site=1
 )
     ψ_bpc = copy(ψ_bpc)
     # merge all the kwargs with the defaults 
@@ -78,7 +79,7 @@ function apply_gates(
 
         # check if the gate is a 2-qubit gate and whether it affects the counter
         # we currently only increment the counter if the gate affects vertices that have already been affected
-        cache_update_required = _cacheupdate_check(affected_indices, gate)
+        cache_update_required = _cacheupdate_check(affected_indices, gate; inds_per_site)
 
         # update the BP cache
         if update_cache && cache_update_required
@@ -283,10 +284,10 @@ function simple_update_cuda(
 end
 
   #Checker for whether the cache needs updating (overlapping gate encountered)
-function _cacheupdate_check(affected_indices::Set, gate::ITensor)
+function _cacheupdate_check(affected_indices::Set, gate::ITensor; inds_per_site=1)
     indices = inds(gate)
 
     # check if we have a two-site gate and any of the qinds are in the affected_indices. If so update cache
-    length(indices) == 4 && any(ind in affected_indices for ind in indices) && return true
+    length(indices) == 4 * inds_per_site && any(ind in affected_indices for ind in indices) && return true
     return false
 end

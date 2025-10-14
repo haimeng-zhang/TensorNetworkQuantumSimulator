@@ -160,6 +160,33 @@ function files_to_corrs_diamond(nv::Int64, annealing_time, tns_bond_dimension, d
     return corrs_vector
 end
 
+function files_to_corrs_diamond_cluster(nv::Int64, annealing_time, tns_bond_dimension, disorder_no, no_jobs::Int64, corrs_per_job::Int64, var_name::String; max_loop_length = 0)
+    file_prefix = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/ClusterExpansion/LoopLength$(max_loop_length)"
+    file_save_prefix = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/DiamondErrorAnalysis/ClusterExpansion/FullCorrs/LoopLength$(max_loop_length)"
+    file_suffix = "Corrs"*var_name*"AnnealingTime$(annealing_time)Chi$(tns_bond_dimension)DisorderNo$(disorder_no)"
+    
+    time_taken = 0
+    corrs = Dictionary()
+    missed_jobs = []
+    for i in 1:no_jobs
+        file_name = file_prefix *file_suffix * "/JobNo" * string(i)*"NCorrs"*string(corrs_per_job)*".jld2"
+        f = load(file_name)
+        corrs = non_duplicate_merge(f["corrs_cluster"], corrs)
+    end
+
+    corrs_vector = []
+    @show missed_jobs
+    @show length(keys(corrs))
+    @show nv * (nv-1) / 2
+    if abs(length(keys(corrs)) - nv * (nv-1) / 2) <= 1e-10
+        corrs_vector, _ = convert_dict_to_correlations(nv, corrs)
+        dir = file_save_prefix *file_suffix
+        isdir(dir) || mkdir(dir)
+        npzwrite(file_save_prefix *file_suffix * "/FullCorrs.npz", corrs = corrs_vector)
+    end
+    return corrs_vector
+end
+
 function files_to_corrs_cylinder(g::AbstractGraph, radius::Int64, annealing_time, tns_bond_dimension, disorder_no, lattice::String, var_name::String; tns_trunc_bond_dimension = nothing, max_loop_length = 0)
     file_prefix = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/BPCorrected/"*lattice*"/LoopLength$(max_loop_length)"
     if isnothing(tns_trunc_bond_dimension)
@@ -213,6 +240,46 @@ function main_diamond()
                     q_sq = mean([x*x for x in boundarympsratio_corrs])
                     @show q_sq
                 end
+            end
+        end
+    end
+end
+
+function main_diamond_cluster()
+    disorder_nos = [i for i in 1:20]
+    ns =[(5,5,8)]
+    annealing_times =[20]
+    tns_bond_dimension =16
+    max_loop_lengths =[6]
+    no_corrs_per_job = 50
+    no_jobs =25
+    mps_bond_dimension = 1024
+
+    for (nx,ny,nz) in ns
+        println("Nx is $nx")
+        nv = round(Int64, nx * ny * nz * 0.25)
+        for annealing_time in annealing_times
+            println("Annealing Time is $annealing_time")
+            for max_loop_length in max_loop_lengths
+                println("Loop length is $max_loop_length")
+                errs = []
+                for disorder_no in disorder_nos
+                    disorder_no_str = string(disorder_no - 1, pad = 2)
+                    instance_file = "/mnt/home/jtindall/ceph/Data/DWave/Instances/diamond_($(nx), $(ny), $(nz))_precision256/seed"*disorder_no_str*".npz"
+                    g, J_dict = graph_couplings_from_instance(instance_file)
+
+                    println("Analysing Error for disorder $disorder_no")
+                    boundarympsratio_corrs = files_to_corrs_diamond_cluster(nv, annealing_time, tns_bond_dimension, disorder_no, no_jobs, no_corrs_per_job, "nx$(nx)ny$(ny)nz$(nz)"; max_loop_length)
+                    
+                    mps_file_name = "/mnt/home/jtindall/ceph/Data/DWave/Corrs/MPS/diamond_($(nx)_$(ny)_$(nz))_precision256/$(annealing_time)ns/chi$(mps_bond_dimension)/correlations_uppertriangular_20_seeds.npz"
+                    mps_file = npzread(mps_file_name)
+                    mps_corrs = mps_file["corrs"][disorder_no, :]
+                    err = correlation_error(boundarympsratio_corrs, mps_corrs)
+                    #@show err
+                    push!(errs, err)
+                end
+                @show mean(errs)
+                @show Statistics.std(errs)
             end
         end
     end
@@ -299,6 +366,6 @@ function main_cubic()
 end
 
 
-main_diamond()
+main_diamond_cluster()
 #main_cylinder()
 #main_cubic()
