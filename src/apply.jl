@@ -1,3 +1,5 @@
+using CUDA
+
 """
     apply_gates(circuit::AbstractVector, ψ::ITensorNetwork; bp_update_kwargs = default_posdef_bp_update_kwargs() apply_kwargs = (; maxdim, cutoff))
 
@@ -37,7 +39,8 @@ function apply_gates(
     bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
     update_cache = true,
     verbose = false,
-    inds_per_site=1
+    inds_per_site=1,
+    transfer_to_gpu = false,
 )
     ψ_bpc = copy(ψ_bpc)
 
@@ -70,7 +73,7 @@ function apply_gates(
         end
 
         # actually apply the gate
-        t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], apply_kwargs)
+        t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], apply_kwargs, transfer_to_gpu)
         affected_indices = union(affected_indices, Set(inds(gate)))
     end
 
@@ -87,15 +90,14 @@ function apply_gate!(
     ψ_bpc::BeliefPropagationCache;
     v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
     apply_kwargs = _default_apply_kwargs,
-    update_bra_space = !is_flat(ψ_bpc),
     transfer_to_gpu = false,
 )
     envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc,v⃗)
 
     if !transfer_to_gpu
-        updated_tensors, s_values, err = simple_update(gate, ψ_bpc, v⃗; envs, apply_kwargs...)
+        updated_tensors, s_values, err = simple_update(gate, network(ψ_bpc), v⃗; envs, apply_kwargs...)
     else
-        updated_tensors, s_values, err = simple_update_cuda(gate, ψ_bpc, v⃗; envs, apply_kwargs...)
+        updated_tensors, s_values, err = simple_update_cuda(gate, network(ψ_bpc), v⃗; envs, apply_kwargs...)
     end
 
     if length(v⃗) == 2

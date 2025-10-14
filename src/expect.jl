@@ -152,6 +152,8 @@ function collectobservable(obs::Tuple)
     verts = _tovec(obs[2])
     coeff = length(obs) == 2 ? 1 : last(obs)
 
+    length(verts) == 1 && return [op], verts, coeff
+
     @assert !(op == "" && isempty(verts))
 
     length(op) != length(verts) && error("Invalid observable: need as many operators as vertices passed.")
