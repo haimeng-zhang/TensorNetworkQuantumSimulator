@@ -159,6 +159,6 @@ function random_tensornetworkstate(g::AbstractGraph, args...; kwargs...)
 end
 
 function tensornetworkstate(f::Function, args...)
-    return tensornetworkstate(Float64, args...)
+    return tensornetworkstate(Float64, f, args...)
 end
     
