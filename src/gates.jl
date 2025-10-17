@@ -12,7 +12,7 @@ end
 
 #Gates which take a single theta argument (rotation argument)
 function _takes_theta_argument(string::String)
-    return string ∈ ["Rx", "Ry", "Rz", "CRx", "CRy", "CRz", "Rxxyy", "Rxxyyzz"]
+    return string ∈ ["Rx", "Ry", "Rz", "CRx", "CRy", "CRz", "Rxxyy", "Rxxyyzz", "Rz+", "Rz+z+"]
 end
 
 #Gates which take a single phi argument (rotation argument)
@@ -151,6 +151,40 @@ function ITensors.op(
     mat[3, 2] = -1.0 * im * a * sin(θ)
     mat[3, 3] = cos(θ) * a
     mat[4,4] = conj(a)
+    return mat
+end
+
+
+"""
+    ITensors.op(::OpName"Rz+", ::SiteType"S=1/2"; θ::Number)
+
+Gate for rotation by Z+ at a given halved angle
+"""
+function ITensors.op(
+    ::OpName"Rz+", ::SiteType"S=1/2"; θ::Number
+  )
+    a = exp( -im * θ * 0.5)
+    mat = zeros(ComplexF64, 2, 2)
+    mat[1, 1] = 1
+    mat[2, 2] = a
+    return mat
+end
+
+
+"""
+    ITensors.op(::OpName"Rz+z+", ::SiteType"S=1/2"; θ::Number)
+
+Gate for rotation by Z+Z+ at a given halved angle
+"""
+function ITensors.op(
+    ::OpName"Rz+z+", ::SiteType"S=1/2"; θ::Number
+  )
+    a = exp( -im * θ * 0.5)
+    mat = zeros(ComplexF64, 4, 4)
+    mat[1, 1] = 1
+    mat[2, 2] = 1
+    mat[3, 3] = 1
+    mat[4, 4] = a
     return mat
 end
 
