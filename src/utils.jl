@@ -13,3 +13,13 @@ function is_ring_graph(g::AbstractGraph)
     g_mod = rem_edge(g, first(edges(g)))
     return is_line_graph(g_mod)
 end
+
+function pseudo_sqrt_inv_sqrt(M::ITensor; cutoff = 10 * eps(real(scalartype(M))))
+    @assert length(inds(M)) == 2
+    Q, D, Qdag = ITensorNetworks.ITensorsExtensions.eigendecomp(M, inds(M)[1], inds(M)[2]; ishermitian=true)
+    D_sqrt = ITensorNetworks.ITensorsExtensions.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : sqrt(x), D)
+    D_inv_sqrt = ITensorNetworks.ITensorsExtensions.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : inv(sqrt(x)), D)
+    M_sqrt = Q * D_sqrt * Qdag
+    M_inv_sqrt = Q * D_inv_sqrt * Qdag
+    return M_sqrt, M_inv_sqrt
+end

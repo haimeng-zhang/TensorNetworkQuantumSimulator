@@ -129,26 +129,12 @@ function simple_update(
         envs_v1 = filter(env -> hascommoninds(env, ψ[v⃗[1]]), envs)
         envs_v2 = filter(env -> hascommoninds(env, ψ[v⃗[2]]), envs)
         @assert all(ndims(env) == 2 for env in vcat(envs_v1, envs_v2))
-        sqrt_envs_v1 = [
-        ITensorNetworks.ITensorsExtensions.map_eigvals(
-            sqrt, env, inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v1
-        ]
-        sqrt_envs_v2 = [
-            ITensorNetworks.ITensorsExtensions.map_eigvals(
-            sqrt, env, inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v2
-        ]
-        inv_sqrt_envs_v1 = [
-            ITensorNetworks.ITensorsExtensions.map_eigvals(
-            inv ∘ sqrt, env, inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v1
-        ]
-        inv_sqrt_envs_v2 = [
-            ITensorNetworks.ITensorsExtensions.map_eigvals(
-            inv ∘ sqrt, env, inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v2
-        ]
+
+        sqrt_inv_sqrt_envs_v1 = pseudo_sqrt_inv_sqrt.(envs_v1)
+        sqrt_inv_sqrt_envs_v2 = pseudo_sqrt_inv_sqrt.(envs_v2)
+        sqrt_envs_v1, inv_sqrt_envs_v1 = first.(sqrt_inv_sqrt_envs_v1), last.(sqrt_inv_sqrt_envs_v1)
+        sqrt_envs_v2, inv_sqrt_envs_v2 = first.(sqrt_inv_sqrt_envs_v2), last.(sqrt_inv_sqrt_envs_v2)
+
         ψᵥ₁ = contract([ψ[v⃗[1]]; sqrt_envs_v1])
         ψᵥ₂ = contract([ψ[v⃗[2]]; sqrt_envs_v2])
         sᵥ₁ = commoninds(ψ[v⃗[1]], o)

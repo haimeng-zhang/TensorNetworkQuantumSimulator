@@ -44,7 +44,7 @@ The supported algorithms are: exact (exact contraction of all tensors in the net
 For `bp` and `boundarymps`, the TensorNetworkState is first converted into a BeliefPropagationCache or BoundaryMPSCache respectively, and the cache is updated before measuring. The update can be controlled via the keyword arguments `cache_update_kwargs`, which are passed to the `update` function. For `boundarymps`, the partitioning of the graph can be controlled via the keyword argument `partition_by`, which can be either `"row"` or `"column"`. The MPS bond dimension can be set via the keyword argument `mps_bond_dimension`.
 For `exact`, the contraction sequence can be controlled via the keyword argument `contraction_sequence_kwargs`, which is a named tuple of keyword arguments passed to the `contraction_sequence` function. The default is to use the `einexpr` algorithm with a greedy optimizer.
 """
-function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}, observable; alg::String = default_alg(ψ), kwargs...)
+function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}, observable; alg::Union{String, Nothing} = default_alg(ψ), kwargs...)
     return expect(Algorithm(alg), ψ, observable; kwargs...)
 end
 
