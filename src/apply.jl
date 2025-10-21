@@ -43,14 +43,13 @@ function apply_gates(
     bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
     update_cache = true,
     verbose = false,
-    inds_per_site=1
 )
     ψ_bpc = copy(ψ_bpc)
 
     # we keep track of the vertices that have been acted on by 2-qubit gates
     # only they increase the counter
     # this is the set that keeps track.
-    affected_indices = Set{Index{Int64}}()
+    affected_vertices = Set()
     truncation_errors = zeros((length(circuit)))
 
     # If the circuit is applied in the Heisenberg picture, the circuit needs to already be reversed
@@ -58,7 +57,7 @@ function apply_gates(
 
         # check if the gate is a 2-qubit gate and whether it affects the counter
         # we currently only increment the counter if the gate affects vertices that have already been affected
-        cache_update_required = _cacheupdate_check(affected_indices, gate; inds_per_site)
+        cache_update_required = length(gate_vertices[ii]) >= 2 && any(vert in affected_vertices for vert in gate_vertices[ii])
 
         # update the BP cache
         if update_cache && cache_update_required
@@ -68,7 +67,7 @@ function apply_gates(
 
             t = @timed ψ_bpc = update(ψ_bpc; bp_update_kwargs...)
 
-            affected_indices = Set{Index{Int64}}()
+            affected_vertices = Set()
             if verbose
                 println("Done in $(t.time) secs")
             end
@@ -77,7 +76,7 @@ function apply_gates(
 
         # actually apply the gate
         t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], apply_kwargs)
-        affected_indices = union(affected_indices, Set(inds(gate)))
+        affected_vertices = union(affected_vertices, Set(gate_vertices[ii]))
     end
 
     if update_cache
@@ -166,13 +165,4 @@ function simple_update(
     end
 
     return noprime.(updated_tensors), s_values, err
-end
-
-  #Checker for whether the cache needs updating (overlapping gate encountered)
-function _cacheupdate_check(affected_indices::Set, gate::ITensor; inds_per_site=1)
-    indices = inds(gate)
-
-    # check if we have a two-site gate and any of the qinds are in the affected_indices. If so update cache
-    length(indices) == 4 * inds_per_site && any(ind in affected_indices for ind in indices) && return true
-    return false
 end
