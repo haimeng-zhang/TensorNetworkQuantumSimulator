@@ -9,8 +9,6 @@ function _sample(
     partition_by = "row",
     kwargs...,
 )
-    ψ = gauge_and_scale(ψ)
-
     norm_bmps_cache = BoundaryMPSCache(ψ, norm_mps_bond_dimension; partition_by)
     leaves = leaf_vertices(partitions_graph(supergraph(norm_bmps_cache)))
     seq = PartitionEdge.(a_star(partitions_graph(supergraph(norm_bmps_cache)), last(leaves), first(leaves)))

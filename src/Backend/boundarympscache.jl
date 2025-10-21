@@ -162,11 +162,17 @@ function BoundaryMPSCache(
     bpc::BeliefPropagationCache,
     mps_bond_dimension::Int;
     partition_by = "row",
+    gauge_state = true
 )
     grouping_function = partition_by == "row" ? v -> first(v) : v -> last(v)
     group_sorting_function = partition_by == "row" ? v -> last(v) : v -> first(v)
 
-    bpc = copy(bpc)
+    if gauge_state && network(bpc) isa TensorNetworkState
+        bpc = update(bpc)
+        bpc = symmetrize_and_normalize(bpc)
+    else
+        bpc = copy(bpc)
+    end
     pseudo_edges = pseudo_planar_edges(bpc; grouping_function)
     planar_graph = underlying_graph(bpc)
     NamedGraphs.add_edges!(planar_graph, pseudo_edges)
