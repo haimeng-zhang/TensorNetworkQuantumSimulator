@@ -367,7 +367,7 @@ function update_message!(
           m = extracter(alg, bmps_cache, update_e)
           n = norm(m)
           cf += n
-          if alg.kwargs.normalize
+          if alg.kwargs.normalize && n != 0
               m /= n
           end
           inserter!(alg, bmps_cache, update_e, m)

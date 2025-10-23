@@ -7,9 +7,10 @@ function _sample(
     norm_mps_bond_dimension::Int,
     norm_cache_message_update_kwargs=(; ),
     partition_by = "row",
+    gauge_state = true,
     kwargs...,
 )
-    norm_bmps_cache = BoundaryMPSCache(ψ, norm_mps_bond_dimension; partition_by)
+    norm_bmps_cache = BoundaryMPSCache(ψ, norm_mps_bond_dimension; gauge_state, partition_by)
     leaves = leaf_vertices(partitions_graph(supergraph(norm_bmps_cache)))
     seq = PartitionEdge.(a_star(partitions_graph(supergraph(norm_bmps_cache)), last(leaves), first(leaves)))
     norm_cache_message_update_kwargs = (; norm_cache_message_update_kwargs..., normalize=false)

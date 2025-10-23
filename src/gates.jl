@@ -55,7 +55,6 @@ function toitensor(gate::Tuple, siteinds::Dictionary)
     else
         throw(ArgumentError("Wrong gate format"))
     end
-
     return gate
 end
 
