@@ -30,7 +30,7 @@ function apply_gates(
 )
     gate_vertices = [_tovec(gate[2]) for gate in circuit]
     circuit = toitensor(circuit, siteinds(network(ψ_bpc)))
-    circuit = [adapt(complex(scalartype(ψ_bpc)), gate) for gate in circuit]
+    circuit = [scalartype(gate) <: Complex ? adapt(complex(scalartype(ψ_bpc)), gate) : adapt(scalartype(ψ_bpc), gate)  for gate in circuit]
     circuit = [adapt(unspecify_type_parameters(datatype(ψ_bpc)), gate) for gate in circuit]
     return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
 end
