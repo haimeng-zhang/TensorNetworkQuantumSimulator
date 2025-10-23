@@ -5,8 +5,8 @@
     # Arguments
     - `circuit::Vector`: A vector of tuples where each tuple contains a gate (as an `ITensor`) and the vertices it acts on.
     - `ψ::TensorNetworkState`: The tensor network state to which the gates will be applied.
-    - `bp_update_kwargs`: Keyword arguments for updating the Belief Propagation cache (reasonable default is set).
-    - `kwargs...`: Additional keyword arguments for gate application and BP updates.
+    - `bp_update_kwargs`: Keyword arguments for updating the Belief Propagation cache between gates (reasonable defaults are set).
+    - `apply_kwargs`: Keyword arguments for the gate application. These include options like `maxdim` and `cutoff` for bond dimension truncation during gate application.
     # Returns
     - A tuple containing the updated `TensorNetworkState` or `BeliefPropagationCache` and a vector of truncation errors for each gate application.
 end
@@ -30,9 +30,12 @@ function apply_gates(
 )
     gate_vertices = [_tovec(gate[2]) for gate in circuit]
     circuit = toitensor(circuit, siteinds(network(ψ_bpc)))
-    circuit = [scalartype(gate) <: Complex ? adapt(complex(scalartype(ψ_bpc)), gate) : adapt(scalartype(ψ_bpc), gate)  for gate in circuit]
-    circuit = [adapt(unspecify_type_parameters(datatype(ψ_bpc)), gate) for gate in circuit]
     return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
+end
+
+function adapt_gate(gate::ITensor, ψ_bpc::BeliefPropagationCache)
+    gate = scalartype(gate) <: Complex ? adapt(complex(scalartype(ψ_bpc)), gate) : adapt(scalartype(ψ_bpc), gate)
+    return adapt(unspecify_type_parameters(datatype(ψ_bpc)), gate)
 end
 
 function apply_gates(
@@ -75,6 +78,7 @@ function apply_gates(
         end
 
         # actually apply the gate
+        gate = adapt_gate(gate, ψ_bpc)
         t = @timed ψ_bpc, truncation_errors[ii] = apply_gate!(gate, ψ_bpc; v⃗ = gate_vertices[ii], apply_kwargs)
         affected_vertices = union(affected_vertices, Set(gate_vertices[ii]))
     end
