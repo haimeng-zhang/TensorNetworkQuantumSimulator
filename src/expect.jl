@@ -57,7 +57,7 @@ end
 
 function expect(
         alg::Union{Algorithm"bp", Algorithm"boundarymps"},
-        ψ::AbstractBeliefPropagationCache,
+        cache::AbstractBeliefPropagationCache,
         obs::Tuple;
         bmps_messages_up_to_date = false,
     )
@@ -68,26 +68,26 @@ function expect(
     if length(obs_vs) == 1
         steiner_vs = obs_vs
     elseif alg == Algorithm("bp")
-        steiner_vs = collect(vertices(steiner_tree(network(ψ), obs_vs)))
+        steiner_vs = collect(vertices(steiner_tree(network(cache), obs_vs)))
     elseif alg == Algorithm("boundarymps")
-        partitions = unique(partitionvertices(ψ, obs_vs))
+        partitions = unique(partitionvertices(cache, obs_vs))
         length(partitions) > 1 && error("Observable support must be within a single partition (row/ column) of the graph for now.")
         partition = only(partitions)
-        g = partition_graph(ψ, partition)
+        g = partition_graph(cache, partition)
         steiner_vs = collect(vertices(steiner_tree(g, obs_vs)))
 
         if !bmps_messages_up_to_date
-            ψ = update_partition(ψ, partition)
+            cache = update_partition(cache, partition)
         end
     end
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
 
-    incoming_ms = incoming_messages(ψ, steiner_vs)
-    ψIψ_tensors = ITensor[norm_factors(network(ψ), steiner_vs); incoming_ms]
+    incoming_ms = incoming_messages(cache, steiner_vs)
+    ψIψ_tensors = ITensor[norm_factors(network(cache), steiner_vs); incoming_ms]
     denom_seq = contraction_sequence(ψIψ_tensors; alg = "einexpr", optimizer = Greedy())
     denom = contract(ψIψ_tensors; sequence = denom_seq)[]
 
-    ψOψ_tensors = ITensor[norm_factors(network(ψ), steiner_vs; op_strings = op_string_f); incoming_ms]
+    ψOψ_tensors = ITensor[norm_factors(network(cache), steiner_vs; op_strings = op_string_f); incoming_ms]
     numer_seq = contraction_sequence(ψOψ_tensors; alg = "einexpr", optimizer = Greedy())
     numer = contract(ψOψ_tensors; sequence = numer_seq)[]
 
