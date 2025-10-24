@@ -18,5 +18,8 @@ end
     - The normalized `tns::TensorNetworkState` such that `norm_sqr(tns; alg = "bp) = 1`.
 """
 function LinearAlgebra.normalize(tns::TensorNetworkState; alg = nothing, kwargs...)
+    algorithm_check(tns, "normalize", alg)
     return normalize(Algorithm(alg), tns; kwargs...)
 end
+
+#TODO: Get this working for boundarymps

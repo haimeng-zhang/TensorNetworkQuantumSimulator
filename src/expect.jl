@@ -45,8 +45,11 @@ For `bp` and `boundarymps`, the TensorNetworkState is first converted into a Bel
 For `exact`, the contraction sequence can be controlled via the keyword argument `contraction_sequence_kwargs`, which is a named tuple of keyword arguments passed to the `contraction_sequence` function. The default is to use the `einexpr` algorithm with a greedy optimizer.
 """
 function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}, observable; alg::Union{String, Nothing} = default_alg(ψ), kwargs...)
+    algorithm_check(ψ, "expect", alg)
     return expect(Algorithm(alg), ψ, observable; kwargs...)
 end
+
+#TODO: If a cache is passed, alg must match.
 
 function expect(
     alg::Union{Algorithm"bp", Algorithm"boundarymps"},

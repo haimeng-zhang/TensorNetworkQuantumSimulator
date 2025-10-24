@@ -40,6 +40,7 @@ end
 """
 
 function norm_sqr(tns::Union{TensorNetworkState, BeliefPropagationCache}; alg = nothing, kwargs...)
+    algorithm_check(tns, "norm_sqr", alg)
     return norm_sqr(Algorithm(alg), tns; kwargs...)
 end
 

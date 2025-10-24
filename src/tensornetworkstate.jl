@@ -89,6 +89,7 @@ function default_message(tns::TensorNetworkState, edge::AbstractEdge)
     return adapt(datatype(tns))(denseblocks(delta(vcat(linds, prime(dag(linds))))))
 end
 
+#TODO: Default to spin 1/2
 """
     random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Int = 1)
     Generate a random TensorNetworkState on graph `g` with local state indices given by the dictionary `siteinds`.
@@ -96,13 +97,13 @@ end
     Arguments:
     - `eltype`: (Optional) The number type of the tensor elements (e.g. Float64, ComplexF32). Default is Float64.
     - `g::AbstractGraph`: The underlying graph of the tensor network.
-    - `siteinds::Dictionary`: A dictionary mapping vertices to ITensor indices representing the local states.
+    - `siteinds::Dictionary`: A dictionary mapping vertices to ITensor indices representing the local states. Defaults to spin 1/2.
     - `bond_dimension::Int`: The bond dimension of the virtual indices connecting neighboring tensors (default is 1).
 
     Returns:
     - A `TensorNetworkState` object representing the random tensor network state.
 """
-function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Int = 1)
+function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary = default_siteinds(g); bond_dimension::Int = 1)
     vs = collect(vertices(g))
     l = Dict(e => Index(bond_dimension) for e in edges(g))
     l = merge(l, Dict(reverse(e) => l[e] for e in edges(g)))
@@ -140,11 +141,11 @@ end
     - `eltype`: (Optional) The number type of the tensor elements (e.g. Float64, ComplexF32). Default is Float64.
     - `f::Function`: A function mapping vertices of the graph to local states.
     - `g::AbstractGraph`: The underlying graph of the tensor network.
-    - `siteinds::Dictionary`: A dictionary mapping vertices to ITensor indices representing the local states.
+    - `siteinds::Dictionary`: A dictionary mapping vertices to ITensor indices representing the local states. Defaults to spin 1/2.
     Returns:    
     - A `TensorNetworkState` object representing the constructed tensor network state.
 """
-function tensornetworkstate(eltype, f::Function, g::AbstractGraph, siteinds::Dictionary)
+function tensornetworkstate(eltype, f::Function, g::AbstractGraph, siteinds::Dictionary = default_siteinds(g))
     vs = collect(vertices(g))
     tn = ITensorNetwork(g)
     for v in vs

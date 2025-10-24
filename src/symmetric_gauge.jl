@@ -136,6 +136,6 @@ end
     - The truncated `tns::TensorNetworkState`.
 """
 function ITensors.truncate(tns::TensorNetworkState, args...; alg = nothing, kwargs...)
-    isnothing(alg) && error("Must specify contraction backend to truncate the state. Currently supported: BP")
+    algorithm_check(tns, alg)
     return truncate(Algorithm(alg), tns, args...; kwargs...)
 end

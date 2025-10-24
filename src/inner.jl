@@ -48,7 +48,9 @@ end
     ```
 """
 function ITensors.inner(ψ::TensorNetworkState, ϕ::TensorNetworkState; alg = nothing, kwargs...)
-    inner(Algorithm(alg), ψ, ϕ; kwargs...)
+    algorithm_check(ψ, "inner", alg)
+    algorithm_check(ϕ, "inner", alg)
+    return inner(Algorithm(alg), ψ, ϕ; kwargs...)
 end
 
 function ITensors.inner(alg::Algorithm"exact", blf::BilinearForm;
@@ -88,8 +90,4 @@ end
 
 function ITensors.inner(alg::Algorithm"exact", ψ::TensorNetworkState, ϕ::TensorNetworkState)
     return inner(alg, BilinearForm(ψ, ϕ))
-end
-
-function ITensors.inner(alg::Algorithm, ψ::TensorNetworkState, ϕ::TensorNetworkState; kwargs...)
-    return algorithm_error()
 end

@@ -2,6 +2,7 @@ using NamedGraphs.PartitionedGraphs: PartitionedGraph, partitions_graph, partiti
 using NamedGraphs: add_edges!
 using SplitApplyCombine: group
 
+#TODO: Should the BP Cache be replaced with the network and messages
 struct BoundaryMPSCache{V, BPC<:BeliefPropagationCache{V}} <: AbstractBeliefPropagationCache{V}
     bp_cache::BPC
     supergraph::PartitionedGraph
