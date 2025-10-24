@@ -34,23 +34,27 @@ function algorithm_check(tns::Union{AbstractBeliefPropagationCache, TensorNetwor
         if !((tns isa BeliefPropagationCache) || (tns isa TensorNetworkState))
             return error("Expected BeliefPropagationCache or TensorNetworkState for 'bp' algorithm, got $(typeof(tns))")
         end
+
+        if f ∈ ["sample"]
+            error("BP-based contraction not supported for this functionality yet")
+        end
     elseif alg == "loopcorrections"
         if !((tns isa BeliefPropagationCache) || (tns isa TensorNetworkState))
             return error("Expected BeliefPropagationCache or TensorNetworkState for 'loop correctiom' algorithm, got $(typeof(tns))")
         end
 
-        if f == "normalize" || f == "expect" || f == "entanglement"
+        if f ∈ ["normalize", "expect", "entanglement", "sample"]
             return error("Loop correction-based contraction not supported for this functionality yet")
         end
     elseif alg == "boundarymps"
         if !((tns isa BoundaryMPSCache) || (tns isa TensorNetworkState))
             return error("Expected BoundaryMPSCache or TensorNetworkState for 'boundarymps' algorithm, got $(typeof(tns))")
         end
-        if f == "normalize" || "entanglement"
+        if f ∈ ["normalize", "entanglement"]
             return error("boundarymps contraction not supported for this functionality yet")
         end
     elseif alg == "exact"
-        if f == "normalize" || "entanglement"
+        if f ∈ ["normalize", "entanglement", "sample"]
             return error("exact contraction not supported for this functionality yet")
         end
     elseif alg ∉ ["exact", "bp", "loopcorrections", "boundarymps"]
@@ -59,3 +63,7 @@ function algorithm_check(tns::Union{AbstractBeliefPropagationCache, TensorNetwor
         return nothing
     end
 end
+
+default_alg(bp_cache::BeliefPropagationCache) = "bp"
+default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
+default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")

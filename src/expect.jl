@@ -1,7 +1,3 @@
-default_alg(bp_cache::BeliefPropagationCache) = "bp"
-default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
-default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")
-
 function expect(
         alg::Algorithm"exact",
         ψ::TensorNetworkState,
@@ -37,20 +33,27 @@ function expect(
 end
 
 """
-    expect(ψ, observable; alg="exact", kwargs...) -> Number 
-    expect(ψ, observables; alg="exact", kwargs...) -> Vector{Number}
-Compute the expectation value of one or more observables with respect to a TensorNetworkState or an updated BeliefPropagationCache or BoundaryMPSCache wrapping a TensorNetworkState.
-The observable(s) should be passed as a tuple or vector of tuples of the form `(op, vertices, coeff=1)`, where `op` is either a string of single character operators (e.g. `"ZZIY"`) or a vector of strings (e.g. `["Z", "Z", "I", "Y"]`), `vertices` is either a vertex or a vector of vertices (e.g. `(1,2)` or `[(1,2), (1,3)]`), and `coeff` is an optional coefficient multiplying the observable (default is 1). The vertices should correspond to the sites of the TensorNetworkState.
-The supported algorithms are: exact (exact contraction of all tensors in the network), belief propagation (bp) and boundary MPS (boundarymps).  
-For `bp` and `boundarymps`, the TensorNetworkState is first converted into a BeliefPropagationCache or BoundaryMPSCache respectively, and the cache is updated before measuring. The update can be controlled via the keyword arguments `cache_update_kwargs`, which are passed to the `update` function. For `boundarymps`, the partitioning of the graph can be controlled via the keyword argument `partition_by`, which can be either `"row"` or `"column"`. The MPS bond dimension can be set via the keyword argument `mps_bond_dimension`.
-For `exact`, the contraction sequence can be controlled via the keyword argument `contraction_sequence_kwargs`, which is a named tuple of keyword arguments passed to the `contraction_sequence` function. The default is to use the `einexpr` algorithm with a greedy optimizer.
+    expect(ψ, observable; alg="exact", kwargs...) -> Number or Vector{Number}
+
+Arguments:
+- `ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}`: The TensorNetworkState (TNS) or cache wrapping the TNS to measure the observable(s) on.
+- `observable::Union{Tuple, Vector{<:Tuple}}`: The observable(s) to measure. Should be a tuple or vector of tuples of the form `(ops, vertices, coeff=1)`.
+- `alg::Union{String, Nothing}`: The algorithm to use for the measurement. 
+
+Keyword Arguments:
+- `cache_update_kwargs...`: Keyword arguments passed to the `update` function when using `bp` or `boundarymps` algorithms.
+Returns:
+- A single number if measuring one observable, or a vector of numbers if measuring multiple observables.
+
+Supported algorithms:
+- `"exact"`: Exact contraction of the tensor network.
+- `"bp"`: Belief propagation approximation.
+- `"boundarymps"`: Boundary MPS approximation (requires `mps_bond_dimension` kwarg).
 """
 function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}, observable; alg::Union{String, Nothing} = default_alg(ψ), kwargs...)
     algorithm_check(ψ, "expect", alg)
     return expect(Algorithm(alg), ψ, observable; kwargs...)
 end
-
-#TODO: If a cache is passed, alg must match.
 
 function expect(
         alg::Union{Algorithm"bp", Algorithm"boundarymps"},

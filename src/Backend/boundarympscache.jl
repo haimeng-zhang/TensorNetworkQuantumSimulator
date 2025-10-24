@@ -2,11 +2,12 @@ using NamedGraphs.PartitionedGraphs: PartitionedGraph, partitions_graph, partiti
 using NamedGraphs: add_edges!
 using SplitApplyCombine: group
 
-#TODO: Should the BP Cache be replaced with the network and messages
-struct BoundaryMPSCache{V, BPC <: BeliefPropagationCache{V}} <: AbstractBeliefPropagationCache{V}
-    bp_cache::BPC
+#TODO: Make this show() nicely.
+struct BoundaryMPSCache{V, N <: AbstractDataGraph{V}, M <: Union{ITensor, Vector{<:ITensor}}} <: AbstractBeliefPropagationCache{V}
+    network::N
+    messages::Dictionary{NamedEdge, M}
     supergraph::PartitionedGraph
-    sorted_edges::Dictionary
+    sorted_edges::Dictionary{PartitionEdge, Vector{NamedEdge}}
     mps_bond_dimension::Int
 end
 
@@ -25,7 +26,7 @@ function default_bp_edge_sequence(bmps_cache::BoundaryMPSCache)
 end
 default_bp_maxiter(bmps_cache::BoundaryMPSCache) = is_tree(partitions_graph(supergraph(bmps_cache))) ? 1 : 5
 function default_message_update_alg(bmps_cache::BoundaryMPSCache)
-    tn = network(bp_cache(bmps_cache))
+    tn = network(bmps_cache)
     if tn isa TensorNetworkState || tn isa BilinearForm
         return "orthogonal"
     elseif tn isa ITensorNetwork
@@ -77,31 +78,13 @@ function is_correct_format(bmps_cache::BoundaryMPSCache)
     return true
 end
 
-bp_cache(bmps_cache::BoundaryMPSCache) = bmps_cache.bp_cache
+network(bmps_cache::BoundaryMPSCache) = bmps_cache.network
+messages(bmps_cache::BoundaryMPSCache) = bmps_cache.messages
 supergraph(bmps_cache::BoundaryMPSCache) = bmps_cache.supergraph
 mps_bond_dimension(bmps_cache::BoundaryMPSCache) = bmps_cache.mps_bond_dimension
 sorted_edges(bmps_cache::BoundaryMPSCache) = bmps_cache.sorted_edges
 function sorted_edges(bmps_cache::BoundaryMPSCache, pe::PartitionEdge)
     return sorted_edges(bmps_cache)[pe]
-end
-
-#Forward onto the BP Cache
-for f in [
-        :(Graphs.vertices),
-        :(Graphs.edges),
-        :(messages),
-        :(ITensors.datatype),
-        :(ITensorNetworks.linkinds),
-        :(ITensors.NDTensors.scalartype),
-        :(network),
-        :(NamedGraphs.GraphsExtensions.boundary_edges),
-        :(ITensorNetworks.setindex_preserve_graph!),
-    ]
-    @eval begin
-        function $f(bmps_cache::BoundaryMPSCache, args...; kwargs...)
-            return $f(bp_cache(bmps_cache), args...; kwargs...)
-        end
-    end
 end
 
 #Forward onto the supergraph
@@ -116,14 +99,10 @@ for f in [
     end
 end
 
-default_message(bmps_cache::BoundaryMPSCache, e::NamedEdge) = default_message(bp_cache(bmps_cache), e)
-setmessage!(bmps_cache::BoundaryMPSCache, e::NamedEdge, m::Union{ITensor, Vector{<:ITensor}}) = setmessage!(bp_cache(bmps_cache), e, m)
-deletemessages!(bmps_cache::BoundaryMPSCache, es::Vector{<:NamedEdge}) = deletemessages!(bp_cache(bmps_cache), es)
-message(bmps_cache::BoundaryMPSCache, e::NamedEdge) = message(bp_cache(bmps_cache), e)
-
 function Base.copy(bmps_cache::BoundaryMPSCache)
     return BoundaryMPSCache(
-        copy(bp_cache(bmps_cache)),
+        copy(network(bmps_cache)),
+        copy(messages(bmps_cache)),
         copy(supergraph(bmps_cache)),
         copy(sorted_edges(bmps_cache)),
         mps_bond_dimension(bmps_cache),
@@ -157,10 +136,8 @@ function virtual_index_dimension(
     end
 end
 
-#Constructor, inserts missing edge in the planar graph to ensure each partition is connected
-#allowing the code to work for arbitrary grids and not just square grids
 function BoundaryMPSCache(
-        bpc::BeliefPropagationCache,
+        tn::Union{TensorNetworkState, ITensorNetwork, BilinearForm},
         mps_bond_dimension::Int;
         partition_by = "row",
         gauge_state = true
@@ -168,29 +145,25 @@ function BoundaryMPSCache(
     grouping_function = partition_by == "row" ? v -> first(v) : v -> last(v)
     group_sorting_function = partition_by == "row" ? v -> last(v) : v -> first(v)
 
-    if gauge_state && network(bpc) isa TensorNetworkState
-        bpc = update(bpc)
-        bpc = symmetrize_and_normalize(bpc)
-    else
-        bpc = copy(bpc)
+    if gauge_state && (tn isa TensorNetworkState)
+        tn = gauge_and_scale(tn)
     end
-    pseudo_edges = pseudo_planar_edges(bpc; grouping_function)
-    planar_graph = underlying_graph(bpc)
+    pseudo_edges = pseudo_planar_edges(tn; grouping_function)
+    planar_graph = underlying_graph(tn)
     NamedGraphs.add_edges!(planar_graph, pseudo_edges)
     vertex_groups = group(grouping_function, collect(vertices(planar_graph)))
     vertex_groups = map(x -> sort(x; by = group_sorting_function), vertex_groups)
     supergraph = PartitionedGraph(planar_graph, vertex_groups)
     pes = vcat(partitionedges(supergraph), reverse.(partitionedges(supergraph)))
-    sorted_es = Dictionary(pes, [sorted_edges(supergraph, pe) for pe in pes])
+    sorted_es = Dictionary{PartitionEdge, Vector{NamedEdge}}(pes, Vector{NamedEdge}[sorted_edges(supergraph, pe) for pe in pes])
 
-    bmps_cache = BoundaryMPSCache(bpc, supergraph, sorted_es, mps_bond_dimension)
+    messages = default_messages()
+    bmps_cache = BoundaryMPSCache(tn, messages, supergraph, sorted_es, mps_bond_dimension)
     @assert is_correct_format(bmps_cache)
     set_interpartition_messages!(bmps_cache, pes)
 
     return bmps_cache
 end
-
-BoundaryMPSCache(tns::Union{ITensorNetwork, TensorNetworkState, BilinearForm}, args...; kwargs...) = BoundaryMPSCache(BeliefPropagationCache(tns), args...; kwargs...)
 
 all_partitionedges(bmps_cache::BoundaryMPSCache) = vcat(partitionedges(bmps_cache), reverse.(partitionedges(bmps_cache)))
 
@@ -252,9 +225,9 @@ end
 
 function update_partition!(bmps_cache::BoundaryMPSCache, seq::Vector)
     isempty(seq) && return bmps_cache
-    alg = set_default_kwargs(Algorithm("contract", normalize = false, enforce_hermiticity = false), bp_cache(bmps_cache))
+    alg = set_default_kwargs(Algorithm("contract", normalize = false, enforce_hermiticity = false), bmps_cache)
     for e in seq
-        m = updated_message(alg, bp_cache(bmps_cache), e)
+        m = updated_message(alg, bmps_cache, e)
         setmessage!(bmps_cache, e, m)
     end
     return bmps_cache
@@ -330,8 +303,8 @@ function extracter(
         bmps_cache::BoundaryMPSCache,
         update_e::NamedEdge
     )
-    message_update_alg = set_default_kwargs(Algorithm("contract"; normalize = false, enforce_hermiticity = false), bp_cache(bmps_cache))
-    m = updated_message(message_update_alg, bp_cache(bmps_cache), update_e)
+    message_update_alg = set_default_kwargs(Algorithm("contract"; normalize = false, enforce_hermiticity = false), bmps_cache)
+    m = updated_message(message_update_alg, bmps_cache, update_e)
     return m
 end
 
@@ -520,7 +493,7 @@ function vertex_scalar(bmps_cache::BoundaryMPSCache, partition::PartitionVertex)
     v = first(center(g))
     update_seq = post_order_dfs_edges(g, v)
     bmps_cache = update_partition(bmps_cache, update_seq)
-    return vertex_scalar(bp_cache(bmps_cache), v)
+    return vertex_scalar(bmps_cache, v)
 end
 
 function edge_scalar(bmps_cache::BoundaryMPSCache, pe::PartitionEdge)
@@ -572,10 +545,9 @@ end
 #PartitionedGraph Helpers
 #Add edges necessary to connect up all vertices in a partition in the planar graph created by the sort function
 function pseudo_planar_edges(
-        bpc::BeliefPropagationCache;
+        g::AbstractGraph;
         grouping_function = v -> first(v),
     )
-    g = underlying_graph(bpc)
     partitions = unique(grouping_function.(collect(vertices(g))))
     pseudo_edges = NamedEdge[]
     for p in partitions

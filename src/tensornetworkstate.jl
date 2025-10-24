@@ -1,5 +1,6 @@
 using ITensors: random_itensor
 
+#TODO: Make this show() nicely.
 struct TensorNetworkState{V} <: AbstractITensorNetwork{V}
     tensornetwork::ITensorNetwork{V}
     siteinds::Dictionary
@@ -87,6 +88,14 @@ bp_factors(tns::TensorNetworkState, v) = norm_factors(tns, v)
 function default_message(tns::TensorNetworkState, edge::AbstractEdge)
     linds = linkinds(tns, edge)
     return adapt(datatype(tns))(denseblocks(delta(vcat(linds, prime(dag(linds))))))
+end
+
+function default_message(tn::ITensorNetwork, edge::AbstractEdge)
+    return adapt(datatype(tn))(denseblocks(delta(linkinds(tn, edge))))
+end
+
+function bp_factors(tn::ITensorNetwork, vertex)
+    return [tn[vertex]]
 end
 
 #TODO: Default to spin 1/2
