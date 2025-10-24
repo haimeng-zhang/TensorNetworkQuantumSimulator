@@ -118,7 +118,7 @@ function Adapt.adapt_structure(to, bpc::AbstractBeliefPropagationCache)
     bpc = adapt_messages(to, bpc)
     bpc = adapt_factors(to, bpc)
     return bpc
-  end
+end
 
 function freenergy(bp_cache::AbstractBeliefPropagationCache)
     numerator_terms, denominator_terms = scalar_factors_quotient(bp_cache)
@@ -157,6 +157,6 @@ end
 
 function rescale(bpc::AbstractBeliefPropagationCache, args...; kwargs...)
     bpc = copy(bpc)
-    rescale!(bpc, args...;kwargs...)
+    rescale!(bpc, args...; kwargs...)
     return bpc
 end

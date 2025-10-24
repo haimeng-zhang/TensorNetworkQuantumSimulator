@@ -5,7 +5,7 @@ function is_line_graph(g::AbstractGraph)
     length(vs) == 1 && return true
     !is_tree(g) && return false
     ds = sort([degree(g, v) for v in vs])
-    ds != vcat([1,1], [2 for d in 1:(nvs - 2)]) && return false
+    ds != vcat([1, 1], [2 for d in 1:(nvs - 2)]) && return false
     return true
 end
 
@@ -20,7 +20,7 @@ end
 
 function pseudo_sqrt_inv_sqrt(M::ITensor; cutoff = 10 * eps(real(scalartype(M))))
     @assert length(inds(M)) == 2
-    Q, D, Qdag = ITensorNetworks.ITensorsExtensions.eigendecomp(M, inds(M)[1], inds(M)[2]; ishermitian=true)
+    Q, D, Qdag = ITensorNetworks.ITensorsExtensions.eigendecomp(M, inds(M)[1], inds(M)[2]; ishermitian = true)
     D_sqrt = ITensorNetworks.ITensorsExtensions.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : sqrt(x), D)
     D_inv_sqrt = ITensorNetworks.ITensorsExtensions.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : inv(sqrt(x)), D)
     M_sqrt = Q * D_sqrt * Qdag
@@ -39,19 +39,19 @@ function algorithm_check(tns::Union{AbstractBeliefPropagationCache, TensorNetwor
             return error("Expected BeliefPropagationCache or TensorNetworkState for 'loop correctiom' algorithm, got $(typeof(tns))")
         end
 
-        if f== "normalize" || f == "expect"
+        if f == "normalize" || f == "expect" || f == "entanglement"
             return error("Loop correction-based contraction not supported for this functionality yet")
         end
     elseif alg == "boundarymps"
         if !((tns isa BoundaryMPSCache) || (tns isa TensorNetworkState))
             return error("Expected BoundaryMPSCache or TensorNetworkState for 'boundarymps' algorithm, got $(typeof(tns))")
         end
-        if f == "normalize"
-            return error("boundarymps contraction not supported for normalizing tensornetwork states yet")
+        if f == "normalize" || "entanglement"
+            return error("boundarymps contraction not supported for this functionality yet")
         end
     elseif alg == "exact"
-        if f == "normalize"
-            return error("exact contraction not supported for normalizing tensornetwork states yet")
+        if f == "normalize" || "entanglement"
+            return error("exact contraction not supported for this functionality yet")
         end
     elseif alg ∉ ["exact", "bp", "loopcorrections", "boundarymps"]
         return error("Unrecognized algorithm specified. Must be one of 'exact', 'bp', 'loopcorrections', or 'boundarymps'")

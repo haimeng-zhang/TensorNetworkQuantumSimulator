@@ -1,4 +1,3 @@
-
 """
     apply_gates(circuit::Vector, ψ::Union{TensorNetworkState, BeliefPropagationCache}; bp_update_kwargs = default_bp_update_kwargs(ψ), kwargs...)
     Apply a sequence of gates to a `TensorNetworkState` or a `BeliefPropagationCache`` wrapping a `TensorNetworkState`` using Belief Propagation to update the environment.
@@ -12,11 +11,11 @@
 end
 """
 function apply_gates(
-    circuit::Vector,
-    ψ::TensorNetworkState;
-    bp_update_kwargs = default_bp_update_kwargs(ψ),
-    kwargs...,
-)
+        circuit::Vector,
+        ψ::TensorNetworkState;
+        bp_update_kwargs = default_bp_update_kwargs(ψ),
+        kwargs...,
+    )
     ψ_bpc = BeliefPropagationCache(ψ)
     ψ_bpc = update(ψ_bpc; bp_update_kwargs...)
     ψ_bpc, truncation_errors = apply_gates(circuit, ψ_bpc; bp_update_kwargs, kwargs...)
@@ -24,10 +23,10 @@ function apply_gates(
 end
 
 function apply_gates(
-    circuit::Vector,
-    ψ_bpc::BeliefPropagationCache;
-    kwargs...,
-)
+        circuit::Vector,
+        ψ_bpc::BeliefPropagationCache;
+        kwargs...,
+    )
     gate_vertices = [_tovec(gate[2]) for gate in circuit]
     circuit = toitensor(circuit, siteinds(network(ψ_bpc)))
     return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
@@ -39,14 +38,14 @@ function adapt_gate(gate::ITensor, ψ_bpc::BeliefPropagationCache)
 end
 
 function apply_gates(
-    circuit::Vector{<:ITensor},
-    ψ_bpc::BeliefPropagationCache;
-    gate_vertices::Vector = neighbor_vertices.((network(ψ_bpc), ), circuit),
-    apply_kwargs = (; ),
-    bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
-    update_cache = true,
-    verbose = false,
-)
+        circuit::Vector{<:ITensor},
+        ψ_bpc::BeliefPropagationCache;
+        gate_vertices::Vector = neighbor_vertices.((network(ψ_bpc),), circuit),
+        apply_kwargs = (;),
+        bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
+        update_cache = true,
+        verbose = false,
+    )
     ψ_bpc = copy(ψ_bpc)
 
     # we keep track of the vertices that have been acted on by 2-qubit gates
@@ -92,12 +91,12 @@ end
 
 #Apply function for a single gate
 function apply_gate!(
-    gate::ITensor,
-    ψ_bpc::BeliefPropagationCache;
-    v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
-    apply_kwargs = _default_apply_kwargs,
-)
-    envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc,v⃗)
+        gate::ITensor,
+        ψ_bpc::BeliefPropagationCache;
+        v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
+        apply_kwargs = _default_apply_kwargs,
+    )
+    envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc, v⃗)
 
     updated_tensors, s_values, err = simple_update(gate, network(ψ_bpc), v⃗; envs, apply_kwargs...)
 
@@ -121,8 +120,8 @@ function apply_gate!(
 end
 
 function simple_update(
-    o::ITensor, ψ, v⃗; envs, normalize_tensors = true, apply_kwargs...
-  )
+        o::ITensor, ψ, v⃗; envs, normalize_tensors = true, apply_kwargs...
+    )
 
     if length(v⃗) == 1
         updated_tensors = ITensor[ITensors.apply(o, ψ[first(v⃗)])]
@@ -150,12 +149,12 @@ function simple_update(
         e = v⃗[1] => v⃗[2]
         singular_values! = Ref(ITensor())
         Rᵥ₁, Rᵥ₂, spec = factorize_svd(
-        oR,
-        unioninds(rᵥ₁, sᵥ₁);
-        ortho="none",
-        tags=edge_tag(e),
-        singular_values!,
-        apply_kwargs...,
+            oR,
+            unioninds(rᵥ₁, sᵥ₁);
+            ortho = "none",
+            tags = edge_tag(e),
+            singular_values!,
+            apply_kwargs...,
         )
         err = spec.truncerr
         s_values = singular_values![]

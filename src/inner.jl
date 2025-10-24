@@ -47,17 +47,19 @@ end
     ip_bmps = ITensors.inner(ψ, ϕ; alg = "boundarymps", mps_bond_dimension = 10)
     ```
 """
-function ITensors.inner(ψ::TensorNetworkState, ϕ::TensorNetworkState; alg = nothing, kwargs...)
+function ITensors.inner(ψ::TensorNetworkState, ϕ::TensorNetworkState; alg, kwargs...)
     algorithm_check(ψ, "inner", alg)
     algorithm_check(ϕ, "inner", alg)
     return inner(Algorithm(alg), ψ, ϕ; kwargs...)
 end
 
-function ITensors.inner(alg::Algorithm"exact", blf::BilinearForm;
-    contraction_sequence_kwargs=(; alg="einexpr", optimizer=Greedy()))
+function ITensors.inner(
+        alg::Algorithm"exact", blf::BilinearForm;
+        contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy())
+    )
     blf_tensors = bp_factors(blf, collect(vertices(ket(blf))))
     seq = contraction_sequence(blf_tensors; contraction_sequence_kwargs...)
-    return contract(blf_tensors; sequence=seq)[]
+    return contract(blf_tensors; sequence = seq)[]
 end
 
 function ITensors.inner(alg::Algorithm, cache::AbstractBeliefPropagationCache; max_configuration_size = nothing)
@@ -80,9 +82,9 @@ function ITensors.inner(alg::Union{Algorithm"bp", Algorithm"loopcorrections"}, �
     return inner(alg, ψϕ_bpc; kwargs...)
 end
 
-function ITensors.inner(alg::Algorithm"boundarymps", ψ::TensorNetworkState, ϕ::TensorNetworkState; mps_bond_dimension::Int, partition_by = "row", cache_update_kwargs = (; ), kwargs...)
+function ITensors.inner(alg::Algorithm"boundarymps", ψ::TensorNetworkState, ϕ::TensorNetworkState; mps_bond_dimension::Int, partition_by = "row", cache_update_kwargs = (;), kwargs...)
     ψϕ_bmps = BoundaryMPSCache(BilinearForm(ψ, ϕ), mps_bond_dimension; partition_by)
-    maxiter = get(cache_update_kwargs, :maxiter,  default_bp_maxiter(ψϕ_bmps))
+    maxiter = get(cache_update_kwargs, :maxiter, default_bp_maxiter(ψϕ_bmps))
     cache_update_kwargs = (; cache_update_kwargs..., maxiter)
     ψϕ_bmps = update(ψϕ_bmps; cache_update_kwargs...)
     return inner(alg, ψϕ_bmps; kwargs...)

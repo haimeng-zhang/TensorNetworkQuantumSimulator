@@ -3,11 +3,11 @@ default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
 default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")
 
 function expect(
-    alg::Algorithm"exact",
-    ψ::TensorNetworkState,
-    observables::Vector{<:Tuple};
-    contraction_sequence_kwargs=(; alg="einexpr", optimizer=Greedy())
-)
+        alg::Algorithm"exact",
+        ψ::TensorNetworkState,
+        observables::Vector{<:Tuple};
+        contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy())
+    )
     ITensors.disable_warn_order()
 
     denom = norm_sqr(alg, ψ; contraction_sequence_kwargs)
@@ -18,20 +18,21 @@ function expect(
             push!(out, 0)
             continue
         end
-        op_string_f = v -> v ∈ vs ? op_strings[findfirst(x -> x == v, vs)] : "I" 
+        op_string_f = v -> v ∈ vs ? op_strings[findfirst(x -> x == v, vs)] : "I"
         ψOψ_tensors = norm_factors(ψ, collect(vertices(ψ)); op_strings = op_string_f)
         numer_seq = contraction_sequence(ψOψ_tensors; contraction_sequence_kwargs...)
-        numer = contract(ψOψ_tensors; sequence=numer_seq)[]
+        numer = contract(ψOψ_tensors; sequence = numer_seq)[]
         push!(out, numer / denom)
     end
     return out
 end
 
-function expect(alg::Algorithm"exact",
-    ψ::TensorNetworkState,
-    observable::Tuple;
-    kwargs...
-)
+function expect(
+        alg::Algorithm"exact",
+        ψ::TensorNetworkState,
+        observable::Tuple;
+        kwargs...
+    )
     return only(expect(alg, ψ, [observable]; kwargs...))
 end
 
@@ -52,11 +53,11 @@ end
 #TODO: If a cache is passed, alg must match.
 
 function expect(
-    alg::Union{Algorithm"bp", Algorithm"boundarymps"},
-    ψ::AbstractBeliefPropagationCache,
-    obs::Tuple;
-    bmps_messages_up_to_date = false,
-)
+        alg::Union{Algorithm"bp", Algorithm"boundarymps"},
+        ψ::AbstractBeliefPropagationCache,
+        obs::Tuple;
+        bmps_messages_up_to_date = false,
+    )
     op_strings, obs_vs, coeff = collectobservable(obs)
     iszero(coeff) && return 0
 
@@ -76,27 +77,27 @@ function expect(
             ψ = update_partition(ψ, partition)
         end
     end
-    op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x->x == v, obs_vs)] : "I"
+    op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
 
     incoming_ms = incoming_messages(ψ, steiner_vs)
     ψIψ_tensors = ITensor[norm_factors(network(ψ), steiner_vs); incoming_ms]
-    denom_seq = contraction_sequence(ψIψ_tensors; alg="einexpr", optimizer=Greedy())
-    denom = contract(ψIψ_tensors; sequence=denom_seq)[]
+    denom_seq = contraction_sequence(ψIψ_tensors; alg = "einexpr", optimizer = Greedy())
+    denom = contract(ψIψ_tensors; sequence = denom_seq)[]
 
     ψOψ_tensors = ITensor[norm_factors(network(ψ), steiner_vs; op_strings = op_string_f); incoming_ms]
-    numer_seq = contraction_sequence(ψOψ_tensors; alg="einexpr", optimizer=Greedy())
-    numer = contract(ψOψ_tensors; sequence=numer_seq)[]
+    numer_seq = contraction_sequence(ψOψ_tensors; alg = "einexpr", optimizer = Greedy())
+    numer = contract(ψOψ_tensors; sequence = numer_seq)[]
 
-    return coeff * numer/ denom
+    return coeff * numer / denom
 end
 
 function expect(
-    alg::Algorithm"boundarymps",
-    cache::BoundaryMPSCache,
-    observables::Vector{<:Tuple};
-    bmps_messages_up_to_date = false,
-    kwargs...,
-)
+        alg::Algorithm"boundarymps",
+        cache::BoundaryMPSCache,
+        observables::Vector{<:Tuple};
+        bmps_messages_up_to_date = false,
+        kwargs...,
+    )
     obs_vs = observables_vertices(observables)
     if !bmps_messages_up_to_date
         cache = update_partitions(cache, obs_vs)
@@ -106,21 +107,21 @@ function expect(
 end
 
 function expect(
-    alg::Algorithm"bp",
-    cache::BeliefPropagationCache,
-    observables::Vector{<:Tuple};
-    kwargs...,
-)
+        alg::Algorithm"bp",
+        cache::BeliefPropagationCache,
+        observables::Vector{<:Tuple};
+        kwargs...,
+    )
     return map(obs -> expect(alg, cache, obs; kwargs...), observables)
 end
 
 function expect(
-    alg::Algorithm"bp",
-    ψ::TensorNetworkState,
-    observable::Union{Tuple, Vector{<:Tuple}};
-    cache_update_kwargs = default_bp_update_kwargs(ψ),
-    kwargs...,
-)
+        alg::Algorithm"bp",
+        ψ::TensorNetworkState,
+        observable::Union{Tuple, Vector{<:Tuple}};
+        cache_update_kwargs = default_bp_update_kwargs(ψ),
+        kwargs...,
+    )
 
     ψ_bpc = BeliefPropagationCache(ψ)
     ψ_bpc = update(ψ_bpc; cache_update_kwargs...)
@@ -129,14 +130,14 @@ function expect(
 end
 
 function expect(
-    alg::Algorithm"boundarymps",
-    ψ::TensorNetworkState,
-    observable::Union{Tuple, Vector{<:Tuple}};
-    cache_update_kwargs = default_bmps_update_kwargs(ψ),
-    partition_by = boundarymps_partitioning(observable),
-    mps_bond_dimension::Int,
-    kwargs...,
-)
+        alg::Algorithm"boundarymps",
+        ψ::TensorNetworkState,
+        observable::Union{Tuple, Vector{<:Tuple}};
+        cache_update_kwargs = default_bmps_update_kwargs(ψ),
+        partition_by = boundarymps_partitioning(observable),
+        mps_bond_dimension::Int,
+        kwargs...,
+    )
 
     ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by)
     cache_update_kwargs = (; cache_update_kwargs..., maxiter = default_bp_maxiter(ψ_bmps))

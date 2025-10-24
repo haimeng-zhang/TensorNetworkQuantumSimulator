@@ -16,29 +16,29 @@ TensorNetworkState(vertices::Vector, tensors::Vector{<:ITensor}) = TensorNetwork
 
 #Forward onto the itn
 for f in [
-    :(ITensorNetworks.underlying_graph),
-    :(ITensorNetworks.data_graph_type),
-    :(ITensorNetworks.data_graph),
-    :(ITensors.datatype),
-    :(ITensors.NDTensors.scalartype),
-    :(ITensorNetworks.setindex_preserve_graph!)
-]
-@eval begin
-    function $f(tns::TensorNetworkState, args...; kwargs...)
-        return $f(tensornetwork(tns), args...; kwargs...)
+        :(ITensorNetworks.underlying_graph),
+        :(ITensorNetworks.data_graph_type),
+        :(ITensorNetworks.data_graph),
+        :(ITensors.datatype),
+        :(ITensors.NDTensors.scalartype),
+        :(ITensorNetworks.setindex_preserve_graph!),
+    ]
+    @eval begin
+        function $f(tns::TensorNetworkState, args...; kwargs...)
+            return $f(tensornetwork(tns), args...; kwargs...)
+        end
     end
-end
 end
 
 #Forward onto the underlying_graph
 for f in [
-    :(NamedGraphs.edgeinduced_subgraphs_no_leaves)
-]
-@eval begin
-    function $f(tns::TensorNetworkState, args...; kwargs...)
-        return $f(ITensorNetworks.underlying_graph(tensornetwork(tns)), args...; kwargs...)
+        :(NamedGraphs.edgeinduced_subgraphs_no_leaves),
+    ]
+    @eval begin
+        function $f(tns::TensorNetworkState, args...; kwargs...)
+            return $f(ITensorNetworks.underlying_graph(tensornetwork(tns)), args...; kwargs...)
+        end
     end
-end
 end
 
 siteinds(tns::TensorNetworkState, v) = siteinds(tns)[v]
@@ -71,7 +71,7 @@ function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Functi
         tnv = tns[v]
         tnv_dag = dag(prime(tnv))
         if op_strings(v) == "I"
-            tnv_dag = replaceinds(tnv_dag, prime.(sinds), sinds) 
+            tnv_dag = replaceinds(tnv_dag, prime.(sinds), sinds)
             append!(factors, ITensor[tnv, tnv_dag])
         else
             op = adapt(datatype(tnv))(ITensors.op(op_strings(v), only(sinds)))
@@ -109,8 +109,8 @@ function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionar
     l = merge(l, Dict(reverse(e) => l[e] for e in edges(g)))
     tn = ITensorNetwork(g)
     for v in vs
-       is = vcat(siteinds[v], [l[NamedEdge(v => vn)] for vn in neighbors(g,v)])
-       tn[v] = random_itensor(eltype, is)
+        is = vcat(siteinds[v], [l[NamedEdge(v => vn)] for vn in neighbors(g, v)])
+        tn[v] = random_itensor(eltype, is)
     end
     return TensorNetworkState(tn, siteinds)
 end
@@ -193,4 +193,3 @@ end
 function tensornetworkstate(f::Function, args...)
     return tensornetworkstate(Float64, f, args...)
 end
-    

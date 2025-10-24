@@ -64,7 +64,7 @@ for f in [
         :(ITensors.datatype),
         :(ITensors.scalartype),
         :(ITensorNetworks.setindex_preserve_graph!),
-        :(ITensorNetworks.maxlinkdim)
+        :(ITensorNetworks.maxlinkdim),
     ]
     @eval begin
         function $f(bp_cache::BeliefPropagationCache, args...; kwargs...)
@@ -83,14 +83,14 @@ function bp_factors(tn::ITensorNetwork, vertex)
 end
 
 function edge_scalar(bp_cache::BeliefPropagationCache, edge::AbstractEdge)
-    return (message(bp_cache, edge)* message(bp_cache, reverse(edge)))[]
+    return (message(bp_cache, edge) * message(bp_cache, reverse(edge)))[]
 end
 
 function vertex_scalar(bp_cache::BeliefPropagationCache, vertex)
     incoming_ms = incoming_messages(bp_cache, vertex)
     state = bp_factors(bp_cache, vertex)
     contract_list = [state; incoming_ms]
-    sequence = contraction_sequence(contract_list; alg="optimal")
+    sequence = contraction_sequence(contract_list; alg = "optimal")
     return contract(contract_list; sequence)[]
 end
 
@@ -107,7 +107,7 @@ default_update_alg(bp_cache::BeliefPropagationCache) = "bp"
 default_message_update_alg(bp_cache::BeliefPropagationCache) = "contract"
 default_normalize(::Algorithm"contract") = true
 default_sequence_alg(::Algorithm"contract") = "optimal"
-default_enforce_hermicity(::Algorithm"contract", bp_cache) = isa(network(bp_cache), TensorNetworkState)  ? true : false
+default_enforce_hermicity(::Algorithm"contract", bp_cache) = isa(network(bp_cache), TensorNetworkState) ? true : false
 function set_default_kwargs(alg::Algorithm"contract", bp_cache::BeliefPropagationCache)
     normalize = get(alg.kwargs, :normalize, default_normalize(alg))
     sequence_alg = get(alg.kwargs, :sequence_alg, default_sequence_alg(alg))
@@ -137,7 +137,7 @@ function updated_message(
     )
     state = bp_factors(bp_cache, vertex)
     contract_list = ITensor[incoming_ms; state]
-    sequence = contraction_sequence(contract_list; alg=alg.kwargs.sequence_alg)
+    sequence = contraction_sequence(contract_list; alg = alg.kwargs.sequence_alg)
     updated_message = contract(contract_list; sequence)
 
     if alg.kwargs.enforce_hermiticity
@@ -250,36 +250,36 @@ function forest_cover_edge_sequence(g::AbstractGraph; root_vertex = default_root
 end
 
 function rescale_vertices!(
-  bpc::BeliefPropagationCache,
-  vertices::Vector;
-)
-  tn = network(bpc)
+        bpc::BeliefPropagationCache,
+        vertices::Vector
+    )
+    tn = network(bpc)
 
-  for v in vertices
-    vn = vertex_scalar(bpc, v)
-    s = isreal(vn) ? sign(vn) : one(vn)
-    if tn isa TensorNetworkState
-        setindex_preserve_graph!(tn, tn[v]*s*inv(sqrt(vn)), v)
-    elseif tn isa ITensorNetwork
-        setindex_preserve_graph!(tn, tn[v]*s*inv(vn), v)
-    else
-        error("Don't know how to rescale the vertices of this type")
-    end  
-  end
+    for v in vertices
+        vn = vertex_scalar(bpc, v)
+        s = isreal(vn) ? sign(vn) : one(vn)
+        if tn isa TensorNetworkState
+            setindex_preserve_graph!(tn, tn[v] * s * inv(sqrt(vn)), v)
+        elseif tn isa ITensorNetwork
+            setindex_preserve_graph!(tn, tn[v] * s * inv(vn), v)
+        else
+            error("Don't know how to rescale the vertices of this type")
+        end
+    end
 
-  return bpc
+    return bpc
 end
 
 const _default_bp_update_maxiter = 25
 function default_tolerance(type)
-    (type == Float32 || type == ComplexF32) && return 1e-5
-    (type == Float64 || type == ComplexF64) && return 1e-8
+    (type == Float32 || type == ComplexF32) && return 1.0e-5
+    return (type == Float64 || type == ComplexF64) && return 1.0e-8
 end
 
 function default_bp_update_kwargs(tns::TensorNetworkState)
     maxiter = is_tree(tns) ? 1 : _default_bp_update_maxiter
     tolerance = default_tolerance(ITensors.NDTensors.scalartype(tns))
-    verbose =false
+    verbose = false
     return (; maxiter, tolerance, verbose)
 end
 
@@ -295,12 +295,12 @@ function rescale_messages!(bp_cache::BeliefPropagationCache, edges::Vector{<:Abs
     ms = messages(bp_cache)
     for e in edges
         me, mer = normalize(message(bp_cache, e)), normalize(message(bp_cache, reverse(e)))
-        n = (me*mer)[]
+        n = (me * mer)[]
         if isreal(n)
             me *= sign(n)
             n *= sign(n)
         end
-        set!(ms, e, me *inv(sqrt(n)))
+        set!(ms, e, me * inv(sqrt(n)))
         set!(ms, reverse(e), mer * inv(sqrt(n)))
     end
     return bp_cache
@@ -351,7 +351,7 @@ function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Int;
     cycles = NamedGraphs.cycle_to_path.(NamedGraphs.unique_simplecycles_limited_length(g, smallest_loop_size))
     corrs = []
     for loop in cycles
-        corrs = append!(corrs, loop_correlation(bpc, loop[1:(length(loop)-1)], reverse(last(loop)); kwargs...))
+        corrs = append!(corrs, loop_correlation(bpc, loop[1:(length(loop) - 1)], reverse(last(loop)); kwargs...))
     end
     return corrs
 end

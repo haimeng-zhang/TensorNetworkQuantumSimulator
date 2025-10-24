@@ -70,6 +70,7 @@ function main()
             println("Exact value for ZZ is $sz_exact")
         end
     end
+    return
 end
 
 main()
