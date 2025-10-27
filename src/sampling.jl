@@ -279,9 +279,7 @@ function certify_sample(
     return (poverq = p_over_q, bitstring = bitstring)
 end
 
-certify_sample(ψ, logq_and_bitstring::NamedTuple; kwargs...) = only(certify_sample(ψ, [logq_and_bitstring]; kwargs...))
-
 function certify_samples(ψ::TensorNetworkState, probs_and_bitstrings::Vector{<:NamedTuple}; alg = "boundarymps", kwargs...)
     algorithm_check(ψ, "sample", alg)
-    return [certify_sample(Algorithm(alg), ψ, prob_and_bitstring; kwargs...) for prob_and_bitstring in probs_and_bitstrings]
+    return [certify_sample(Algorithm(alg), ψ, prob_and_bitstring.bitstring, prob_and_bitstring.logq; kwargs...) for prob_and_bitstring in probs_and_bitstrings]
 end
