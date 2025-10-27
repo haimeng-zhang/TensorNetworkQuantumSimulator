@@ -27,7 +27,7 @@ end
 default_bp_maxiter(bmps_cache::BoundaryMPSCache) = is_tree(partitions_graph(supergraph(bmps_cache))) ? 1 : 5
 function default_message_update_alg(bmps_cache::BoundaryMPSCache)
     tn = network(bmps_cache)
-    if tn isa TensorNetworkState || tn isa BilinearForm
+    if tn isa TensorNetworkState || tn isa BilinearForm || tn isa QuadraticForm
         return "orthogonal"
     elseif tn isa ITensorNetwork
         return "ITensorMPS"
@@ -137,7 +137,7 @@ function virtual_index_dimension(
 end
 
 function BoundaryMPSCache(
-        tn::Union{TensorNetworkState, ITensorNetwork, BilinearForm},
+        tn::Union{TensorNetworkState, ITensorNetwork, BilinearForm, QuadraticForm},
         mps_bond_dimension::Int;
         partition_by = "row",
         gauge_state = true
