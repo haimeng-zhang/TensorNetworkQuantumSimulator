@@ -1,5 +1,10 @@
 # TensorNetworkQuantumSimulator
 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JoeyT1994.github.io/TensorNetworkQuantumSimulator.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JoeyT1994.github.io/TensorNetworkQuantumSimulator.jl/dev/)
+[![Build Status](https://github.com/JoeyT1994/TensorNetworkQuantumSimulator.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JoeyT1994/TensorNetworkQuantumSimulator.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/JoeyT1994/TensorNetworkQuantumSimulator.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JoeyT1994/TensorNetworkQuantumSimulator.jl)
+
 A package for simulating quantum circuits and quantum dynamics with tensor networks (TNs) of near-arbitrary geometry. This package is built on top of [ITensors](https://github.com/ITensor/ITensors.jl) and [NamedGraphs](https://github.com/ITensor/NamedGraphs.jl).
 
 The main workhorses of the simulation are _belief propagation_ (BP) and the _Singular Value Decomposition_ for applying gates, and _BP_ or _boundary MPS_ for estimating expectation values and sampling. 
