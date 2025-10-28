@@ -35,7 +35,7 @@ end
 
     # Example
     ```julia
-    s = siteinds(g, "S=1/2")
+    s = siteinds("S=1/2", g)
     ψ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
     ϕ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
 

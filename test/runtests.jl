@@ -2,5 +2,5 @@ using TensorNetworkQuantumSimulator
 using Test
 
 @testset "TensorNetworkQuantumSimulator.jl" begin
-    include("loopcorrections.jl")
+    include("test_examples.jl")
 end

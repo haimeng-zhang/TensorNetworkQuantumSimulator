@@ -138,7 +138,7 @@ end
     - A `TensorNetworkState` object representing the random tensor network state.
 """
 function random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype); bond_dimension::Int = 1)
-    return random_tensornetworkstate(eltype, g, siteinds(g, sitetype, d); bond_dimension)
+    return random_tensornetworkstate(eltype, g, siteinds(sitetype, g, d); bond_dimension)
 end
 
 """
@@ -192,7 +192,7 @@ end
     - A `TensorNetworkState` object representing the constructed tensor network state.
 """
 function tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype))
-    return tensornetworkstate(eltype, f, g, siteinds(g, sitetype, d))
+    return tensornetworkstate(eltype, f, g, siteinds(sitetype, g, d))
 end
 
 function random_tensornetworkstate(g::AbstractGraph, args...; kwargs...)

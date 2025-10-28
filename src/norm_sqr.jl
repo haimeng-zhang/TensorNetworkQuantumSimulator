@@ -28,7 +28,7 @@ end
     - The computed squared norm as a scalar value.
     # Example
     ```julia
-    s = siteinds(g, "S=1/2")
+    s = siteinds("S=1/2", g)
     ψ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
     # Exact norm
     norm_exact = LinearAlgebra.norm(ψ; alg = "exact")    

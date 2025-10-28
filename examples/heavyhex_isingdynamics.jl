@@ -65,7 +65,7 @@ function main()
     println("Boundary MPS measured magnetisation on central site with MPS rank $(mps_bond_dimension) MPSs is $(only(sz_bmps))")
 
     #Sample from q(x) and get p(x) / q(x) for each sample too
-    nsamples = 250
+    nsamples = 50
     bitstrings = TN.sample_directly_certified(ψ, nsamples; norm_mps_bond_dimension = mps_bond_dimension)
 
     st_dev = Statistics.std(first.(bitstrings))
