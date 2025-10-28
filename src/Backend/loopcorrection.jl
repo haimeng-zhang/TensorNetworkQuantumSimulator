@@ -3,7 +3,7 @@ using ITensorNetworks: underlying_graph
 
 function loopcorrected_partitionfunction(
         bp_cache::BeliefPropagationCache,
-        max_configuration_size::Int64,
+        max_configuration_size::Int,
     )
     zbp = partitionfunction(bp_cache)
     bp_cache = rescale(bp_cache)
