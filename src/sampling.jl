@@ -3,9 +3,9 @@ using StatsBase
 function sample(
         alg::Algorithm"boundarymps",
         ψ::TensorNetworkState,
-        nsamples::Int64;
-        projected_mps_bond_dimension::Int,
-        norm_mps_bond_dimension::Int,
+        nsamples::Integer;
+        projected_mps_bond_dimension::Integer,
+        norm_mps_bond_dimension::Integer,
         norm_cache_message_update_kwargs = (;),
         partition_by = "row",
         gauge_state = true,
@@ -32,9 +32,9 @@ end
 """
     sample(
         ψ::ITensorNetwork,
-        nsamples::Int64;
-        projected_message_rank::Int64,
-        norm_message_rank::Int64,
+        nsamples::Integer;
+        projected_message_rank::Integer,
+        norm_message_rank::Integer,
         norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
         projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
         partition_by = "Row",
@@ -46,7 +46,7 @@ Take nsamples bitstrings, based on the square of the coefficients of the vector 
 Arguments
 ---------
 - `ψ::ITensorNetwork`: The tensornetwork state to sample from.
-- `nsamples::Int64`: Number of samples to draw.
+- `nsamples::Integer`: Number of samples to draw.
 
 Keyword Arguments
 -----------------
@@ -62,7 +62,7 @@ Returns
 -------
 A vector of bitstrings sampled from the probability distribution defined by as a dictionary mapping each vertex to a configuration (0...d).
 """
-function sample(ψ::TensorNetworkState, nsamples::Int64; alg = "boundarymps", kwargs...)
+function sample(ψ::TensorNetworkState, nsamples::Integer; alg = "boundarymps", kwargs...)
     algorithm_check(ψ, "sample", alg)
     probs_and_bitstrings, _ = sample(Algorithm(alg), ψ, nsamples; kwargs...)
     # returns just the bitstrings
@@ -72,9 +72,9 @@ end
 """
     sample_directly_certified(
         ψ::ITensorNetwork,
-        nsamples::Int64;
-        projected_message_rank::Int64,
-        norm_message_rank::Int64,
+        nsamples::Integer;
+        projected_message_rank::Integer,
+        norm_message_rank::Integer,
         norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
         projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
         partition_by = "Row",
@@ -87,7 +87,7 @@ The samples are drawn from x~q(x) and for each sample <x|ψ> is calculated "on-t
 Arguments
 ---------
 - `ψ::ITensorNetwork`: The tensornetwork state to sample from.
-- `nsamples::Int64`: Number of samples to draw.
+- `nsamples::Integer`: Number of samples to draw.
 
 Keyword Arguments
 -----------------
@@ -107,7 +107,7 @@ Each NamedTuple contains:
 - `logq`: Log probability of drawing the bitstring.
 - `bitstring`: The sampled bitstring as a dictionary mapping each vertex to a configuration (0...d).
 """
-function sample_directly_certified(ψ::TensorNetworkState, nsamples::Int64; projected_mps_bond_dimension = 5 * maxlinkdim(ψ), alg = "boundarymps", kwargs...)
+function sample_directly_certified(ψ::TensorNetworkState, nsamples::Integer; projected_mps_bond_dimension = 5 * maxlinkdim(ψ), alg = "boundarymps", kwargs...)
     algorithm_check(ψ, "sample", alg)
     probs_and_bitstrings, _ = sample(Algorithm(alg), ψ, nsamples; projected_mps_bond_dimension, kwargs...)
     # returns the self-certified p/q, logq and bitstrings
@@ -117,9 +117,9 @@ end
 """
     sample_certified(
         ψ::ITensorNetwork,
-        nsamples::Int64;
-        projected_message_rank::Int64,
-        norm_message_rank::Int64,
+        nsamples::Integer;
+        projected_message_rank::Integer,
+        norm_message_rank::Integer,
         norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
         projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
         partition_by = "Row",
@@ -132,7 +132,7 @@ The samples are drawn from x~q(x) and for each sample an independent contraction
 Arguments
 ---------
 - `ψ::ITensorNetwork`: The tensornetwork state to sample from.
-- `nsamples::Int64`: Number of samples to draw.
+- `nsamples::Integer`: Number of samples to draw.
 
 Keyword Arguments
 -----------------
@@ -162,7 +162,7 @@ end
 function get_one_sample(
         norm_bmps_cache::BoundaryMPSCache,
         seq::Vector{<:PartitionEdge};
-        projected_mps_bond_dimension::Int,
+        projected_mps_bond_dimension::Integer,
         kwargs...,
     )
     norm_bmps_cache = copy(norm_bmps_cache)
@@ -253,7 +253,7 @@ end
 function certify_sample(
         alg::Algorithm"boundarymps",
         ψ::TensorNetworkState, bitstring, logq::Number;
-        certification_mps_bond_dimension::Int,
+        certification_mps_bond_dimension::Integer,
         certification_cache_message_update_kwargs = (;),
         symmetrize_and_normalize = true,
     )

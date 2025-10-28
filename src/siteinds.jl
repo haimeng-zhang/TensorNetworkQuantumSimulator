@@ -4,7 +4,7 @@ function default_siteinds(g::AbstractGraph)
     return siteinds("S=1/2", g)
 end
 
-function siteinds(sitetype::String, g::AbstractGraph, sitedimension::Int = site_dimension(sitetype))
+function siteinds(sitetype::String, g::AbstractGraph, sitedimension::Integer = site_dimension(sitetype))
     vs = collect(vertices(g))
     return Dictionary(vs, [Index[Index(sitedimension, site_tag(sitetype))] for v in vs])
 end

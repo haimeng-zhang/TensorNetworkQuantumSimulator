@@ -8,7 +8,7 @@ struct BoundaryMPSCache{V, N <: AbstractDataGraph{V}, M <: Union{ITensor, Vector
     messages::Dictionary{NamedEdge, M}
     supergraph::PartitionedGraph
     sorted_edges::Dictionary{PartitionEdge, Vector{NamedEdge}}
-    mps_bond_dimension::Int
+    mps_bond_dimension::Integer
 end
 
 default_update_alg(bmps_cache::BoundaryMPSCache) = "bp"
@@ -137,7 +137,7 @@ end
 
 function BoundaryMPSCache(
         tn::Union{TensorNetworkState, ITensorNetwork, BilinearForm, QuadraticForm},
-        mps_bond_dimension::Int;
+        mps_bond_dimension::Integer;
         partition_by = "row",
         gauge_state = true
     )
@@ -469,7 +469,7 @@ function update_message!(
         alg::Algorithm"ITensorMPS",
         bmps_cache::BoundaryMPSCache,
         pe::PartitionEdge;
-        maxdim::Int = mps_bond_dimension(bmps_cache),
+        maxdim::Integer = mps_bond_dimension(bmps_cache),
     )
     prev_pe = prev_partitionedge(bmps_cache, pe)
     O = ITensorMPS.MPO(bmps_cache, src(pe))

@@ -18,7 +18,7 @@ end
         - `"loopcorrections"`: Loop corrections to belief propagation (requires `max_configuration_size`).
     # Keyword Arguments
     - For `alg = "boundarymps"`:
-        - `mps_bond_dimension::Int`: The bond dimension for the boundary MPS approximation.
+        - `mps_bond_dimension::Integer`: The bond dimension for the boundary MPS approximation.
         - `partition_by`: How to partition the graph for boundary MPS (default is `"row"`).
         - `cache_update_kwargs`: Additional keyword arguments for updating the cache.
     - For `alg = "bp"` or `"loopcorrections"`:
@@ -75,7 +75,7 @@ function norm_sqr(alg::Union{Algorithm"bp", Algorithm"loopcorrections"}, ψ::Ten
     return norm_sqr(alg, ψ_bpc; kwargs...)
 end
 
-function norm_sqr(alg::Algorithm"boundarymps", ψ::TensorNetworkState; mps_bond_dimension::Int, partition_by = "row", cache_update_kwargs = default_bmps_update_kwargs(ψ), kwargs...)
+function norm_sqr(alg::Algorithm"boundarymps", ψ::TensorNetworkState; mps_bond_dimension::Integer, partition_by = "row", cache_update_kwargs = default_bmps_update_kwargs(ψ), kwargs...)
     ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by)
     maxiter = get(cache_update_kwargs, :maxiter, default_bp_maxiter(ψ_bmps))
     cache_update_kwargs = (; cache_update_kwargs..., maxiter)

@@ -181,7 +181,7 @@ function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:NamedEdge}
 end
 
 #Calculate the correlations flowing around each of the primitive loops of the BP cache
-function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Int; kwargs...)
+function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Integer; kwargs...)
     g = underlying_graph(bpc)
     cycles = NamedGraphs.cycle_to_path.(NamedGraphs.unique_simplecycles_limited_length(g, smallest_loop_size))
     corrs = []
