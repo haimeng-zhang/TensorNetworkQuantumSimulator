@@ -18,7 +18,7 @@ Random.seed!(1634)
 
 @testset "Loop Corrections" begin
     nx, ny = 4, 4
-    χ = 3
+    χ = 2
     ITensors.disable_warn_order()
     gs = [
         (named_grid((nx, 1)), "line", 0),

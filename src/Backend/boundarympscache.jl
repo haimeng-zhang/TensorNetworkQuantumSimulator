@@ -25,16 +25,15 @@ function default_bp_edge_sequence(bmps_cache::BoundaryMPSCache)
     return PartitionEdge.(forest_cover_edge_sequence(partitions_graph(supergraph(bmps_cache))))
 end
 default_bp_maxiter(bmps_cache::BoundaryMPSCache) = is_tree(partitions_graph(supergraph(bmps_cache))) ? 1 : 5
-function default_message_update_alg(bmps_cache::BoundaryMPSCache)
-    tn = network(bmps_cache)
-    if tn isa TensorNetworkState || tn isa BilinearForm || tn isa QuadraticForm
+function default_bmps_message_update_alg(tn)
+    if  tn isa TensorNetworkState || tn isa  BilinearForm || tn isa QuadraticForm
         return "orthogonal"
     elseif tn isa ITensorNetwork
         return "ITensorMPS"
-    else
-        return error("Unrecognized network type inside the cache. Don't know what message update alg to use.")
     end
+    return error("Unrecognized network type. Don't know what BMPS message update alg to use.")
 end
+default_message_update_alg(bmps_cache::BoundaryMPSCache) = default_bmps_message_update_alg(network(bmps_cache))
 
 default_normalize(alg::Algorithm"orthogonal") = true
 default_tolerance(bmps_cache::BoundaryMPSCache) = default_tolerance(ITensors.NDTensors.scalartype(bmps_cache))
