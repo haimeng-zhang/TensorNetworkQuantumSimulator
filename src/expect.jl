@@ -138,7 +138,7 @@ function expect(
         observable::Union{Tuple, Vector{<:Tuple}};
         cache_update_kwargs = default_bmps_update_kwargs(ψ),
         partition_by = boundarymps_partitioning(observable),
-        mps_bond_dimension::Int,
+        mps_bond_dimension::Integer,
         kwargs...,
     )
 

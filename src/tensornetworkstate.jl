@@ -100,19 +100,19 @@ end
 
 #TODO: Default to spin 1/2
 """
-    random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Int = 1)
+    random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Integer = 1)
     Generate a random TensorNetworkState on graph `g` with local state indices given by the dictionary `siteinds`.
 
     Arguments:
     - `eltype`: (Optional) The number type of the tensor elements (e.g. Float64, ComplexF32). Default is Float64.
     - `g::AbstractGraph`: The underlying graph of the tensor network.
     - `siteinds::Dictionary`: A dictionary mapping vertices to ITensor indices representing the local states. Defaults to spin 1/2.
-    - `bond_dimension::Int`: The bond dimension of the virtual indices connecting neighboring tensors (default is 1).
+    - `bond_dimension::Integer`: The bond dimension of the virtual indices connecting neighboring tensors (default is 1).
 
     Returns:
     - A `TensorNetworkState` object representing the random tensor network state.
 """
-function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary = default_siteinds(g); bond_dimension::Int = 1)
+function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary = default_siteinds(g); bond_dimension::Integer = 1)
     vs = collect(vertices(g))
     l = Dict(e => Index(bond_dimension) for e in edges(g))
     l = merge(l, Dict(reverse(e) => l[e] for e in edges(g)))
@@ -125,20 +125,20 @@ function random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionar
 end
 
 """
-    random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype); bond_dimension::Int = 1)
+    random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Integer = site_dimension(sitetype); bond_dimension::Integer = 1)
     Generate a random TensorNetworkState on graph `g` with local state indices generated from the `sitetype` string (e.g. "S=1/2", "Pauli") and the local dimension `d` (default is 2 for "S=1/2", 4 for Pauli etc).
 
     Arguments:
     - `eltype`: (Optional) The number type of the tensor elements (e.g. Float64, ComplexF32). Default is Float64.
     - `g::AbstractGraph`: The underlying graph of the tensor network.
     - `sitetype::String`: A string representing the type of local site (e.g. "S=1/2", "Pauli").
-    - `d::Int`: The local dimension of the site (default is determined by `sitetype`).
-    - `bond_dimension::Int`: The bond dimension of the virtual indices connecting neighboring tensors (default is 1).
+    - `d::Integer`: The local dimension of the site (default is determined by `sitetype`).
+    - `bond_dimension::Integer`: The bond dimension of the virtual indices connecting neighboring tensors (default is 1).
     Returns:
     - A `TensorNetworkState` object representing the random tensor network state.
 """
-function random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype); bond_dimension::Int = 1)
-    return random_tensornetworkstate(eltype, g, siteinds(g, sitetype, d); bond_dimension)
+function random_tensornetworkstate(eltype, g::AbstractGraph, sitetype::String, d::Integer = site_dimension(sitetype); bond_dimension::Integer = 1)
+    return random_tensornetworkstate(eltype, g, siteinds(sitetype, g, d); bond_dimension)
 end
 
 """
@@ -177,7 +177,7 @@ function tensornetworkstate(eltype, f::Function, g::AbstractGraph, siteinds::Dic
 end
 
 """
-    tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype))
+    tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Integer = site_dimension(sitetype))
     Construct a TensorNetworkState on graph `g` where the function `f` maps vertices to local states.
     The local states can be given as strings (e.g. "↑", "↓", "0", "1", "I", "X", "Y", "Z") or as vectors of numbers (e.g. [1,0], [0,1], [1/sqrt(2), 1/sqrt(2)]).
 
@@ -186,13 +186,13 @@ end
     - `f::Function`: A function mapping vertices of the graph to local states.
     - `g::AbstractGraph`: The underlying graph of the tensor network.
     - `sitetype::String`: A string representing the type of local site (e.g. "S=1/2", "Pauli").
-    - `d::Int`: The local dimension of the site (default is determined by `sitetype`).
+    - `d::Integer`: The local dimension of the site (default is determined by `sitetype`).
 
     Returns:
     - A `TensorNetworkState` object representing the constructed tensor network state.
 """
-function tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Int = site_dimension(sitetype))
-    return tensornetworkstate(eltype, f, g, siteinds(g, sitetype, d))
+function tensornetworkstate(eltype, f::Function, g::AbstractGraph, sitetype::String, d::Integer = site_dimension(sitetype))
+    return tensornetworkstate(eltype, f, g, siteinds(sitetype, g, d))
 end
 
 function random_tensornetworkstate(g::AbstractGraph, args...; kwargs...)

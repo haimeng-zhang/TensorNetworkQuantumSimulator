@@ -23,7 +23,7 @@ end
         - `"boundarymps"`: Boundary MPS approximation (requires `mps_bond_dimension`).
         - `"loopcorrections"`: Loop corrections to belief propagation.
     - Extra kwargs for `alg = "boundarymps"`:
-        - `mps_bond_dimension::Int`: The bond dimension for the boundary MPS approximation.
+        - `mps_bond_dimension::Integer`: The bond dimension for the boundary MPS approximation.
         - `partition_by`: How to partition the graph for boundary MPS (default is `"row"`).
         - `cache_update_kwargs`: Additional keyword arguments for updating the cache.
     - Extra kwargs for `alg = "bp"` or `"loopcorrections"`:
@@ -35,7 +35,7 @@ end
 
     # Example
     ```julia
-    s = siteinds(g, "S=1/2")
+    s = siteinds("S=1/2", g)
     ψ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
     ϕ = random_tensornetworkstate(ComplexF32, g, s; bond_dimension = 4)
 
@@ -84,7 +84,7 @@ function ITensors.inner(alg::Union{Algorithm"bp", Algorithm"loopcorrections"}, �
     return inner(alg, ψϕ_bpc; kwargs...)
 end
 
-function ITensors.inner(alg::Algorithm"boundarymps", ψ::TensorNetworkState, ϕ::TensorNetworkState; mps_bond_dimension::Int, partition_by = "row", cache_update_kwargs = (;), kwargs...)
+function ITensors.inner(alg::Algorithm"boundarymps", ψ::TensorNetworkState, ϕ::TensorNetworkState; mps_bond_dimension::Integer, partition_by = "row", cache_update_kwargs = (;), kwargs...)
     ψϕ_bmps = BoundaryMPSCache(BilinearForm(ψ, ϕ), mps_bond_dimension; partition_by)
     maxiter = get(cache_update_kwargs, :maxiter, default_bp_maxiter(ψϕ_bmps))
     cache_update_kwargs = (; cache_update_kwargs..., maxiter)
