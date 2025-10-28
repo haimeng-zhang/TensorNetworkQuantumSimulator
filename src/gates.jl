@@ -160,9 +160,9 @@ end
 Gate for rotation by Z+ at a given halved angle
 """
 function ITensors.op(
-    ::OpName"Rz+", ::SiteType"S=1/2"; θ::Number
-  )
-    a = exp( -im * θ * 0.5)
+        ::OpName"Rz+", ::SiteType"S=1/2"; θ::Number
+    )
+    a = exp(-im * θ * 0.5)
     mat = zeros(ComplexF64, 2, 2)
     mat[1, 1] = 1
     mat[2, 2] = a
@@ -176,9 +176,9 @@ end
 Gate for rotation by Z+Z+ at a given halved angle
 """
 function ITensors.op(
-    ::OpName"Rz+z+", ::SiteType"S=1/2"; θ::Number
-  )
-    a = exp( -im * θ * 0.5)
+        ::OpName"Rz+z+", ::SiteType"S=1/2"; θ::Number
+    )
+    a = exp(-im * θ * 0.5)
     mat = zeros(ComplexF64, 4, 4)
     mat[1, 1] = 1
     mat[2, 2] = 1

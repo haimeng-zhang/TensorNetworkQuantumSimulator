@@ -1,38 +1,39 @@
 using StatsBase
 
 function _sample(
-    ψ::ITensorNetwork,
-    nsamples::Int64;
-    projected_message_rank::Int64,
-    norm_message_rank::Int64,
-    norm_message_update_kwargs=(; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
-    projected_message_update_kwargs = (;cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
-    partition_by = "Row",
-    kwargs...,
-)
+        ψ::ITensorNetwork,
+        nsamples::Int64;
+        projected_message_rank::Int64,
+        norm_message_rank::Int64,
+        norm_message_update_kwargs = (; niters = _default_boundarymps_update_niters, tolerance = _default_boundarymps_update_tolerance),
+        projected_message_update_kwargs = (; cutoff = _default_boundarymps_update_cutoff, maxdim = projected_message_rank),
+        partition_by = "Row",
+        kwargs...,
+    )
 
     grouping_function = partition_by == "Column" ? v -> last(v) : v -> first(v)
     group_sorting_function = partition_by == "Column" ? v -> first(v) : v -> last(v)
     ψ, ψψ = symmetric_gauge(ψ)
     ψ, ψψ = normalize(ψ, ψψ)
 
-    norm_MPScache = BoundaryMPSCache(ψψ; message_rank=norm_message_rank, grouping_function, group_sorting_function)
+    norm_MPScache = BoundaryMPSCache(ψψ; message_rank = norm_message_rank, grouping_function, group_sorting_function)
     sorted_partitions = sort(ITensorNetworks.partitions(norm_MPScache))
     seq = [
-        sorted_partitions[i] => sorted_partitions[i-1] for
-        i = length(sorted_partitions):-1:2
+        sorted_partitions[i] => sorted_partitions[i - 1] for
+            i in length(sorted_partitions):-1:2
     ]
-    norm_message_update_kwargs = (; norm_message_update_kwargs..., normalize=false)
+    norm_message_update_kwargs = (; norm_message_update_kwargs..., normalize = false)
     norm_MPScache = ITensorNetworks.update_iteration(Algorithm("bp"; message_update_alg = Algorithm("orthogonal"; norm_message_update_kwargs...)), norm_MPScache, seq)
 
-    projected_MPScache = BoundaryMPSCache(ψ; message_rank=projected_message_rank, grouping_function, group_sorting_function)
+    projected_MPScache = BoundaryMPSCache(ψ; message_rank = projected_message_rank, grouping_function, group_sorting_function)
 
     #Generate the bit_strings moving left to right through the network
     probs_and_bitstrings = NamedTuple[]
-    for j = 1:nsamples
+    for j in 1:nsamples
         p_over_q_approx, logq, bitstring = _get_one_sample(
-            norm_MPScache, projected_MPScache, sorted_partitions; projected_message_update_kwargs, kwargs...)
-        push!(probs_and_bitstrings, (poverq=p_over_q_approx, logq=logq, bitstring=bitstring))
+            norm_MPScache, projected_MPScache, sorted_partitions; projected_message_update_kwargs, kwargs...
+        )
+        push!(probs_and_bitstrings, (poverq = p_over_q_approx, logq = logq, bitstring = bitstring))
     end
 
     return probs_and_bitstrings, ψ
@@ -73,7 +74,7 @@ end
 Take nsamples bitstrings from a 2D open boundary tensornetwork by partitioning it and using boundary MPS algorithm with relevant ranks. 
 Returns a vector of (p/q, logq, bitstring) where loqq is log probability of drawing the bitstring and p/q attests to the quality of the bitstring which is accurate only if the projected boundary MPS rank is high enough.
 """
-function sample_directly_certified(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank=5 * maxlinkdim(ψ), kwargs...)
+function sample_directly_certified(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank = 5 * maxlinkdim(ψ), kwargs...)
     probs_and_bitstrings, _ = _sample(ψ::ITensorNetwork, nsamples::Int64; projected_message_rank, kwargs...)
     # returns the self-certified p/q, logq and bitstrings
     return probs_and_bitstrings
@@ -95,25 +96,25 @@ Take nsamples bitstrings from a 2D open boundary tensornetwork by partitioning i
 an independent contraction of <x|ψ> to get a measure of p/q. 
 Returns a vector of (p/q, bitstring) where p/q attests to the quality of the bitstring which is accurate only if the certification boundary MPS rank is high enough.
 """
-function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank=5 * maxlinkdim(ψ), certification_message_update_kwargs = (; cutoff = _default_boundarymps_update_cutoff), kwargs...)
+function sample_certified(ψ::ITensorNetwork, nsamples::Int64; certification_message_rank = 5 * maxlinkdim(ψ), certification_message_update_kwargs = (; cutoff = _default_boundarymps_update_cutoff), kwargs...)
     probs_and_bitstrings, ψ = _sample(ψ::ITensorNetwork, nsamples::Int64; kwargs...)
     # send the bitstrings and the logq to the certification function
-    return certify_samples(ψ, probs_and_bitstrings; certification_message_rank, certification_message_update_kwargs, symmetrize_and_normalize=false)
+    return certify_samples(ψ, probs_and_bitstrings; certification_message_rank, certification_message_update_kwargs, symmetrize_and_normalize = false)
 end
 
 function _get_one_sample(
-    norm_MPScache::BoundaryMPSCache,
-    projected_MPScache::BoundaryMPSCache,
-    sorted_partitions;
-    projected_message_update_kwargs= (; cutoff = _default_boundarymps_update_cutoff, maxdim = maximum_virtual_dimension(projected_MPScache)),
-    kwargs...,
-)
+        norm_MPScache::BoundaryMPSCache,
+        projected_MPScache::BoundaryMPSCache,
+        sorted_partitions;
+        projected_message_update_kwargs = (; cutoff = _default_boundarymps_update_cutoff, maxdim = maximum_virtual_dimension(projected_MPScache)),
+        kwargs...,
+    )
 
-    projected_message_update_kwargs = (; projected_message_update_kwargs..., normalize=false)
+    projected_message_update_kwargs = (; projected_message_update_kwargs..., normalize = false)
 
     norm_MPScache = copy(norm_MPScache)
 
-    bit_string = Dictionary{keytype(vertices(projected_MPScache)),Int}()
+    bit_string = Dictionary{keytype(vertices(projected_MPScache)), Int}()
     p_over_q_approx = nothing
     logq = 0
     for (i, partition) in enumerate(sorted_partitions)
@@ -130,12 +131,14 @@ function _get_one_sample(
 
 
         if i < length(sorted_partitions)
-            next_partition = sorted_partitions[i+1]
-            
+            next_partition = sorted_partitions[i + 1]
+
             #Alternate fitting procedure here which is faster for small bond dimensions but slower for large
-            projected_MPScache = ITensorNetworks.update_message(ITensorNetworks.set_default_kwargs(Algorithm("ITensorMPS"; projected_message_update_kwargs...)),
+            projected_MPScache = ITensorNetworks.update_message(
+                ITensorNetworks.set_default_kwargs(Algorithm("ITensorMPS"; projected_message_update_kwargs...)),
                 projected_MPScache,
-                partition => next_partition)
+                partition => next_partition
+            )
 
             pes = planargraph_sorted_partitionedges(norm_MPScache, partition => next_partition)
 
@@ -145,25 +148,25 @@ function _get_one_sample(
             end
         end
 
-        i > 1 && delete_partitionpair_messages!(projected_MPScache, sorted_partitions[i-1] => sorted_partitions[i])
-        i > 2 && delete_partitionpair_messages!(norm_MPScache, sorted_partitions[i-2] => sorted_partitions[i-1])
+        i > 1 && delete_partitionpair_messages!(projected_MPScache, sorted_partitions[i - 1] => sorted_partitions[i])
+        i > 2 && delete_partitionpair_messages!(norm_MPScache, sorted_partitions[i - 2] => sorted_partitions[i - 1])
     end
 
     return p_over_q_approx, logq, bit_string
 end
 
 function certify_sample(
-    ψ::ITensorNetwork, bitstring, logq::Number;
-    certification_message_rank::Int64,
-    certification_message_update_kwargs = (; maxdim = certification_message_rank, cutoff = _default_boundarymps_update_cutoff),
-    symmetrize_and_normalize=true,
-)
+        ψ::ITensorNetwork, bitstring, logq::Number;
+        certification_message_rank::Int64,
+        certification_message_update_kwargs = (; maxdim = certification_message_rank, cutoff = _default_boundarymps_update_cutoff),
+        symmetrize_and_normalize = true,
+    )
     if symmetrize_and_normalize
         ψ, ψψ = symmetric_gauge(ψ)
         ψ = normalize(ψ, cache! = Ref(ψψ))
     end
 
-    certification_message_update_kwargs = (; certification_message_update_kwargs..., normalize=false)
+    certification_message_update_kwargs = (; certification_message_update_kwargs..., normalize = false)
 
     ψproj = copy(ψ)
     s = siteinds(ψ)
@@ -173,7 +176,7 @@ function certify_sample(
         ψproj[v] = ψproj[v] * P * inv(qv)
     end
 
-    bmpsc = BoundaryMPSCache(ψproj; message_rank=certification_message_rank)
+    bmpsc = BoundaryMPSCache(ψproj; message_rank = certification_message_rank)
     certification_message_update_kwargs = (; normalize = false, certification_message_update_kwargs...)
 
     #This block is two times faster than the two lines below but likely less accurate for smaller maxdims
@@ -189,7 +192,7 @@ function certify_sample(
 
     p_over_q *= conj(p_over_q)
 
-    return (poverq=p_over_q, bitstring=bitstring)
+    return (poverq = p_over_q, bitstring = bitstring)
 end
 
 certify_sample(ψ, logq_and_bitstring::NamedTuple; kwargs...) = certify_sample(ψ, logq_and_bitstring.bitstring, logq_and_bitstring.logq; kwargs...)
@@ -204,25 +207,25 @@ end
 
 #Sample along the column/ row specified by pv with the left incoming MPS message input and the right extractable from the cache
 function sample_partition!(
-    ψIψ::BoundaryMPSCache,
-    partition,
-    bit_string::Dictionary;
-    kwargs...,
-)
+        ψIψ::BoundaryMPSCache,
+        partition,
+        bit_string::Dictionary;
+        kwargs...,
+    )
     vs = sort(planargraph_vertices(ψIψ, partition))
-    seq = PartitionEdge[PartitionEdge(vs[i] => vs[i-1]) for i in length(vs):-1:2]
+    seq = PartitionEdge[PartitionEdge(vs[i] => vs[i - 1]) for i in length(vs):-1:2]
     !isempty(seq) && partition_update!(ψIψ, seq)
     prev_v, traces = nothing, []
     logq = 0
     for v in vs
         !isnothing(prev_v) && partition_update!(ψIψ, [PartitionEdge(prev_v => v)])
         env = environment(bp_cache(ψIψ), [(v, "operator")])
-        seq = contraction_sequence(env; alg="optimal")
-        ρ = contract(env; sequence=seq)
+        seq = contraction_sequence(env; alg = "optimal")
+        ρ = contract(env; sequence = seq)
         ρ_tr = tr(ρ)
         push!(traces, ρ_tr)
         ρ *= inv(ρ_tr)
-        ρ_diag =  collect(real.(diag(ITensors.array(ρ))))
+        ρ_diag = collect(real.(diag(ITensors.array(ρ))))
         config = StatsBase.sample(1:length(ρ_diag), Weights(ρ_diag))
         # config is 1 or 2, but we want 0 or 1 for the sample itself
         set!(bit_string, v, config - 1)
@@ -242,4 +245,3 @@ function sample_partition!(
 
     return first(traces), logq, bit_string
 end
-

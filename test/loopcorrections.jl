@@ -34,7 +34,7 @@ Random.seed!(1634)
         norm_loopcorrected = norm(ψ; alg = "loopcorrections", max_configuration_size = 2 * (smallest_loop_size) - 1)
         norm_exact = norm(ψ; alg = "exact")
 
-        @test isapprox(norm_bp, norm_exact, atol = 5e-2)
-        @test isapprox(norm_loopcorrected, norm_exact, atol = 5e-2)
+        @test isapprox(norm_bp, norm_exact, atol = 5.0e-2)
+        @test isapprox(norm_loopcorrected, norm_exact, atol = 5.0e-2)
     end
 end

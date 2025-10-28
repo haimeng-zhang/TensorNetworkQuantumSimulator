@@ -26,7 +26,7 @@ for f in [
 end
 
 #Constructor, bra is taken to be in the vector space of ket so the dual is taken
-function QuadraticForm(ket::TensorNetworkState, f::Function =  v -> "I")
+function QuadraticForm(ket::TensorNetworkState, f::Function = v -> "I")
     sinds = siteinds(ket)
     verts = collect(vertices(ket))
     dtype = datatype(ket)

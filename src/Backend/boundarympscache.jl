@@ -26,7 +26,7 @@ function default_bp_edge_sequence(bmps_cache::BoundaryMPSCache)
 end
 default_bp_maxiter(bmps_cache::BoundaryMPSCache) = is_tree(partitions_graph(supergraph(bmps_cache))) ? 1 : 5
 function default_bmps_message_update_alg(tn)
-    if  tn isa TensorNetworkState || tn isa  BilinearForm || tn isa QuadraticForm
+    if tn isa TensorNetworkState || tn isa BilinearForm || tn isa QuadraticForm
         return "orthogonal"
     elseif tn isa ITensorNetwork
         return "ITensorMPS"

@@ -38,15 +38,15 @@ function adapt_gate(gate::ITensor, ψ_bpc::BeliefPropagationCache)
 end
 
 function apply_gates(
-    circuit::Vector{<:ITensor},
-    ψ_bpc::BeliefPropagationCache;
-    gate_vertices::Vector = neighbor_vertices.((network(ψ_bpc), ), circuit),
-    apply_kwargs = (; ),
-    bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
-    update_cache = true,
-    verbose = false,
-    transfer_to_gpu = false,
-)
+        circuit::Vector{<:ITensor},
+        ψ_bpc::BeliefPropagationCache;
+        gate_vertices::Vector = neighbor_vertices.((network(ψ_bpc),), circuit),
+        apply_kwargs = (;),
+        bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
+        update_cache = true,
+        verbose = false,
+        transfer_to_gpu = false,
+    )
     ψ_bpc = copy(ψ_bpc)
 
     # we keep track of the vertices that have been acted on by 2-qubit gates
@@ -92,13 +92,13 @@ end
 
 #Apply function for a single gate
 function apply_gate!(
-    gate::ITensor,
-    ψ_bpc::BeliefPropagationCache;
-    v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
-    apply_kwargs = _default_apply_kwargs,
-    transfer_to_gpu = false,
-)
-    envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc,v⃗)
+        gate::ITensor,
+        ψ_bpc::BeliefPropagationCache;
+        v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
+        apply_kwargs = _default_apply_kwargs,
+        transfer_to_gpu = false,
+    )
+    envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc, v⃗)
 
     if !transfer_to_gpu
         updated_tensors, s_values, err = simple_update(gate, network(ψ_bpc), v⃗; envs, apply_kwargs...)
@@ -177,8 +177,8 @@ function simple_update(
 end
 
 function simple_update_cuda(
-    o::ITensor, ψ, v⃗; envs, normalize_tensors = true, apply_kwargs...
-  )
+        o::ITensor, ψ, v⃗; envs, normalize_tensors = true, apply_kwargs...
+    )
 
     dtype = datatype(ψ[first(v⃗)])
     o = CUDA.cu(o)
@@ -193,24 +193,24 @@ function simple_update_cuda(
         envs_v1 = filter(env -> hascommoninds(env, ψ[v⃗[1]]), envs)
         envs_v2 = filter(env -> hascommoninds(env, ψ[v⃗[2]]), envs)
         sqrt_envs_v1 = [
-        ITensorNetworks.ITensorsExtensions.map_eigvals(
-            sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v1
+            ITensorNetworks.ITensorsExtensions.map_eigvals(
+                    sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian = true
+                ) for env in envs_v1
         ]
         sqrt_envs_v2 = [
             ITensorNetworks.ITensorsExtensions.map_eigvals(
-            sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v2
+                    sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian = true
+                ) for env in envs_v2
         ]
         inv_sqrt_envs_v1 = [
             ITensorNetworks.ITensorsExtensions.map_eigvals(
-            inv ∘ sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v1
+                    inv ∘ sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian = true
+                ) for env in envs_v1
         ]
         inv_sqrt_envs_v2 = [
             ITensorNetworks.ITensorsExtensions.map_eigvals(
-            inv ∘ sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian=true
-        ) for env in envs_v2
+                    inv ∘ sqrt, CUDA.cu(env), inds(env)[1], inds(env)[2]; cutoff, ishermitian = true
+                ) for env in envs_v2
         ]
         ψᵥ₁ = contract([ψ1; sqrt_envs_v1])
         ψᵥ₂ = contract([ψ2; sqrt_envs_v2])
@@ -224,12 +224,12 @@ function simple_update_cuda(
         e = v⃗[1] => v⃗[2]
         singular_values! = Ref(ITensor())
         Rᵥ₁, Rᵥ₂, spec = factorize_svd(
-        oR,
-        unioninds(rᵥ₁, sᵥ₁);
-        ortho="none",
-        tags=edge_tag(e),
-        singular_values!,
-        apply_kwargs...,
+            oR,
+            unioninds(rᵥ₁, sᵥ₁);
+            ortho = "none",
+            tags = edge_tag(e),
+            singular_values!,
+            apply_kwargs...,
         )
         err = spec.truncerr
         s_values = singular_values![]
@@ -248,8 +248,8 @@ function simple_update_cuda(
     return noprime.(updated_tensors), s_values, err
 end
 
-  #Checker for whether the cache needs updating (overlapping gate encountered)
-function _cacheupdate_check(affected_indices::Set, gate::ITensor; inds_per_site=1)
+#Checker for whether the cache needs updating (overlapping gate encountered)
+function _cacheupdate_check(affected_indices::Set, gate::ITensor; inds_per_site = 1)
     indices = inds(gate)
 
     # check if we have a two-site gate and any of the qinds are in the affected_indices. If so update cache
