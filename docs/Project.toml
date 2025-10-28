@@ -1,3 +1,7 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 TensorNetworkQuantumSimulator = "fb4b0154-8226-4cf3-a39c-47b51461fc74"
+
+[compat]
+julia = "1.12"
+Documenter = "1"
