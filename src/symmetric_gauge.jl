@@ -136,6 +136,6 @@ end
     - The truncated `tns::TensorNetworkState`.
 """
 function ITensors.truncate(tns::TensorNetworkState, args...; alg, kwargs...)
-    algorithm_check(tns, alg)
+    algorithm_check(tns, "truncate", alg)
     return truncate(Algorithm(alg), tns, args...; kwargs...)
 end
