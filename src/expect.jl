@@ -82,6 +82,7 @@ function expect(
     end
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
 
+    #TODO: If there are a lot of tensors here, (more than 100 say), we need to think about defining a custom sequence as optimal may be too slow
     incoming_ms = incoming_messages(cache, steiner_vs)
     ψIψ_tensors = ITensor[norm_factors(network(cache), steiner_vs); incoming_ms]
     denom_seq = contraction_sequence(ψIψ_tensors; alg = "optimal")
