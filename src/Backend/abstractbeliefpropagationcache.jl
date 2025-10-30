@@ -180,27 +180,6 @@ function update_iteration(
 end
 
 """
-Do parallel updates between groups of edges of all message tensors
-Currently we send the full message tensor data struct to update for each edge_group. But really we only need the
-mts relevant to that group.
-"""
-function update_iteration(
-        alg::Algorithm"bp",
-        bpc::AbstractBeliefPropagationCache,
-        edge_groups::Vector{<:Vector{<:AbstractEdge}};
-        (update_diff!) = nothing,
-    )
-    new_mts = empty(messages(bpc))
-    for edges in edge_groups
-        bpc_t = update_iteration(alg.kwargs.message_update_alg, bpc, edges; (update_diff!))
-        for e in edges
-            set!(new_mts, e, message(bpc_t, e))
-        end
-    end
-    return set_messages(bpc, new_mts)
-end
-
-"""
 More generic interface for update, with default params
 """
 function update(alg::Algorithm"bp", bpc::AbstractBeliefPropagationCache)
