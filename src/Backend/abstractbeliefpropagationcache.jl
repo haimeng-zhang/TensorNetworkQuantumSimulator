@@ -162,13 +162,12 @@ end
 """
 Do a sequential update of the message tensors on `edges`
 """
-function update_iteration(
+function update_iteration!(
         alg::Algorithm"bp",
         bpc::AbstractBeliefPropagationCache,
         edges::Vector;
         (update_diff!) = nothing,
     )
-    bpc = copy(bpc)
     for e in edges
         prev_message = !isnothing(update_diff!) ? message(bpc, e) : nothing
         update_message!(alg.kwargs.message_update_alg, bpc, e)
@@ -187,9 +186,10 @@ function update(alg::Algorithm"bp", bpc::AbstractBeliefPropagationCache)
     if isnothing(alg.kwargs.maxiter)
         error("You need to specify a number of iterations for BP!")
     end
+    bpc = copy(bpc)
     for i in 1:alg.kwargs.maxiter
         diff = compute_error ? Ref(0.0) : nothing
-        bpc = update_iteration(alg, bpc, alg.kwargs.edge_sequence; (update_diff!) = diff)
+        update_iteration!(alg, bpc, alg.kwargs.edge_sequence; (update_diff!) = diff)
         if compute_error && (diff.x / length(alg.kwargs.edge_sequence)) <= alg.kwargs.tolerance
             if alg.kwargs.verbose
                 println("BP converged to desired precision after $i iterations.")

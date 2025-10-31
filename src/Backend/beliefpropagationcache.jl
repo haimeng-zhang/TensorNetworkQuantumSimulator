@@ -15,7 +15,8 @@ end
 
 #TODO: Take `dot` without precontracting the messages to allow scaling to more complex messages
 function message_diff(message_a::ITensor, message_b::ITensor)
-    f = abs2(dot((message_a / norm(message_a)), (message_b / norm(message_b))))
+    n_a, n_b = norm(message_a), norm(message_b)
+    f = abs2(dot(message_a, message_b) / (n_a * n_b))
     return 1 - f
 end
 
