@@ -15,10 +15,6 @@ function is_ring_graph(g::AbstractGraph)
     return is_line_graph(g_mod)
 end
 
-function no_inds_per_site(sinds::Dictionary)
-    return only(unique(length.(collect(values(sinds)))))
-end
-
 function pseudo_sqrt_inv_sqrt(M::ITensor; cutoff = 10 * eps(real(scalartype(M))))
     @assert length(inds(M)) == 2
     Q, D, Qdag = ITensorNetworks.ITensorsExtensions.eigendecomp(M, inds(M)[1], inds(M)[2]; ishermitian = true)
