@@ -67,6 +67,7 @@ function expect(
     #For boundary MPS, must stay in partition
     if length(obs_vs) == 1
         steiner_vs = obs_vs
+        partition = only(unique(partitionvertices(cache, obs_vs)))
     elseif alg == Algorithm("bp")
         steiner_vs = collect(vertices(steiner_tree(network(cache), obs_vs)))
     elseif alg == Algorithm("boundarymps")
@@ -75,11 +76,12 @@ function expect(
         partition = only(partitions)
         g = partition_graph(cache, partition)
         steiner_vs = collect(vertices(steiner_tree(g, obs_vs)))
-
-        if !bmps_messages_up_to_date
-            cache = update_partition(cache, partition)
-        end
     end
+
+    if !bmps_messages_up_to_date && (alg == Algorithm("boundarymps"))  
+        cache = update_partition(cache, partition)
+    end
+    
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
 
     #TODO: If there are a lot of tensors here, (more than 100 say), we need to think about defining a custom sequence as optimal may be too slow
