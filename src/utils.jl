@@ -10,6 +10,7 @@ function is_line_graph(g::AbstractGraph)
 end
 
 function is_ring_graph(g::AbstractGraph)
+    isempty(edges(g)) && return false
     g_mod = rem_edge(g, first(edges(g)))
     return is_line_graph(g_mod)
 end
