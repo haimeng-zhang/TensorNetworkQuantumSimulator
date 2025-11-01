@@ -3,7 +3,7 @@ using StatsBase
 
 using Dictionaries: Dictionary, set!
 
-using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree
+using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree, vertices
 
 using SimpleGraphConverter
 using SimpleGraphAlgorithms: edge_color
@@ -12,6 +12,7 @@ using NamedGraphs
 using NamedGraphs:
     AbstractNamedGraph,
     AbstractGraph,
+    AbstractEdge,
     position_graph,
     rename_vertices,
     edges,
@@ -40,88 +41,24 @@ using NamedGraphs.GraphsExtensions:
     add_edges,
     rem_vertices
 
-using NamedGraphs.PartitionedGraphs:
-    PartitionedGraphs,
-    partitioned_vertices,
-    partitionedges,
-    unpartitioned_graph,
-    which_partition
-
 using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_graph
 
 using TensorOperations
 
 using ITensors: ITensors
-using ITensors: Index, ITensor, hasqns, combinedind, combiner, replaceinds, sim, onehot, delta, plev, dense, unioninds, uniqueinds, commonind, commoninds, replaceind, datatype, inds, dag, noprime, factorize_svd, prime, hascommoninds, inner, itensor, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str, denseblocks
+using ITensors: Index, ITensor, hasqns, combinedind, combiner, replaceinds, sim, onehot, delta, plev, dense, unioninds, uniqueinds, commonind, commoninds, replaceind, datatype, inds, dag, noprime, factorize_svd, prime, hascommoninds, itensor, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str, denseblocks, tags
 using ITensorMPS
 
 using ITensorNetworks: ITensorNetworks
 using ITensorNetworks:
-    AbstractBeliefPropagationCache,
-    AbstractFormNetwork,
     AbstractITensorNetwork,
-    AbstractIndsNetwork,
-    Indices,
-    BeliefPropagationCache,
-    QuadraticFormNetwork,
-    PartitionedGraph,
-    IndsNetwork,
     ITensorNetwork,
-    inner_network,
-    ket_network,
-    PartitionVertex,
-    PartitionEdge,
-    Algorithm,
-    VidalITensorNetwork,
-    expect,
-    default_cache_construction_kwargs,
-    delete_messages!,
-    delete_messages,
-    cache,
-    norm_sqr_network,
-    update,
-    updated_message,
-    set_message,
-    set_message!,
-    set_messages!,
-    siteinds,
-    vertices,
-    dim,
     neighbor_vertices,
-    environment,
-    incoming_messages,
-    partitionedge,
-    messages,
-    update_factor,
-    logscalar,
-    partitioned_tensornetwork,
-    tensornetwork,
-    operator_vertex,
-    ket_vertex,
-    update_factors,
-    scalar_factors_quotient,
-    partitionedges,
-    region_scalar,
-    rescale,
-    partitionvertices,
-    partitioned_graph,
-    powerset,
-    boundary_partitionedges,
-    message,
-    factors,
     contraction_sequence,
-    group,
-    partitionedges,
     linkinds,
-    generic_state,
     setindex_preserve_graph!,
     edge_tag,
-    default_edge_sequence,
-    default_bp_maxiter,
-    tree_orthogonalize,
-    gauge_walk,
-    maxlinkdim,
-    default_cache_construction_kwargs
+    maxlinkdim
 
 using Adapt: adapt
 

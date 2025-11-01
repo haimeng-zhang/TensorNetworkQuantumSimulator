@@ -1,8 +1,6 @@
 using TensorNetworkQuantumSimulator
 const TN = TensorNetworkQuantumSimulator
 
-using ITensorNetworks
-const ITN = ITensorNetworks
 using ITensors
 
 using NamedGraphs
@@ -17,13 +15,12 @@ function main()
     g = named_grid((nx, ny, nz); periodic = true)
 
     nqubits = length(vertices(g))
-    s = ITN.siteinds("S=1/2", g)
-    ψ = ITensorNetwork(ComplexF32, v -> "↑", s)
+    ψ0 = tensornetworkstate(ComplexF32, v -> "↑", g, "S=1/2")
 
-    maxdim, cutoff = 4, 1e-10
+    maxdim, cutoff = 4, 1.0e-10
     apply_kwargs = (; maxdim, cutoff, normalize_tensors = true)
 
-    ψψ = build_normsqr_bp_cache(ψ)
+    ψ_bpc = BeliefPropagationCache(ψ0)
     h, J = -1.0, -1.0
     no_trotter_steps = 25
     δt = 0.04
@@ -31,11 +28,11 @@ function main()
     #Do a 7-way edge coloring then Trotterise the Hamiltonian into commuting groups
     layer = []
     ec = edge_color(g, 7)
-    append!(layer, ("Rz", [v], h*δt) for v in vertices(g))
+    append!(layer, ("Rz", [v], h * δt) for v in vertices(g))
     for colored_edges in ec
-        append!(layer, ("Rxx", pair, 2*J*δt) for pair in colored_edges)
+        append!(layer, ("Rxx", pair, 2 * J * δt) for pair in colored_edges)
     end
-    append!(layer, ("Rz", [v], h*δt) for v in vertices(g))
+    append!(layer, ("Rz", [v], h * δt) for v in vertices(g))
 
     #Vertices to measure "Z" on
     vs_measure = [first(center(g))]
@@ -44,10 +41,10 @@ function main()
     #Edges to measure bond entanglement on:
     e_ent = first(edges(g))
 
-    χinit = maxlinkdim(ψ)
+    χinit = maxlinkdim(ψ_bpc)
     println("Initial bond dimension of the state is $χinit")
 
-    expect_sigmaz = real.(expect(ψψ, observables))
+    expect_sigmaz = real.(expect(ψ_bpc, observables))
     println("Initial Sigma Z on selected sites is $expect_sigmaz")
 
     time = 0
@@ -55,22 +52,23 @@ function main()
     Zs = []
 
     # evolve! The first evaluation will take significantly longer because of compilation.
-    for l = 1:no_trotter_steps
+    for l in 1:no_trotter_steps
         #printing
         println("Layer $l")
 
         # pass BP cache manually
-        t = @timed ψψ, errors =
-            apply_gates(layer, ψψ; apply_kwargs, verbose = false);
+        t = @timed ψ_bpc, errors =
+            apply_gates(layer, ψ_bpc; apply_kwargs, verbose = false)
 
         # push BP measured expectation to list
-        push!(Zs, only(real(expect(ψψ, observables))))
+        push!(Zs, only(real(expect(ψ_bpc, observables))))
 
         # printing
-        println("Took time: $(t.time) [s].")
+        println("Took time: $(t.time) [s]. Max bond dimension: $(maxlinkdim(ψ_bpc))")
         println("Maximum Gate error for layer was $(maximum(errors))")
         println("Sigma z on central site is $(last(Zs))")
     end
+    return
 end
 
 main()

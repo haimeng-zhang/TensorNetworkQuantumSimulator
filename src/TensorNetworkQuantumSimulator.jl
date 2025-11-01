@@ -2,27 +2,29 @@ module TensorNetworkQuantumSimulator
 
 
 include("imports.jl")
-include("Backend/beliefpropagation.jl")
+
+include("siteinds.jl")
+include("tensornetworkstate.jl")
+include("bilinearform.jl")
+include("quadraticform.jl")
+include("Backend/abstractbeliefpropagationcache.jl")
+include("Backend/beliefpropagationcache.jl")
+include("Backend/boundarympscache.jl")
 include("Backend/loopcorrection.jl")
-include("Backend/boundarymps.jl")
-
-# a helpful union types for the caches that we use
-const CacheNetwork = Union{AbstractBeliefPropagationCache,BoundaryMPSCache}
-const TensorNetwork = Union{AbstractITensorNetwork,CacheNetwork}
-
-
 include("graph_ops.jl")
 include("utils.jl")
 include("constructors.jl")
 include("gates.jl")
 include("apply.jl")
 include("expect.jl")
-include("sample.jl")
+include("norm_sqr.jl")
+include("inner.jl")
+include("normalize.jl")
+include("sampling.jl")
+include("symmetric_gauge.jl")
 
 
 export
-    updatecache,
-    build_normsqr_bp_cache,
     vertices,
     edges,
     apply_gates,
@@ -35,14 +37,26 @@ export
     fidelity_loopcorrect,
     make_hermitian,
     ket_network,
-    build_normsqr_bp_cache,
     truncate,
     maxlinkdim,
     siteinds,
     edge_color,
     zerostate,
-    getnqubits,
     named_grid,
-    sample
-
+    sample,
+    TensorNetworkState,
+    tensornetworkstate,
+    random_tensornetworkstate,
+    BeliefPropagationCache,
+    rescale!,
+    message,
+    network,
+    update,
+    symmetric_gauge,
+    symmetric_gauge!,
+    messages,
+    gauge_and_scale,
+    paulitensornetworkstate,
+    identitytensornetworkstate,
+    inner
 end
