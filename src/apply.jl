@@ -40,7 +40,7 @@ end
 function apply_gates(
         circuit::Vector{<:ITensor},
         ψ_bpc::BeliefPropagationCache;
-        gate_vertices::Vector = neighbor_vertices.((network(ψ_bpc),), circuit),
+        gate_vertices::Vector = vertices.((network(ψ_bpc),), circuit),
         apply_kwargs = (;),
         bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
         update_cache = true,
@@ -93,7 +93,7 @@ end
 function apply_gate!(
         gate::ITensor,
         ψ_bpc::BeliefPropagationCache;
-        v⃗ = ITensorNetworks.neighbor_vertices(ψ_bpc, gate),
+        v⃗ = vertices(ψ_bpc, gate),
         apply_kwargs = _default_apply_kwargs
     )
     envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc, v⃗)
@@ -113,7 +113,7 @@ function apply_gate!(
     end
 
     for (i, v) in enumerate(v⃗)
-        setindex_preserve_graph!(ψ_bpc, updated_tensors[i], v)
+        setindex_preserve!(ψ_bpc, updated_tensors[i], v)
     end
 
     return ψ_bpc, err
@@ -152,7 +152,6 @@ function simple_update(
             oR,
             unioninds(rᵥ₁, sᵥ₁);
             ortho = "none",
-            tags = edge_tag(e),
             singular_values!,
             apply_kwargs...,
         )

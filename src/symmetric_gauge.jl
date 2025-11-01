@@ -46,8 +46,8 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
         sqrtS = ITensorsExtensions.map_diag(sqrt, S)
         ψvsrc = noprime(ψvsrc * sqrtS)
         ψvdst = noprime(ψvdst * sqrtS)
-        setindex_preserve_graph!(bp_cache, ψvsrc, vsrc)
-        setindex_preserve_graph!(bp_cache, ψvdst, vdst)
+        setindex_preserve!(bp_cache, ψvsrc, vsrc)
+        setindex_preserve!(bp_cache, ψvdst, vdst)
 
         setmessage!(bp_cache, e, S)
         setmessage!(bp_cache, reverse(e), dag(S))
@@ -117,6 +117,7 @@ function ITensors.truncate(bp_cache::BeliefPropagationCache; maxdim = nothing, c
 end
 
 function ITensors.truncate(alg::Algorithm"bp", tns::TensorNetworkState; maxdim = nothing, cutoff = nothing, cache_update_kwargs = (; maxiter = 40), kwargs...)
+    tns = copy(tns)
     bp_cache = BeliefPropagationCache(tns)
     bp_cache = update(bp_cache; cache_update_kwargs...)
     return network(truncate(bp_cache; maxdim, cutoff, kwargs...))

@@ -4,6 +4,8 @@ module TensorNetworkQuantumSimulator
 include("imports.jl")
 
 include("siteinds.jl")
+include("abstracttensornetwork.jl")
+include("tensornetwork.jl")
 include("tensornetworkstate.jl")
 include("bilinearform.jl")
 include("quadraticform.jl")
@@ -38,7 +40,7 @@ export
     make_hermitian,
     ket_network,
     truncate,
-    maxlinkdim,
+    maxvirtualdim,
     siteinds,
     edge_color,
     zerostate,
