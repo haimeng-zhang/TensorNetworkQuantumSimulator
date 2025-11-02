@@ -1,5 +1,3 @@
-using ITensorNetworks.ITensorsExtensions: ITensorsExtensions
-
 function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 * eps(real(scalartype(bp_cache))), kwargs...)
     tn = network(bp_cache)
     !(tn isa TensorNetworkState) && error("Can only transform TensorNetworkStates to the symmetric gauge")
@@ -12,12 +10,12 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
 
         X_D, X_U = eigen(message(bp_cache, e); ishermitian = true, cutoff = nothing)
         Y_D, Y_U = eigen(message(bp_cache, reverse(e)); ishermitian = true, cutoff = nothing)
-        X_D, Y_D = ITensorsExtensions.map_diag(x -> x + regularization, X_D),
-            ITensorsExtensions.map_diag(x -> x + regularization, Y_D)
+        X_D, Y_D = ITensors.map_diag(x -> x + regularization, X_D),
+            ITensors.map_diag(x -> x + regularization, Y_D)
 
-        rootX_D, rootY_D = ITensorsExtensions.sqrt_diag(X_D), ITensorsExtensions.sqrt_diag(Y_D)
-        inv_rootX_D, inv_rootY_D = ITensorsExtensions.invsqrt_diag(X_D),
-            ITensorsExtensions.invsqrt_diag(Y_D)
+        rootX_D, rootY_D = ITensors.map_diag(x->sqrt(x), X_D), ITensors.map_diag(x -> sqrt(x), Y_D)
+        inv_rootX_D, inv_rootY_D = ITensors.map_diag(x -> inv(sqrt(x)), X_D),
+            ITensors.map_diag(x -> inv(sqrt(x)), Y_D)
         rootX = X_U * rootX_D * prime(dag(X_U))
         rootY = Y_U * rootY_D * prime(dag(Y_U))
         inv_rootX = X_U * inv_rootX_D * prime(dag(X_U))
@@ -43,7 +41,7 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
                 [new_edge_ind..., prime(new_edge_ind)...],
         )
 
-        sqrtS = ITensorsExtensions.map_diag(sqrt, S)
+        sqrtS = ITensors.map_diag(sqrt, S)
         ψvsrc = noprime(ψvsrc * sqrtS)
         ψvdst = noprime(ψvdst * sqrtS)
         setindex_preserve!(bp_cache, ψvsrc, vsrc)

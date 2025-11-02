@@ -17,12 +17,21 @@ end
 
 function pseudo_sqrt_inv_sqrt(M::ITensor; cutoff = 10 * eps(real(scalartype(M))))
     @assert length(inds(M)) == 2
-    Q, D, Qdag = ITensorNetworks.ITensorsExtensions.eigendecomp(M, inds(M)[1], inds(M)[2]; ishermitian = true)
-    D_sqrt = ITensorNetworks.ITensorsExtensions.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : sqrt(x), D)
-    D_inv_sqrt = ITensorNetworks.ITensorsExtensions.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : inv(sqrt(x)), D)
+    Q, D, Qdag = eigendecomp(M, inds(M)[1], inds(M)[2]; ishermitian = true)
+    D_sqrt = ITensors.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : sqrt(x), D)
+    D_inv_sqrt = ITensors.map_diag(x -> iszero(x) || abs(x) < cutoff ? 0 : inv(sqrt(x)), D)
     M_sqrt = Q * D_sqrt * Qdag
     M_inv_sqrt = Q * D_inv_sqrt * Qdag
     return M_sqrt, M_inv_sqrt
+end
+
+#TODO: Make this work for non-hermitian A
+function eigendecomp(A::ITensor, linds, rinds; ishermitian = false, kwargs...)
+    @assert ishermitian
+    D, U = ITensors.eigen(A, linds, rinds; ishermitian, kwargs...)
+    ul, ur = noncommonind(D, U), commonind(D, U)
+    Ul = replaceinds(U, vcat(rinds, ur), vcat(linds, ul))
+    return Ul, D, dag(U)
 end
 
 #Function for checking the correct algorithm is being used for the given cache type and functionality

@@ -436,27 +436,30 @@ function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
             push!(O_tensors, O[i] * M[m_ind])
         end
     end
-    O = TensorNetworkState(Dictionary([i for i in 1:length(O_tensors)], O_tensors))
 
     #Transform away edges that make a loop
-    loop_edges = filter(e -> abs(src(e) - dst(e)) != 1, edges(O))
-    for e in loop_edges
-        edge_to_split = e
-        inbetween_vertices = [i for i in (minimum((src(e), dst(e))) + 1):(maximum((src(e), dst(e))) - 1)]
-        for v in inbetween_vertices
-            edge_to_split_ind = only(virtualinds(O, edge_to_split))
-            #TODO: Change to get rid of ITensorNetworks
-            O = ITensorNetworks.split_index(O, [edge_to_split])
-            d = adapt(datatype(O[v]))(denseblocks(delta(edge_to_split_ind, edge_to_split_ind')))
-            O[v] *= d
-            edge_to_split = NamedEdge(v => maximum((src(e), dst(e))))
+    pairs = reduce(vcat, [[(i,j) for j in (i+1):length(O_tensors)] for i in 1:length(O_tensors)])
+    loop_edges = filter(p -> !isempty(commoninds(O_tensors[first(p)] , O_tensors[last(p)])) && abs(first(p)-last(p)) != 1, pairs)
+    for (i,j) in loop_edges
+        inbetween_vertices = [k for k in (i+1):(j-1)]
+        for k in inbetween_vertices
+            cind = only(commoninds(O_tensors[i], O_tensors[j]))
+            d = adapt(datatype(O_tensors[k]))(denseblocks(delta(cind, cind')))
+            O_tensors[j] *= d
+            O_tensors[k] *= d
+            edge_to_split =(k, j)
+        end
+    end
+    for i in 1:length(O_tensors)-1
+        cinds = commoninds(O_tensors[i], O_tensors[i+1])
+        if length(cinds) > 1
+            combiner = adapt(datatype(O_tensors[i]))(ITensors.combiner(cinds))
+            O_tensors[i] *= combiner
+            O_tensors[i+1] *= combiner
         end
     end
 
-    #TODO: Change to get rid of ITensorNetworks
-    O = ITensorNetworks.combine_virtualinds(O)
-    @assert is_tree(O)
-    O = ITensorMPS.MPS([O[v] for v in vertices(O)])
+    O = ITensorMPS.MPS(O_tensors)
     O = merge_internal_tensors(O)
 
     if normalize

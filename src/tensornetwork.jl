@@ -1,7 +1,8 @@
 using Dictionaries: Dictionary
 using Graphs: Graphs
 using ITensors: ITensors, ITensor
-using NamedGraphs: NamedGraphs, add_edge!
+using NamedGraphs: NamedGraphs, add_edge!, incident_edges
+using NamedGraphs.GraphsExtensions: rem_edges!
 using Adapt
 
 #TODO: Make this show() nicely.
@@ -43,7 +44,11 @@ end
 function add_tensor!(tn::TensorNetwork, tensor::ITensor, v)
     vs = collect(vertices(tn))
     g = graph(tn)
-    add_vertex!(g, v)
+    if !has_vertex(g, v)
+        add_vertex!(g, v)
+    else
+        rem_edges!(g, incident_edges(g, v; dir = :in))
+    end
     ts = tensors(tn)
     set!(ts, v, tensor)
     for vp in vs

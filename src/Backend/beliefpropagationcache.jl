@@ -169,7 +169,7 @@ function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:NamedEdge}
     end
 
     tensors = ITensor[local_tensors; reduce(vcat, [bp_factors(bpc, v) for v in setdiff(vs, [src_vertex])]); incoming_messages]
-    seq = ITensorNetworks.contraction_sequence(tensors; alg = "einexpr", optimizer = Greedy())
+    seq = contraction_sequence(tensors; alg = "einexpr", optimizer = Greedy())
     t = contract(tensors; sequence = seq)
 
     row_combiner, col_combiner = ITensors.combiner(e_virtualinds), ITensors.combiner(e_virtualinds_sim)

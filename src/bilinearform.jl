@@ -28,15 +28,15 @@ end
 function BilinearForm(ket::TensorNetworkState, bra::TensorNetworkState)
     @assert graph(ket) == graph(bra)
     @assert siteinds(ket) == siteinds(bra)
-    bra = prime(dag(bra))
+    bra = map_tensors(t -> dag(prime(t)), bra)
     sinds = siteinds(ket)
     verts = collect(vertices(ket))
     operator_tensors = [reduce(prod, ITensor[delta(sind, prime(dag(sind))) for sind in sinds[v]]) for v in verts]
-    operator = TensorNetworkState(verts, operator_tensors)
+    operator = TensorNetworkState(Dictionary(verts, operator_tensors))
     return BilinearForm(ket, operator, bra)
 end
 
-function default_message(blf::BilinearForm, edge::AbstractEdge)
+function default_message(blf::BilinearForm, edge::NamedEdge)
     linds =virtualinds(blf, edge)
     return adapt(datatype(blf))(denseblocks(delta(linds)))
 end
