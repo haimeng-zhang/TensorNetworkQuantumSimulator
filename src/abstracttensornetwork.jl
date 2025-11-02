@@ -56,7 +56,6 @@ function ITensors.datatype(tn::AbstractTensorNetwork)
     return mapreduce(v -> ITensors.datatype(tn[v]), promote_type, vertices(tn))
 end
 
-#TODO: Fix this (seems to not work)
 function map_tensors(f::Function, tn::AbstractTensorNetwork)
     tn = copy(tn)
     for v in vertices(tn)

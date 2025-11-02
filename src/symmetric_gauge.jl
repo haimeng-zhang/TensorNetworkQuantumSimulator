@@ -13,7 +13,7 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
         X_D, Y_D = ITensors.map_diag(x -> x + regularization, X_D),
             ITensors.map_diag(x -> x + regularization, Y_D)
 
-        rootX_D, rootY_D = ITensors.map_diag(x->sqrt(x), X_D), ITensors.map_diag(x -> sqrt(x), Y_D)
+        rootX_D, rootY_D = ITensors.map_diag(x -> sqrt(x), X_D), ITensors.map_diag(x -> sqrt(x), Y_D)
         inv_rootX_D, inv_rootY_D = ITensors.map_diag(x -> inv(sqrt(x)), X_D),
             ITensors.map_diag(x -> inv(sqrt(x)), Y_D)
         rootX = X_U * rootX_D * prime(dag(X_U))

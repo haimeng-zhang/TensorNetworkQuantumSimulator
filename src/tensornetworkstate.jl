@@ -19,7 +19,7 @@ TensorNetworkState(tensors::Union{Dictionary, Vector{<:ITensor}}) = TensorNetwor
 
 #Forward onto the tn
 for f in [
-        :(Base.getindex)
+        :(Base.getindex),
     ]
     @eval begin
         function $f(tns::TensorNetworkState, args...; kwargs...)

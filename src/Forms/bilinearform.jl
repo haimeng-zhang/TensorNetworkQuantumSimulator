@@ -37,11 +37,11 @@ function BilinearForm(ket::TensorNetworkState, bra::TensorNetworkState)
 end
 
 function default_message(blf::BilinearForm, edge::NamedEdge)
-    linds =virtualinds(blf, edge)
+    linds = virtualinds(blf, edge)
     return adapt(datatype(blf))(denseblocks(delta(linds)))
 end
 
-function  virtualinds(blf::BilinearForm, edge::NamedEdge)
+function virtualinds(blf::BilinearForm, edge::NamedEdge)
     return Index[virtualinds(ket(blf), edge); virtualinds(operator(blf), edge); virtualinds(bra(blf), edge)]
 end
 

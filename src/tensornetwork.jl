@@ -20,7 +20,7 @@ function TensorNetwork(tensors::Dictionary)
     g = NamedGraph(keys(tensors))
     vs = collect(vertices(g))
     for (i, v) in enumerate(vs)
-        for vp in vs[i+1:length(vs)]
+        for vp in vs[(i + 1):length(vs)]
             if !isempty(commoninds(tensors[v], tensors[vp]))
                 add_edge!(g, NamedEdge(v => vp))
             end
@@ -52,7 +52,7 @@ function add_tensor!(tn::TensorNetwork, tensor::ITensor, v)
     ts = tensors(tn)
     set!(ts, v, tensor)
     for vp in vs
-        if !isempty(commoninds(ts[v],ts[vp]))
+        if !isempty(commoninds(ts[v], ts[vp]))
             add_edge!(g, NamedEdge(v => vp))
         end
     end
@@ -73,7 +73,7 @@ function random_tensornetwork(eltype, g::AbstractGraph; bond_dimension::Integer 
     l = merge(l, Dict(reverse(e) => l[e] for e in edges(g)))
     tensors = Dictionary{vertextype(g), ITensor}()
     for v in vs
-        is =[l[NamedEdge(v => vn)] for vn in neighbors(g, v)]
+        is = [l[NamedEdge(v => vn)] for vn in neighbors(g, v)]
         set!(tensors, v, random_itensor(eltype, is))
     end
     return TensorNetwork(tensors, g)

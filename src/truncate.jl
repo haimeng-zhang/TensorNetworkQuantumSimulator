@@ -6,7 +6,7 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
     apply_kwargs = (; maxdim, cutoff)
     for e in edges(bpc)
         g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
-        apply_gate!(g1*g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+        apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
         bpc = update(bpc; bp_update_kwargs...)
     end
     return bpc
@@ -26,14 +26,14 @@ function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff
         for e in reverse.(reverse(seq))
             g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
             envs = incoming_messages(bmps_cache, [src(e), dst(e)])
-            ρv1, ρv2  = full_update(g1*g2, bmps_cache, [src(e), dst(e)]; envs, apply_kwargs...)
+            ρv1, ρv2 = full_update(g1 * g2, network(bmps_cache), [src(e), dst(e)]; envs, apply_kwargs...)
             setindex_preserve!(bmps_cache, normalize(ρv1), src(e))
             setindex_preserve!(bmps_cache, normalize(ρv2), dst(e))
             update_partition!(bmps_cache, [e])
         end
 
         if i != length(ps)
-            bmps_cache = update(bmps_cache; alg = "bp", edge_sequence = [PartitionEdge(parent(ps[i]) => parent(ps[i+1]))], maxiter = 1)
+            bmps_cache = update(bmps_cache; alg = "bp", edge_sequence = [PartitionEdge(parent(ps[i]) => parent(ps[i + 1]))], maxiter = 1)
         end
     end
 
@@ -65,8 +65,20 @@ function ITensors.truncate(alg::Algorithm"boundarymps", tns::TensorNetworkState;
     return network(bmps_cache)
 end
 
+"""
+    truncate(tns::TensorNetworkState; alg = default_truncate_alg(tns), kwargs...)
+    Truncate the virtual indexes of tensors in the given `TensorNetworkState` `tns` using the specified algorithm `alg`.
+
+    Arguments
+    - `tns::TensorNetworkState`: The tensor network state to be truncated.
+    Keyword Arguments
+    - `alg`: The contraction algorithm to use for truncation. Supported contraction algorithms include `"bp"` for Belief Propagation and `"boundarymps"` for Boundary MPS.
+    -  maxdim::Integer: The maximum bond dimension to retain during truncation.
+    -  cutoff::Number: The singular value cutoff for truncation (optional).
+    Returns
+    - The truncated `TensorNetworkState`.
+"""
 function ITensors.truncate(tns::TensorNetworkState; alg = default_truncate_alg(tns), kwargs...)
     algorithm_check(tns, "truncate", alg)
     return truncate(Algorithm(alg), tns; kwargs...)
 end
-
