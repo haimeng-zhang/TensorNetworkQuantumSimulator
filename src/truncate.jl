@@ -72,8 +72,11 @@ end
     Arguments
     - `tns::TensorNetworkState`: The tensor network state to be truncated.
     Keyword Arguments
-    - `alg`: The contraction algorithm to use for truncation. Supported contraction algorithms include `"bp"` for Belief Propagation and `"boundarymps"` for Boundary MPS.
-    -  maxdim::Integer: The maximum bond dimension to retain during truncation.
+    - `alg`: The contraction algorithm to use for truncation. 
+        Supported contraction algorithms include:
+        - `"bp"`: Belief propagation-based truncation (works on any network, cheap but can be less accurate when loop correlations are present).
+        - `"boundarymps"`: Boundary MPS-based truncation. Requires `mps_bond_dimension` Kwarg. Works only on a planar network and is more expensive, but more accurate if a large mps bond dim is used).
+    - `maxdim::Integer`: The maximum bond dimension to retain after truncation.
     -  cutoff::Number: The singular value cutoff for truncation (optional).
     Returns
     - The truncated `TensorNetworkState`.
