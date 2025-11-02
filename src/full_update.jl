@@ -1,3 +1,5 @@
+using KrylovKit: linsolve
+
 function full_update(
         o::ITensor,
         ψ::TensorNetworkState,
