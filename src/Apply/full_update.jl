@@ -17,21 +17,14 @@ function full_update(
         symmetrize = false,
         apply_kwargs...,
     )
-    outer_dim_v1, outer_dim_v2 = dim(uniqueinds(ψ[v⃗[1]], o, ψ[v⃗[2]])),
-        dim(uniqueinds(ψ[v⃗[2]], o, ψ[v⃗[1]]))
-    dim_shared = dim(commoninds(ψ[v⃗[1]], ψ[v⃗[2]]))
-    d1, d2 = dim(commoninds(ψ[v⃗[1]], o)), dim(commoninds(ψ[v⃗[2]], o))
-    if outer_dim_v1 * outer_dim_v2 <= dim_shared * dim_shared * d1 * d2
-        Qᵥ₁, Rᵥ₁ = ITensor(true), copy(ψ[v⃗[1]])
-        Qᵥ₂, Rᵥ₂ = ITensor(true), copy(ψ[v⃗[2]])
-    else
-        Qᵥ₁, Rᵥ₁ = factorize(
-            ψ[v⃗[1]], uniqueinds(uniqueinds(ψ[v⃗[1]], ψ[v⃗[2]]), uniqueinds(ψ, v⃗[1]))
-        )
-        Qᵥ₂, Rᵥ₂ = factorize(
-            ψ[v⃗[2]], uniqueinds(uniqueinds(ψ[v⃗[2]], ψ[v⃗[1]]), uniqueinds(ψ, v⃗[2]))
-        )
-    end
+
+    Qᵥ₁, Rᵥ₁ = factorize(
+        ψ[v⃗[1]], uniqueinds(uniqueinds(ψ[v⃗[1]], ψ[v⃗[2]]), uniqueinds(ψ, v⃗[1]))
+    )
+    Qᵥ₂, Rᵥ₂ = factorize(
+        ψ[v⃗[2]], uniqueinds(uniqueinds(ψ[v⃗[2]], ψ[v⃗[1]]), uniqueinds(ψ, v⃗[2]))
+    )
+
     extended_envs = vcat(envs, Qᵥ₁, prime(dag(Qᵥ₁)), Qᵥ₂, prime(dag(Qᵥ₂)))
     Rᵥ₁, Rᵥ₂ = optimise_p_q(
         Rᵥ₁,
