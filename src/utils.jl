@@ -28,7 +28,7 @@ end
 #TODO: Make this work for non-hermitian A
 function eigendecomp(A::ITensor, linds, rinds; ishermitian = false, kwargs...)
     @assert ishermitian
-    D, U = ITensors.eigen(A, linds, rinds; ishermitian, kwargs...)
+    D, U = safe_eigen(A, linds, rinds; ishermitian, kwargs...)
     ul, ur = noncommonind(D, U), commonind(D, U)
     Ul = replaceinds(U, vcat(rinds, ur), vcat(linds, ul))
     return Ul, D, dag(U)
@@ -73,3 +73,17 @@ end
 default_alg(bp_cache::BeliefPropagationCache) = "bp"
 default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
 default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")
+
+function safe_eigen(m::ITensor, args...; kwargs...)
+    dtype = datatype(m)
+    e = eltype(m)
+    if e == ComplexF64 || e == Float64
+        return ITensors.eigen(m, args...; kwargs...)
+    elseif e == Float32
+        m = adapt(Vector{Float64}, m)
+        return adapt(dtype)(ITensors.eigen(m, args...; kwargs...))
+    elseif e == ComplexF32
+        m = adapt(Vector{ComplexF64}, m)
+        return adapt(dtype)(ITensors.eigen(m, args...; kwargs...))
+    end
+end

@@ -1,4 +1,5 @@
 function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 * eps(real(scalartype(bp_cache))), kwargs...)
+    dtype = datatype(bp_cache)
     tn = network(bp_cache)
     !(tn isa TensorNetworkState) && error("Can only transform TensorNetworkStates to the symmetric gauge")
     for e in edges(tn)
@@ -8,8 +9,8 @@ function symmetric_gauge!(bp_cache::BeliefPropagationCache; regularization = 10 
         edge_ind = commoninds(ψvsrc, ψvdst)
         edge_ind_sim = sim(edge_ind)
 
-        X_D, X_U = eigen(message(bp_cache, e); ishermitian = true, cutoff = nothing)
-        Y_D, Y_U = eigen(message(bp_cache, reverse(e)); ishermitian = true, cutoff = nothing)
+        X_D, X_U = safe_eigen(message(bp_cache, e); ishermitian = true, cutoff = nothing)
+        Y_D, Y_U = safe_eigen(message(bp_cache, reverse(e)); ishermitian = true, cutoff = nothing)
         X_D, Y_D = ITensors.map_diag(x -> x + regularization, X_D),
             ITensors.map_diag(x -> x + regularization, Y_D)
 
