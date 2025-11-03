@@ -52,7 +52,7 @@ function add_tensor!(tn::TensorNetwork, tensor::ITensor, v)
     ts = tensors(tn)
     set!(ts, v, tensor)
     for vp in vs
-        if !isempty(commoninds(ts[v], ts[vp]))
+        if !isempty(commoninds(ts[v], ts[vp])) && v != vp
             add_edge!(g, NamedEdge(v => vp))
         end
     end
