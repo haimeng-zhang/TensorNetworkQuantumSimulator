@@ -74,6 +74,10 @@ default_alg(bp_cache::BeliefPropagationCache) = "bp"
 default_alg(bmps_cache::BoundaryMPSCache) = "boundarymps"
 default_alg(any) = error("You must specify a contraction algorithm. Currently supported: exact, bp and boundarymps.")
 
+"""
+    safe_eigen(m::ITensor, args...; kwargs...)
+    A wrapper around ITensors.eigen that ensures eigen computations are done in Float64/ComplexF64 precision on CPU for better numerical stability.
+"""
 function safe_eigen(m::ITensor, args...; kwargs...)
     dtype = datatype(m)
     e = eltype(m)
@@ -81,9 +85,11 @@ function safe_eigen(m::ITensor, args...; kwargs...)
         return ITensors.eigen(m, args...; kwargs...)
     elseif e == Float32
         m = adapt(Vector{Float64}, m)
-        return adapt(dtype)(ITensors.eigen(m, args...; kwargs...))
+        D, U = ITensors.eigen(m, args...; kwargs...)
+        return adapt(dtype)(D), adapt(dtype)(U)
     elseif e == ComplexF32
         m = adapt(Vector{ComplexF64}, m)
-        return adapt(dtype)(ITensors.eigen(m, args...; kwargs...))
+        D, U = ITensors.eigen(m, args...; kwargs...)
+        return adapt(dtype)(D), adapt(dtype)(U)
     end
 end
