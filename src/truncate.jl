@@ -1,13 +1,29 @@
+using SimpleGraphAlgorithms: SimpleGraphAlgorithms
+
 default_truncate_alg(tns::TensorNetworkState) = nothing
 
-function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff = nothing)
+function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff = nothing, edge_color = true)
     bpc = copy(bpc)
     s = siteinds(network(bpc))
     apply_kwargs = (; maxdim, cutoff)
-    for e in edges(bpc)
-        g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
-        apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
-        bpc = update(bpc; bp_update_kwargs...)
+
+    if edge_color
+        g = graph(network(bpc))
+        z = maximum([degree(g, v) for v in vertices(g)])
+        edge_groups = SimpleGraphAlgorithms.edge_color(g, z)
+        for eg in edge_groups
+            for e in eg
+                g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)] ]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)] ])
+                apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+            end
+            bpc = update(bpc; bp_update_kwargs...)
+        end
+    else
+        for e in edges(bpc)
+            g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
+            apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+            bpc = update(bpc; bp_update_kwargs...)
+        end
     end
     return bpc
 end
