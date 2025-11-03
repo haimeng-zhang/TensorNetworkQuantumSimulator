@@ -40,7 +40,7 @@ end
 function apply_gates(
         circuit::Vector{<:ITensor},
         ψ_bpc::BeliefPropagationCache;
-        gate_vertices::Vector = vertices.((network(ψ_bpc),), circuit),
+        gate_vertices::Vector = vertices.(circuit, (network(ψ_bpc),)),
         apply_kwargs = (;),
         bp_update_kwargs = default_bp_update_kwargs(ψ_bpc),
         update_cache = true,
