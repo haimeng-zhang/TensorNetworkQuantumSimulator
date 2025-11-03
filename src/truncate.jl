@@ -1,6 +1,6 @@
 default_truncate_alg(tns::TensorNetworkState) = nothing
 
-function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff::Number = nothing)
+function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff = nothing)
     bpc = copy(bpc)
     s = siteinds(network(bpc))
     apply_kwargs = (; maxdim, cutoff)
@@ -12,7 +12,7 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
     return bpc
 end
 
-function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff::Number = nothing)
+function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff = nothing)
     bmps_cache = copy(bmps_cache)
     s = siteinds(network(bmps_cache))
     apply_kwargs = (; maxdim, cutoff)
