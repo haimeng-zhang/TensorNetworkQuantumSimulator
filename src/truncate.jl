@@ -21,7 +21,7 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
     else
         for e in edges(bpc)
             g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
-            apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+            apply_gate!(adapt(dtype)(g1 * g2), bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
             bpc = update(bpc; bp_update_kwargs...)
         end
     end
