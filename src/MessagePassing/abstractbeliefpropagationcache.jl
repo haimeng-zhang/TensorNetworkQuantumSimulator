@@ -82,7 +82,9 @@ end
 
 function messages(bp_cache::AbstractBeliefPropagationCache, edges::Vector{<:AbstractEdge})
     isempty(edges) && return ITensor[]
-    return reduce(vcat, [message(bp_cache, e) for e in edges])
+    ms = reduce(vcat, ITensor[message(bp_cache, e) for e in edges])
+    ms isa Vector{<:ITensor} && return ms
+    return ITensor[ms]
 end
 
 function setmessages!(bp_cache::AbstractBeliefPropagationCache, edges, messages)
