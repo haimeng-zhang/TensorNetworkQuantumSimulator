@@ -53,6 +53,7 @@ for f in [
         :(NamedGraphs.ordered_vertices),
         :(NamedGraphs.vertex_positions),
         :(NamedGraphs.steiner_tree),
+        :(NamedGraphs.is_tree),
     ]
     @eval begin
         function $f(bp_cache::AbstractBeliefPropagationCache, args...; kwargs...)

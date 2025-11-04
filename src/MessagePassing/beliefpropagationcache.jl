@@ -174,6 +174,7 @@ function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:NamedEdge}
 
     row_combiner, col_combiner = ITensors.combiner(e_virtualinds), ITensors.combiner(e_virtualinds_sim)
     t = t * row_combiner * col_combiner
+    t = adapt(Vector{ComplexF64})(t)
     t = ITensors.NDTensors.array(t)
     λs = reverse(sort(LinearAlgebra.eigvals(t); by = abs))
     err = 1.0 - abs(λs[1]) / sum(abs.(λs))
