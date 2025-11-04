@@ -177,7 +177,7 @@ function loop_correlation(bpc::BeliefPropagationCache, loop::Vector{<:NamedEdge}
     t = adapt(Vector{ComplexF64})(t)
     t = ITensors.NDTensors.array(t)
     λs = reverse(sort(LinearAlgebra.eigvals(t); by = abs))
-    err = 1.0 - abs(λs[1]) / sum(abs.(λs))
+    err = 1 - abs(λs[1]) / sum(abs.(λs))
     return err
 end
 
@@ -190,4 +190,8 @@ function loop_correlations(bpc::BeliefPropagationCache, smallest_loop_size::Inte
         corrs = append!(corrs, loop_correlation(bpc, loop[1:(length(loop) - 1)], reverse(last(loop)); kwargs...))
     end
     return corrs
+end
+
+function loop_correlations(tn::AbstractTensorNetwork, smallest_loop_size::Integer; bp_update_kwargs = default_bp_update_kwargs(tn), kwargs...)
+    return loop_correlations(update(BeliefPropagationCache(tn); bp_update_kwargs...), smallest_loop_size; kwargs...)
 end
