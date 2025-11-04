@@ -6,7 +6,7 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
     bpc = copy(bpc)
     s = siteinds(network(bpc))
     apply_kwargs = (; maxdim, cutoff)
-
+    dtype = datatype(bpc)
     if edge_color
         g = graph(network(bpc))
         z = maximum([degree(g, v) for v in vertices(g)])
@@ -14,14 +14,14 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
         for eg in edge_groups
             for e in eg
                 g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)] ]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)] ])
-                apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+                apply_gate!(adapt(dtype)(g1 * g2), bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
             end
             bpc = update(bpc; bp_update_kwargs...)
         end
     else
         for e in edges(bpc)
             g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
-            apply_gate!(g1 * g2, bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+            apply_gate!(adapt(dtype)(g1 * g2), bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
             bpc = update(bpc; bp_update_kwargs...)
         end
     end
@@ -32,7 +32,7 @@ function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff
     bmps_cache = copy(bmps_cache)
     s = siteinds(network(bmps_cache))
     apply_kwargs = (; maxdim, cutoff)
-
+    dtype = datatype(bmps_cache)
     ps = sort(partitionvertices(supergraph(bmps_cache)); by = v -> parent(v))
     for (i, p) in enumerate(ps)
         g = partition_graph(bmps_cache, p)
@@ -42,7 +42,7 @@ function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff
         for e in reverse.(reverse(seq))
             g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
             envs = incoming_messages(bmps_cache, [src(e), dst(e)])
-            ρv1, ρv2 = full_update(g1 * g2, network(bmps_cache), [src(e), dst(e)]; envs, apply_kwargs...)
+            ρv1, ρv2 = full_update(adapt(dtype)(g1 * g2), network(bmps_cache), [src(e), dst(e)]; envs, apply_kwargs...)
             setindex_preserve!(bmps_cache, normalize(ρv1), src(e))
             setindex_preserve!(bmps_cache, normalize(ρv2), dst(e))
             update_partition!(bmps_cache, [e])

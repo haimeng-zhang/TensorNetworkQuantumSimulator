@@ -53,6 +53,7 @@ for f in [
         :(NamedGraphs.ordered_vertices),
         :(NamedGraphs.vertex_positions),
         :(NamedGraphs.steiner_tree),
+        :(NamedGraphs.is_tree),
     ]
     @eval begin
         function $f(bp_cache::AbstractBeliefPropagationCache, args...; kwargs...)
@@ -81,7 +82,9 @@ end
 
 function messages(bp_cache::AbstractBeliefPropagationCache, edges::Vector{<:AbstractEdge})
     isempty(edges) && return ITensor[]
-    return reduce(vcat, [message(bp_cache, e) for e in edges])
+    ms = reduce(vcat, [message(bp_cache, e) for e in edges])
+    ms isa ITensor && return ITensor[ms]
+    return ms
 end
 
 function setmessages!(bp_cache::AbstractBeliefPropagationCache, edges, messages)
