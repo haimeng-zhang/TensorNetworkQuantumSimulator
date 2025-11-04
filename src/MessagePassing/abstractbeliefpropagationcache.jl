@@ -1,7 +1,7 @@
 using Graphs: Graphs
 using Adapt
 
-abstract type AbstractBeliefPropagationCache{V} <: AbstractGraph{V} end
+abstract type AbstractBeliefPropagationCache{V} <: AbstractNamedGraph{V} end
 
 #Interface
 messages(bp_cache::AbstractBeliefPropagationCache) = not_implemented()
@@ -36,19 +36,23 @@ network(bp_cache::AbstractBeliefPropagationCache) = not_implemented()
 
 #Forward onto the network
 for f in [
-        :(Graphs.vertices),
-        :(Graphs.edges),
-        :(Graphs.is_tree),
-        :(NamedGraphs.GraphsExtensions.boundary_edges),
+        :(graph),
         :(bp_factors),
         :(default_bp_maxiter),
-        :(ITensorNetworks.linkinds),
-        :(ITensorNetworks.underlying_graph),
+        :(virtualinds),
         :(ITensors.datatype),
-        :(ITensors.scalartype),
-        :(ITensorNetworks.setindex_preserve_graph!),
-        :(ITensorNetworks.maxlinkdim),
+        :(ITensors.NDTensors.scalartype),
+        :(maxvirtualdim),
         :(default_message),
+        :(siteinds),
+        :(setindex_preserve!),
+        :(NamedGraphs.edgetype),
+        :(NamedGraphs.vertices),
+        :(NamedGraphs.edges),
+        :(NamedGraphs.position_graph),
+        :(NamedGraphs.ordered_vertices),
+        :(NamedGraphs.vertex_positions),
+        :(NamedGraphs.steiner_tree),
     ]
     @eval begin
         function $f(bp_cache::AbstractBeliefPropagationCache, args...; kwargs...)
@@ -215,7 +219,7 @@ end
 function map_factors(f, bp_cache::AbstractBeliefPropagationCache, vs = vertices(bp_cache))
     bp_cache = copy(bp_cache)
     for v in vs
-        setindex_preserve_graph!(bp_cache, f(network(bp_cache)[v]), v)
+        setindex_preserve!(bp_cache, f(network(bp_cache)[v]), v)
     end
     return bp_cache
 end
