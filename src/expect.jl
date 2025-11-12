@@ -141,10 +141,11 @@ function expect(
         cache_update_kwargs = default_bmps_update_kwargs(ψ),
         partition_by = boundarymps_partitioning(observable),
         mps_bond_dimension::Integer,
+        gauge_state = true,
         kwargs...,
     )
 
-    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by)
+    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by, gauge_state)
     cache_update_kwargs = (; cache_update_kwargs..., maxiter = default_bp_maxiter(ψ_bmps))
     ψ_bmps = update(ψ_bmps; cache_update_kwargs...)
 

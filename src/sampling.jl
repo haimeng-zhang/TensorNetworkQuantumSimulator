@@ -156,7 +156,7 @@ function sample_certified(ψ::TensorNetworkState, nsamples::Int; alg = "boundary
     algorithm_check(ψ, "sample", alg)
     probs_and_bitstrings, ψ = sample(Algorithm(alg), ψ, nsamples; kwargs...)
     # send the bitstrings and the logq to the certification function
-    return certify_samples(ψ, probs_and_bitstrings; alg, certification_mps_bond_dimension, certification_cache_message_update_kwargs, symmetrize_and_normalize = false)
+    return certify_samples(ψ, probs_and_bitstrings; alg, certification_mps_bond_dimension, certification_cache_message_update_kwargs, gauge_state = false)
 end
 
 function get_one_sample(
@@ -255,9 +255,9 @@ function certify_sample(
         ψ::TensorNetworkState, bitstring, logq::Number;
         certification_mps_bond_dimension::Integer,
         certification_cache_message_update_kwargs = (;),
-        symmetrize_and_normalize = true,
+        gauge_state = true,
     )
-    if symmetrize_and_normalize
+    if gauge_state
         ψ = gauge_and_scale(ψ)
     end
 
