@@ -10,7 +10,7 @@ function sample(
 )
     bp_cache = update(BeliefPropagationCache(ψ); bp_update_kwargs...)
     if gauge_state
-        bp_cache = symmetrize_and_bpnormalize(bp_cache)
+        bp_cache = symmetrize_and_normalize(bp_cache)
     end
 
     #Generate the bit_strings moving left to right through the network
