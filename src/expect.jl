@@ -68,7 +68,7 @@ function expect(
     incoming_ms = incoming_messages(cache, steiner_vs)
     ψIψ_tensors = norm_factors(network(cache), steiner_vs)
     append!(ψIψ_tensors, incoming_ms)
-    denom_seq = contraction_sequence(ψIψ_tensors; alg = "optimal")
+    denom_seq = contraction_sequence(ψIψ_tensors; alg = "optimal", prune_tensors = true)
     denom = contract(ψIψ_tensors; sequence = denom_seq)[]
 
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
@@ -76,7 +76,7 @@ function expect(
     #TODO: If there are a lot of tensors here, (more than 100 say), we need to think about defining a custom sequence as optimal may be too slow
     ψOψ_tensors = norm_factors(network(cache), steiner_vs; op_strings = op_string_f)
     append!(ψOψ_tensors, incoming_ms)
-    numer_seq = contraction_sequence(ψOψ_tensors; alg = "optimal")
+    numer_seq = contraction_sequence(ψOψ_tensors; alg = "optimal", prune_tensors = true)
     numer = contract(ψOψ_tensors; sequence = numer_seq)[]
 
     return coeff * numer / denom
