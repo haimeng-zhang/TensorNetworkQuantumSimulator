@@ -66,7 +66,7 @@ function main()
 
     #Sample from q(x) and get p(x) / q(x) for each sample too
     nsamples = 50
-    bitstrings = TN.sample_directly_certified(ψ, nsamples; norm_mps_bond_dimension = mps_bond_dimension)
+    bitstrings = TN.sample_directly_certified(ψ, nsamples; alg = "boundarymps", norm_mps_bond_dimension = mps_bond_dimension)
 
     st_dev = Statistics.std(first.(bitstrings))
     println("Standard deviation of p(x) / q(x) is $(st_dev)")
