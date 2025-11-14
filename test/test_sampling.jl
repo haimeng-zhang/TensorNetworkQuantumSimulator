@@ -23,6 +23,7 @@ using Test: @testset, @test
     #Random entangled state on square grid
     g = named_grid((3,3))
     ψ = TN.random_tensornetworkstate(ComplexF64, g; bond_dimension = 2)
+    #Set BP norm to 1 (sample will do this automatically unless you state gauge_and_scale = false)
     ψ = TN.gauge_and_scale(ψ)
     samples = TN.sample_certified(ψ, 10; norm_mps_bond_dimension = 4, projected_mps_bond_dimension = 4, gauge_and_scale = false)
     p_qs = first.(samples)
