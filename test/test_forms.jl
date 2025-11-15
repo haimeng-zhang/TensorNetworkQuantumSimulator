@@ -8,7 +8,7 @@ using Test: @testset, @test
 
 @testset "Test forms" begin
     Random.seed!(123)
-    g = named_grid((3,3))
+    g = named_grid((3, 3))
     s = TN.siteinds("S=1/2", g)
 
     #Quadratic Form
@@ -29,12 +29,12 @@ using Test: @testset, @test
     end
 
     #BiLinear Form
-    g = named_comb_tree((3,3))
+    g = named_comb_tree((3, 3))
     s = TN.siteinds("S=1/2", g)
     for eltype in [Float32, Float64, ComplexF32, ComplexF64]
         ψ = TN.random_tensornetworkstate(eltype, g, s; bond_dimension = 3)
         ϕ = TN.random_tensornetworkstate(eltype, g, s; bond_dimension = 4)
-        ψ,ϕ = TN.normalize(ψ; alg = "bp"), TN.normalize(ϕ; alg = "bp")
+        ψ, ϕ = TN.normalize(ψ; alg = "bp"), TN.normalize(ϕ; alg = "bp")
         ψϕ = TN.BilinearForm(ψ, ϕ)
         @test ψϕ isa TN.BilinearForm
         @test TN.scalartype(ψϕ) == eltype

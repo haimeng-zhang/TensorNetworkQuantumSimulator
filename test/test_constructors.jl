@@ -14,17 +14,17 @@ using Test: @testset, @test
     Random.seed!(123)
 
     #TensorNetwork construction from tensors
-    i,j,k,l = Index(2), Index(2), Index(2), Index(2)
-    A,B,C,D = ITensors.random_itensor(i,j), ITensors.random_itensor(j,k), ITensors.random_itensor(k,l), ITensors.random_itensor(l,i)
-    t = TN.TensorNetwork([A,B,C,D])
+    i, j, k, l = Index(2), Index(2), Index(2), Index(2)
+    A, B, C, D = ITensors.random_itensor(i, j), ITensors.random_itensor(j, k), ITensors.random_itensor(k, l), ITensors.random_itensor(l, i)
+    t = TN.TensorNetwork([A, B, C, D])
     @test t isa TN.TensorNetwork
     @test TN.scalartype(t) == eltype(A)
     @test TN.maxvirtualdim(t) == 2
     @test TN.graph(t) isa NamedGraph
-    @test TN.graph(t) == add_edge(named_path_graph(4), 1=>4)
+    @test TN.graph(t) == add_edge(named_path_graph(4), 1 => 4)
 
     #TensorNetwork pre-defined constructor
-    g = named_hexagonal_lattice_graph(3,3)
+    g = named_hexagonal_lattice_graph(3, 3)
     χ = 3
     for eltype in [Float32, Float64, ComplexF32, ComplexF64]
         ψ = TN.random_tensornetwork(eltype, g; bond_dimension = χ)

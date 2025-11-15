@@ -56,10 +56,10 @@ function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMP
 end
 
 function expect(
-    alg::Algorithm"bp",
-    cache::BeliefPropagationCache,
-    obs::Tuple;
-)
+        alg::Algorithm"bp",
+        cache::BeliefPropagationCache,
+        obs::Tuple
+    )
     op_strings, obs_vs, coeff = collectobservable(obs)
     iszero(coeff) && return 0
 
@@ -83,11 +83,11 @@ function expect(
 end
 
 function expect(
-alg::Algorithm"boundarymps",
-cache::BoundaryMPSCache,
-obs::Tuple;
-bmps_messages_up_to_date = false,
-)
+        alg::Algorithm"boundarymps",
+        cache::BoundaryMPSCache,
+        obs::Tuple;
+        bmps_messages_up_to_date = false,
+    )
     op_strings, obs_vs, coeff = collectobservable(obs)
     iszero(coeff) && return 0
 

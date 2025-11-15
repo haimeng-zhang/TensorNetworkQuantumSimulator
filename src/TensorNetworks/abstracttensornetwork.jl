@@ -78,8 +78,8 @@ function insert_virtualinds!(tn::AbstractTensorNetwork)
         if isempty(ITensors.commoninds(tn[src(e)], tn[dst(e)]))
             l = Index(1)
             p = adapt(dtype)(onehot(l => 1))
-            TN.setindex_preserve!(tn, tn[src(e)]*p, src(e))
-            TN.setindex_preserve!(tn, tn[dst(e)]*p, dst(e))
+            TN.setindex_preserve!(tn, tn[src(e)] * p, src(e))
+            TN.setindex_preserve!(tn, tn[dst(e)] * p, dst(e))
         end
     end
     return tn
@@ -111,8 +111,8 @@ function combine_virtualinds!(tn::AbstractTensorNetwork)
         vinds = ITensors.commoninds(tn[src(e)], tn[dst(e)])
         if length(vinds) > 1
             C = adapt(dtype)(ITensors.combiner(vinds))
-            setindex_preserve!(tn, tn[src(e)]*C, src(e))
-            setindex_preserve!(tn, tn[dst(e)]*C, dst(e))
+            setindex_preserve!(tn, tn[src(e)] * C, src(e))
+            setindex_preserve!(tn, tn[dst(e)] * C, dst(e))
         end
     end
     return tn

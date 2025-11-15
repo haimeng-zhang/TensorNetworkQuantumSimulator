@@ -10,9 +10,9 @@ using Test: @testset, @test
 
 @testset "Test BP" begin
     Random.seed!(123)
-    g = named_comb_tree((3,3))
+    g = named_comb_tree((3, 3))
 
-    #BP Cache 
+    #BP Cache
     for eltype in [Float32, Float64, ComplexF32, ComplexF64]
         ψ = TN.random_tensornetwork(eltype, g; bond_dimension = 2)
         ψ_BPC = TN.BeliefPropagationCache(ψ)
@@ -31,7 +31,7 @@ using Test: @testset, @test
         @test z_bp ≈ TN.contract(ψ; alg = "bp")
     end
 
-    #BP Cache 
+    #BP Cache
     s = TN.siteinds("S=1", g)
     for eltype in [Float32, Float64, ComplexF32, ComplexF64]
         ψ = TN.random_tensornetworkstate(eltype, g; bond_dimension = 2)

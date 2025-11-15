@@ -12,7 +12,7 @@ using Test: @testset, @test
 
 
 @testset "Test Expect" begin
-    nx, ny = 4,4
+    nx, ny = 4, 4
     χ = 2
 
     gs = [
@@ -30,7 +30,7 @@ using Test: @testset, @test
         if is_tree(g)
             @test sz_bp ≈ sz_exact
         else
-            @test sz_bp != sz_exact   
+            @test sz_bp != sz_exact
         end
 
         Rmps = 16
@@ -41,7 +41,7 @@ using Test: @testset, @test
         if !is_tree(g)
             v_centre_neighbor = first(neighbors(g, v_centre))
             sz_exact = TN.expect(ψ, ("ZZ", [v_centre, v_centre_neighbor]); alg = "exact")
-            sz_boundarymps = TN.expect(ψ,("ZZ", [v_centre, v_centre_neighbor]);alg = "boundarymps", mps_bond_dimension = Rmps)
+            sz_boundarymps = TN.expect(ψ, ("ZZ", [v_centre, v_centre_neighbor]); alg = "boundarymps", mps_bond_dimension = Rmps)
 
             @test sz_boundarymps ≈ sz_exact
         end

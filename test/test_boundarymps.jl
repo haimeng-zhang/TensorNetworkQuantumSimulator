@@ -10,9 +10,9 @@ using Test: @testset, @test
 
 @testset "Test BoundaryMPS" begin
     Random.seed!(123)
-    g = named_grid((3,3))
+    g = named_grid((3, 3))
 
-    #BMPS Cache 
+    #BMPS Cache
     for eltype in [Float32, Float64, ComplexF32, ComplexF64]
         ψ = TN.random_tensornetwork(eltype, g; bond_dimension = 2)
         ψ_BMPS = TN.BoundaryMPSCache(ψ, 4)
@@ -28,7 +28,7 @@ using Test: @testset, @test
         @test z_bmps ≈ TN.contract(ψ; alg = "boundarymps", mps_bond_dimension = 4)
     end
 
-    #BMPS Cache 
+    #BMPS Cache
     s = TN.siteinds("S=1", g)
     for eltype in [Float32, Float64, ComplexF32, ComplexF64]
         ψ = TN.random_tensornetworkstate(eltype, g; bond_dimension = 2)

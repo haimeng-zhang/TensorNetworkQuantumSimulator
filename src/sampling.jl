@@ -1,13 +1,13 @@
 using StatsBase
 
 function sample(
-    alg::Algorithm"bp",
-    ψ::TensorNetworkState,
-    nsamples::Integer;
-    bp_update_kwargs = (;),
-    gauge_state = true,
-    kwargs...,
-)
+        alg::Algorithm"bp",
+        ψ::TensorNetworkState,
+        nsamples::Integer;
+        bp_update_kwargs = (;),
+        gauge_state = true,
+        kwargs...,
+    )
     bp_cache = update(BeliefPropagationCache(ψ); bp_update_kwargs...)
     if gauge_state
         bp_cache = symmetrize_and_normalize(bp_cache)
@@ -35,11 +35,11 @@ function sample(
             P = adapt(datatype(ρ))(onehot(s_ind => config))
             setindex_preserve!(projected_bp_cache, ψv * P, v)
 
-            if v!= last(vertices(ψ))
+            if v != last(vertices(ψ))
                 projected_bp_cache = update(projected_bp_cache; bp_update_kwargs...)
             end
         end
-        push!(probs_and_bitstrings, (bitstring = bit_string, ))
+        push!(probs_and_bitstrings, (bitstring = bit_string,))
     end
 
     return probs_and_bitstrings, ψ
