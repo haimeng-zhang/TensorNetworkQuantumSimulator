@@ -1,6 +1,6 @@
 @eval module $(gensym())
 using Dictionaries: Dictionary
-using ITensors: ITensors, Index, inds
+using ITensors: ITensors, Index, dag, inds, prime
 using NamedGraphs: NamedGraph, vertices, degree, rem_vertex!
 using NamedGraphs.GraphsExtensions: rem_vertex, add_edge
 using NamedGraphs.NamedGraphGenerators: named_grid, named_comb_tree, named_hexagonal_lattice_graph, named_path_graph
@@ -33,6 +33,10 @@ using Test: @testset, @test
         @test TN.graph(ψ) == g
         @test TN.maxvirtualdim(ψ) == 3
         @test all([length(inds(ψ[v])) == degree(g, v) for v in vertices(ψ)])
+
+        ψdag = TN.map_virtualinds(prime, TN.map_tensors(dag, ψ))
+        @test ψdag isa TN.TensorNetwork
+        @test ITensors.contract(ψdag; alg = "exact") ≈ conj(ITensors.contract(ψ; alg = "exact"))
 
         v = first(vertices(g))
         rem_vertex!(ψ, v)
