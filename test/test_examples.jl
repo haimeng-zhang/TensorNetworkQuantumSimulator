@@ -1,5 +1,5 @@
 @eval module $(gensym())
-using TensorNetworkQuantumSimulator: TensorNetworkQuantumSimulator
+using TensorNetworkQuantumSimulator
 using Test: @testset
 
 @testset "Test examples" begin
