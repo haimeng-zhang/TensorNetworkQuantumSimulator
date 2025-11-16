@@ -65,6 +65,12 @@ using Test: @testset, @test
         @test all([length(inds(ψ[v])) == degree(g, v) + 1 for v in vertices(ψ)])
     end
 
+    #Test GHZ state constructor
+    ψ1, ψ2 = tensornetworkstate(Float64, v -> "↑", g, s), tensornetworkstate(Float64, v -> "↓", g, s)
+    ψGHZ = ψ1 + ψ2
+    @test ψGHZ isa TensorNetworkState
+    @test maxvirtualdim(ψGHZ) == 2
+
 end
 
 end

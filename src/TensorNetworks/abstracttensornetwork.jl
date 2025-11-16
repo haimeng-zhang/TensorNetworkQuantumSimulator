@@ -122,3 +122,48 @@ function combine_virtualinds(tn::AbstractTensorNetwork)
     tn = copy(tn)
     return combine_virtualinds!(tn)
 end
+
+"""Add two tensornetworks together. The network structures need to be have the same graph structure"""
+function add(tn1::AbstractTensorNetwork, tn2::AbstractTensorNetwork)
+    @assert graph(tn1) == graph(tn2)
+
+    if tn1 isa TensorNetworkState && tn2 isa TensorNetworkState
+        @assert siteinds(tn1) == siteinds(tn2)
+    else
+        @assert tn1 isa TensorNetwork && tn2 isa TensorNetwork
+    end
+
+    es = edges(tn1)
+    tn12 = copy(tn1)
+    new_edge_indices = Dict(
+        zip(
+            es,
+            [
+                Index(
+                        dim(only(virtualinds(tn1, e))) + dim(only(virtualinds(tn2, e))),
+                    ) for e in es
+            ],
+        ),
+    )
+
+    #Create vertices of tn12 as direct sum of tn1[v] and tn2[v]. Work out the matching indices by matching edges. Make index tags those of tn1[v]
+    for v in vertices(tn1)
+        es_v = filter(x -> src(x) == v || dst(x) == v, es)
+
+        tn1v_linkinds = Index[only(virtualinds(tn1, e)) for e in es_v]
+        tn2v_linkinds = Index[only(virtualinds(tn2, e)) for e in es_v]
+        tn12v_linkinds = Index[new_edge_indices[e] for e in es_v]
+
+        setindex_preserve!(
+            tn12, ITensors.directsum(
+                tn12v_linkinds,
+                tn1[v] => Tuple(tn1v_linkinds),
+                tn2[v] => Tuple(tn2v_linkinds)
+            ), v
+        )
+    end
+
+    return tn12
+end
+
+Base.:+(tn1::AbstractTensorNetwork, tn2::AbstractTensorNetwork) = add(tn1, tn2)
