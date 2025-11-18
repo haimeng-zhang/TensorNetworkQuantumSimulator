@@ -101,5 +101,6 @@ export
     vertextype,
     nv,
     heavy_hexagonal_lattice,
-    rescale
+    rescale,
+    entanglement
 end
