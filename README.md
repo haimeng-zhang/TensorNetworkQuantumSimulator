@@ -14,7 +14,7 @@ julia> using TensorNetworkQuantumSimulator
 julia> g = named_grid((5,5))
 ```
 
-will construct you a 5 x 5 square lattice graph.
+will construct you a 5 x 5 square lattice.
 
 
 The vertices of this graph will then correspond to the qubits (or qutrits or bosonic lattice sites) in your setup and the edges the pairs of qubits that directly interact in your system (e.g. those that can have two-site gates applied to them). 
