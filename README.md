@@ -1,10 +1,10 @@
 # TensorNetworkQuantumSimulator
 
-A package for simulating quantum circuits and quantum dynamics with tensor networks (TNs) of near-arbitrary geometry. This package is built on top of [ITensors](https://github.com/ITensor/ITensors.jl) and [NamedGraphs](https://github.com/ITensor/NamedGraphs.jl).
+A package for simulating quantum circuits, quantum dynamics and equilibrium physics with tensor networks (TNs) of near-arbitrary geometry. This package is built on top of [ITensors](https://github.com/ITensor/ITensors.jl) and [NamedGraphs](https://github.com/ITensor/NamedGraphs.jl).
 
 The main workhorses of the simulation are _belief propagation_ (BP) and the _Singular Value Decomposition_ for applying gates, and _BP_ or _boundary MPS_ for estimating expectation values and sampling. 
 
-# Workflow
+# How to use the package
 
 The starting point of most calculations is that you will define a `NamedGraph` object `g` that encodes the geometry of your problem and how you want your tensor network structured. This is just a list of vertices and edges between pairs of vertices. Convenient constructors for a number of lattices, such as regular 1/2/3D grids, hexagonal lattices etc are provided, for instance:
 
