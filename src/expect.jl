@@ -220,16 +220,7 @@ function collectobservable(obs::Tuple, g::NamedGraph)
     return op_strings, verts, coeff
 end
 
-function observables_vertices(obs::Tuple, g::NamedGraph)
-    vt = vertextype(g)
-    vs = obs[2]
-    vs isa vt && return [vs]
-    vs = [v for v in vs]
-
-    !all([v isa vt for v in vs]) && error("Vertices do not match the vertex type of the tensor network")
-    length(unique(vs)) != length(vs) && error("Can't have multiple operators on the same vertex. Combine it into one operator.")
-    return vs
-end
+observables_vertices(observable::Tuple, g::NamedGraph) = collect_vertices(observable[2], g)
 observables_vertices(observables::Vector{<:Tuple}, g::NamedGraph) = unique(reduce(vcat, [observables_vertices(obs, g) for obs in observables]))
 
 function boundarymps_partitioning(observable::Union{Tuple, Vector{<:Tuple}}, g::NamedGraph)

@@ -89,3 +89,22 @@ function safe_eigen(m::ITensor, args...; kwargs...)
         return adapt(dtype)(D), adapt(dtype)(U)
     end
 end
+
+function collect_vertices(verts, g::NamedGraph)
+    vt = vertextype(g)
+    verts isa vt && return [verts]
+    verts isa NamedEdge && return [src(verts), dst(verts)]
+    collected_verts = vt[]
+    for v in verts
+        if v isa vt
+            push!(collected_verts, v)
+        elseif v isa NamedEdge
+            append!(collected_verts, [src(e), dst(e)])
+        else
+            error("Vertex does not match the vertex type of the tensor network")
+        end
+    end
+
+    length(unique(collected_verts)) != length(collected_verts) && error("Repeated vertex in collection")
+    return collected_verts
+end
