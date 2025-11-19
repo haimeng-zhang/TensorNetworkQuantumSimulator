@@ -27,7 +27,7 @@ function apply_gates(
         ψ_bpc::BeliefPropagationCache;
         kwargs...,
     )
-    gate_vertices = [_tovec(gate[2]) for gate in circuit]
+    gate_vertices = [_tovec(gate[2], graph(ψ_bpc)) for gate in circuit]
     circuit = toitensor(circuit, siteinds(network(ψ_bpc)))
     return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
 end

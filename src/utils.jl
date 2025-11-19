@@ -89,3 +89,6 @@ function safe_eigen(m::ITensor, args...; kwargs...)
         return adapt(dtype)(D), adapt(dtype)(U)
     end
 end
+
+_tovec(verts, g::NamedGraph) = verts isa vertextype(g) ? [verts] : collect(verts)
+_tovec(verts::NamedEdge, g::NamedGraph) = [src(verts), dst(verts)]
