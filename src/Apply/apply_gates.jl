@@ -1,3 +1,5 @@
+const apply_circuit = apply_gates
+
 """
     apply_gates(circuit::Vector, ψ::Union{TensorNetworkState, BeliefPropagationCache}; bp_update_kwargs = default_bp_update_kwargs(ψ), kwargs...)
     Apply a sequence of gates, via simple update, to a `TensorNetworkState` or a `BeliefPropagationCache`` wrapping a `TensorNetworkState`` using Belief Propagation to update the environment.
@@ -27,7 +29,7 @@ function apply_gates(
         ψ_bpc::BeliefPropagationCache;
         kwargs...,
     )
-    gate_vertices = [_tovec(gate[2], graph(ψ_bpc)) for gate in circuit]
+    gate_vertices = [collect_vertices(gate[2], graph(ψ_bpc)) for gate in circuit]
     circuit = toitensor(circuit, siteinds(network(ψ_bpc)))
     return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
 end

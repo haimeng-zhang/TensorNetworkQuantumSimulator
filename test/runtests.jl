@@ -7,5 +7,6 @@ using Test
     include("test_expect.jl")
     include("test_boundarymps.jl")
     include("test_beliefpropagation.jl")
+    include("test_apply.jl")
     include("test_sampling.jl")
 end

@@ -38,6 +38,7 @@ export
     add_edge,
     degree,
     apply_gates,
+    apply_circuit,
     rem_vertex!,
     truncate,
     expect,
