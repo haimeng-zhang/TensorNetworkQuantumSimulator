@@ -1,5 +1,3 @@
-const apply_circuit = apply_gates
-
 """
     apply_gates(circuit::Vector, ψ::Union{TensorNetworkState, BeliefPropagationCache}; bp_update_kwargs = default_bp_update_kwargs(ψ), kwargs...)
     Apply a sequence of gates, via simple update, to a `TensorNetworkState` or a `BeliefPropagationCache`` wrapping a `TensorNetworkState`` using Belief Propagation to update the environment.
@@ -129,3 +127,5 @@ function _cacheupdate_check(affected_indices::Set, gate::ITensor; inds_per_site 
     length(indices) == 4 * inds_per_site && any(ind in affected_indices for ind in indices) && return true
     return false
 end
+
+const apply_circuit = apply_gates
