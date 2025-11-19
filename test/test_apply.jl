@@ -5,7 +5,7 @@ using TensorNetworkQuantumSimulator
 using Test: @testset, @test
 
 
-@testset "Test BP" begin
+@testset "Test Apply Circuit" begin
     Random.seed!(123)
     g = named_grid((3, 3))
 
