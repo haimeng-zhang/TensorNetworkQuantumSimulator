@@ -35,7 +35,7 @@ using Test: @testset, @test
 
     @test ψ isa TensorNetworkState
     @test scalartype(ψ) == scalartype(ψ0)
-    @test maxvirtualdim(ψ) <= 4
+    @test maxvirtualdim(ψ) <= 2
     @test norm_sqr(ψ; alg = "exact") ≈ 1.0
 end
 
