@@ -442,8 +442,9 @@ function generic_apply(O::MPO, M::MPS; normalize = true, kwargs...)
     loop_edges = filter(p -> !isempty(commoninds(O_tensors[first(p)], O_tensors[last(p)])) && abs(first(p) - last(p)) != 1, pairs)
     for (i, j) in loop_edges
         inbetween_vertices = [k for k in (i + 1):(j - 1)]
+        edge_to_split = (i,j)
         for k in inbetween_vertices
-            cind = only(commoninds(O_tensors[i], O_tensors[j]))
+            cind = only(commoninds(O_tensors[first(edge_to_split)], O_tensors[last(edge_to_split)]))
             d = adapt(datatype(O_tensors[k]))(denseblocks(delta(cind, cind')))
             O_tensors[j] *= d
             O_tensors[k] *= d
