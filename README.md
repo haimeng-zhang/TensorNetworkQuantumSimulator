@@ -108,12 +108,19 @@ Helpful reading for understanding the machinery inside the library and the kind 
 - [Dynamics of disordered quantum systems with two- and three-dimensional tensor networks](https://arxiv.org/abs/2503.05693)
 - [Simulating and sampling quantum circuits with 2D tensor networks](https://arxiv.org/abs/2507.11424)
 
-If you use this library in your research paper please cite, at minimum, the following
+If you use this library in your research paper please cite, at minimum, either
 - [Simulating and sampling quantum circuits with 2D tensor networks](https://arxiv.org/abs/2507.11424)
+or 
+- [Gauging tensor networks with belief propagation](https://www.scipost.org/SciPostPhys.15.6.222?acad_field_slug=chemistry)
 
 ## Upcoming Features
 - Applying gates to distant nodes of the TN via SWAP gates.
 
-## Authors
+## Authors and acknowledgements
 The package was developed by Joseph Tindall ([JoeyT1994](https://github.com/JoeyT1994)), an Associate Research Scientist at the Center for Computational Quantum Physics, Flatiron Institute NYC and Manuel S. Rudolph ([MSRudolph](https://github.com/MSRudolph)), a PhD Candidate at EPFL, Switzerland, during a research stay at the Center for Computational Quantum Physics, Flatiron Institute NYC.
+
+The package was strongly influenced by [ITensorNetworks](https://github.com/ITensor/ITensorNetworks.jl), a general tensor network package developed by Matt Fishman ([mtfishman](https://github.com/mtfishman)), Joseph Tindall ([JoeyT1994](https://github.com/JoeyT1994)) and others. The next generation of ITensorNetworks is currently being developed [here](https://github.com/ITensor/ITensorNetworksNext.jl). A quantum simulation package such as this will hopefully then be able to utilize many of its general features for working with tensor networks. 
+
+
+
 
