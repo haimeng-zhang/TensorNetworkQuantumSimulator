@@ -6,6 +6,20 @@ using Test: @testset, @test
 
 
 @testset "Test Apply Circuit" begin
+
+    #Custom circuit
+    circuit = [("Rx", [(1, 1)], 0.5), ("Rx", [(2, 1)], 0.2), ("CPHASE", [(1, 1), (2, 1)], -0.3)]
+    g = build_graph_from_circuit(circuit)
+    ψ0 = tensornetworkstate(ComplexF32, v -> "↓", g)
+    apply_kwargs = (; maxdim = 2, cutoff = 1.0e-10, normalize_tensors = false)
+    ψ, _ = apply_circuit(circuit, ψ0; apply_kwargs, verbose = false)
+
+    @test ψ isa TensorNetworkState
+    @test scalartype(ψ) == scalartype(ψ0)
+    @test maxvirtualdim(ψ) <= 2
+    @test norm_sqr(ψ; alg = "exact") ≈ 1.0
+
+    #Ising circuit on a square grid
     Random.seed!(123)
     g = named_grid((3, 3))
 

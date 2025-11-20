@@ -103,5 +103,6 @@ export
     nv,
     heavy_hexagonal_lattice,
     rescale,
-    entanglement
+    entanglement,
+    build_graph_from_circuit
 end

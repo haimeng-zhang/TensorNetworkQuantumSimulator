@@ -108,3 +108,20 @@ function collect_vertices(verts, g::NamedGraph)
     length(unique(collected_verts)) != length(collected_verts) && error("Repeated vertex in collection")
     return collected_verts
 end
+
+
+#Given a circuit of two-site and 1-site gates, build the graph induced by the circuit
+#Entries in the circuit should be Tuple(gate_str, Vector{<:Vertices gate acts on}, optional param)
+function build_graph_from_gates(circ::Vector{<:Any})
+    g = NamedGraph(unique(reduce(vcat, [gate[2] for gate in circ])))
+    for gate in circ
+        qubits = gate[2]
+        if length(qubits) == 2
+            v1, v2 = first(qubits), last(qubits)
+            !has_edge(g, NamedEdge(v1 => v2)) && add_edge!(g, NamedEdge(v1 => v2))
+        end
+    end
+    return g
+end
+
+const build_graph_from_circuit = build_graph_from_gates
