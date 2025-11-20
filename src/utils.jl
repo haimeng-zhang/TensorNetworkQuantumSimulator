@@ -90,16 +90,30 @@ function safe_eigen(m::ITensor, args...; kwargs...)
     end
 end
 
+function collect_vertices(e::NamedEdge, g::NamedGraph)
+    return collect_vertices([src(e), dst(e)], g)
+end
+
+function collect_vertices(es::Vector{<:NamedEdge}, g::NamedGraph)
+    return reduce(vcat, [collect_vertices(e, g) for e in es])
+end
+
 function collect_vertices(verts, g::NamedGraph)
     vt = vertextype(g)
+
+    if vt == Any
+        if verts isa AbstractVector
+            return verts
+        else
+            return [verts]
+        end
+    end
+
     verts isa vt && return [verts]
-    verts isa NamedEdge && return [src(verts), dst(verts)]
     collected_verts = vt[]
     for v in verts
         if v isa vt
             push!(collected_verts, v)
-        elseif v isa NamedEdge
-            append!(collected_verts, [src(e), dst(e)])
         else
             error("Vertex does not match the vertex type of the tensor network")
         end
