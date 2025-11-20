@@ -102,13 +102,13 @@ function collect_vertices(verts, g::NamedGraph)
     vt = vertextype(g)
 
     if vt == Any
-        if verts isa AbstractVector 
+        if verts isa AbstractVector
             return verts
         else
             return [verts]
         end
     end
-    
+
     verts isa vt && return [verts]
     collected_verts = vt[]
     for v in verts
