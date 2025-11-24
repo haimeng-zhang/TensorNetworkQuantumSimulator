@@ -2,6 +2,13 @@ using SimpleGraphAlgorithms: SimpleGraphAlgorithms
 
 default_truncate_alg(tns::TensorNetworkState) = nothing
 
+function truncatable_edge(cache::AbstractBeliefPropagationCache, e::NamedEdge)
+    vinds = virtualinds(cache, e)
+    isempty(vinds) && return false
+    all([dim(vind) == 1 for vind in vinds]) && return false
+    return true
+end
+
 function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff = nothing, edge_color = true, normalize_tensors = true)
     bpc = copy(bpc)
     s = siteinds(network(bpc))
@@ -13,8 +20,10 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
         edge_groups = SimpleGraphAlgorithms.edge_color(g, z)
         for eg in edge_groups
             for e in eg
-                g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)] ]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)] ])
-                apply_gate!(adapt(dtype)(g1 * g2), bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+                if truncatable_edge(bpc, e)
+                    g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)] ]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)] ])
+                    apply_gate!(adapt(dtype)(g1 * g2), bpc; v⃗ = [src(e), dst(e)], apply_kwargs)
+                end
             end
             bpc = update(bpc; bp_update_kwargs...)
         end
@@ -40,7 +49,7 @@ function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff
         seq = a_star(g, last(leaves), first(leaves))
         !isempty(seq) && update_partition!(bmps_cache, seq)
         for e in reverse.(reverse(seq))
-            if !isempty(virtualinds(bmps_cache, e))
+            if truncatable_edge(bmps_cache, e)
                 g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
                 envs = incoming_messages(bmps_cache, [src(e), dst(e)])
                 ρv1, ρv2 = full_update(adapt(dtype)(g1 * g2), network(bmps_cache), [src(e), dst(e)]; envs, apply_kwargs...)
