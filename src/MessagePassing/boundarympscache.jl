@@ -149,6 +149,7 @@ function BoundaryMPSCache(
     end
     pseudo_edges = pseudo_planar_edges(tn; grouping_function)
     planar_graph = graph(tn)
+    #TODO: I don't like this - this modifies the original graph
     NamedGraphs.add_edges!(planar_graph, pseudo_edges)
     vertex_groups = group(grouping_function, collect(vertices(planar_graph)))
     vertex_groups = map(x -> sort(x; by = group_sorting_function), vertex_groups)
