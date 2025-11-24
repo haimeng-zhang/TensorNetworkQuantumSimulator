@@ -1,4 +1,4 @@
-using NamedGraphs.PartitionedGraphs: PartitionedGraph, partitions_graph, partitionvertices, PartitionEdge, partitionedges, partitionedge, PartitionVertex
+using NamedGraphs.PartitionedGraphs: PartitionedGraph, partitions_graph, partitionvertices, PartitionEdge, partitionedges, partitionedge, PartitionVertex, unpartitioned_graph
 using NamedGraphs: add_edges!
 using SplitApplyCombine: group
 
@@ -80,6 +80,7 @@ end
 network(bmps_cache::BoundaryMPSCache) = bmps_cache.network
 messages(bmps_cache::BoundaryMPSCache) = bmps_cache.messages
 supergraph(bmps_cache::BoundaryMPSCache) = bmps_cache.supergraph
+graph(bmps_cache::BoundaryMPSCache) = unpartitioned_graph(supergraph(bmps_cache))
 mps_bond_dimension(bmps_cache::BoundaryMPSCache) = bmps_cache.mps_bond_dimension
 sorted_edges(bmps_cache::BoundaryMPSCache) = bmps_cache.sorted_edges
 function sorted_edges(bmps_cache::BoundaryMPSCache, pe::PartitionEdge)
@@ -148,9 +149,9 @@ function BoundaryMPSCache(
         tn = gauge_and_scale(tn)
     end
     pseudo_edges = pseudo_planar_edges(tn; grouping_function)
-    planar_graph = graph(tn)
+    planar_graph = copy(graph(tn))
     #TODO: I don't like this - this modifies the original graph
-    NamedGraphs.add_edges!(planar_graph, pseudo_edges)
+    planar_graph = add_edges(planar_graph, pseudo_edges)
     vertex_groups = group(grouping_function, collect(vertices(planar_graph)))
     vertex_groups = map(x -> sort(x; by = group_sorting_function), vertex_groups)
     supergraph = PartitionedGraph(planar_graph, vertex_groups)

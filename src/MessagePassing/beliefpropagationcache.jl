@@ -21,6 +21,7 @@ end
 
 messages(bp_cache::BeliefPropagationCache) = bp_cache.messages
 network(bp_cache::BeliefPropagationCache) = bp_cache.network
+graph(bp_cache::BeliefPropagationCache) = graph(network(bp_cache))
 
 BeliefPropagationCache(network) = BeliefPropagationCache(network, default_messages())
 

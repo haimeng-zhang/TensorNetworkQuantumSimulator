@@ -70,7 +70,6 @@ function ITensors.truncate(alg::Algorithm"bp", tns::TensorNetworkState; kwargs..
 end
 
 function ITensors.truncate(alg::Algorithm"boundarymps", tns::TensorNetworkState; mps_bond_dimension::Integer, gauge_state = true, kwargs...)
-    original_g = graph(tns)
     tns = copy(tns)
     bmps_cache = BoundaryMPSCache(tns, mps_bond_dimension; partition_by = "row", gauge_state)
     leaves = leaf_vertices(partitions_graph(supergraph(bmps_cache)))
@@ -78,17 +77,13 @@ function ITensors.truncate(alg::Algorithm"boundarymps", tns::TensorNetworkState;
     bmps_cache = update(bmps_cache; alg = "bp", edge_sequence = seq, maxiter = 1)
     bmps_cache = truncate(bmps_cache; kwargs...)
 
-    ts = copy(tensors(network(bmps_cache)))
-    tns = TensorNetworkState(TensorNetwork(ts, original_g), siteinds(tns))
-
-    bmps_cache = BoundaryMPSCache(tns, mps_bond_dimension; partition_by = "col", gauge_state)
+    bmps_cache = BoundaryMPSCache(network(bmps_cache), mps_bond_dimension; partition_by = "col", gauge_state)
     leaves = leaf_vertices(partitions_graph(supergraph(bmps_cache)))
     seq = PartitionEdge.(a_star(partitions_graph(supergraph(bmps_cache)), last(leaves), first(leaves)))
     bmps_cache = update(bmps_cache; alg = "bp", edge_sequence = seq, maxiter = 1)
     bmps_cache = truncate(bmps_cache; kwargs...)
 
-    ts = tensors(network(bmps_cache))
-    return TensorNetworkState(TensorNetwork(ts, original_g), siteinds(tns))
+    return network(bmps_cache)
 end
 
 """
