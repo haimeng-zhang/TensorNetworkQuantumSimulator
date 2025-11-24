@@ -2,10 +2,10 @@ using SimpleGraphAlgorithms: SimpleGraphAlgorithms
 
 default_truncate_alg(tns::TensorNetworkState) = nothing
 
-function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff = nothing, edge_color = true)
+function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = default_bp_update_kwargs(bpc), maxdim::Integer, cutoff = nothing, edge_color = true, normalize_tensors = true)
     bpc = copy(bpc)
     s = siteinds(network(bpc))
-    apply_kwargs = (; maxdim, cutoff)
+    apply_kwargs = (; maxdim, cutoff, normalize_tensors)
     dtype = datatype(bpc)
     if edge_color
         g = graph(network(bpc))
@@ -28,7 +28,7 @@ function ITensors.truncate(bpc::BeliefPropagationCache; bp_update_kwargs = defau
     return bpc
 end
 
-function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff = nothing)
+function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff = nothing, normalize_tensors = true)
     bmps_cache = copy(bmps_cache)
     s = siteinds(network(bmps_cache))
     apply_kwargs = (; maxdim, cutoff)
@@ -43,8 +43,12 @@ function ITensors.truncate(bmps_cache::BoundaryMPSCache; maxdim::Integer, cutoff
             g1, g2 = reduce(*, [ITensors.op("I", sv) for sv in s[src(e)]]), reduce(*, [ITensors.op("I", sv) for sv in s[dst(e)]])
             envs = incoming_messages(bmps_cache, [src(e), dst(e)])
             ρv1, ρv2 = full_update(adapt(dtype)(g1 * g2), network(bmps_cache), [src(e), dst(e)]; envs, apply_kwargs...)
-            setindex_preserve!(bmps_cache, normalize(ρv1), src(e))
-            setindex_preserve!(bmps_cache, normalize(ρv2), dst(e))
+            if normalize_tensors
+                ρv1 = normalize(ρv1)
+                ρv2 = normalize(ρv2)
+            end
+            setindex_preserve!(bmps_cache, ρv1, src(e))
+            setindex_preserve!(bmps_cache, ρv2, dst(e))
             update_partition!(bmps_cache, [e])
         end
 

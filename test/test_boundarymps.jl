@@ -41,7 +41,7 @@ using Test: @testset, @test
         @test z_bmps ≈ norm_sqr(ψ; alg = "exact")
         @test z_bmps ≈ norm_sqr(ψ; alg = "boundarymps", mps_bond_dimension = 4)
 
-        vs = [(2,1), (2,3)]
+        vs = [(2, 1), (2, 3)]
         ρ_bmps_1 = rdm(ψ_BMPS, vs)
         ρ_bmps_2 = reduced_density_matrix(ψ, vs; alg = "boundarymps", mps_bond_dimension = 4)
         ρ_exact = reduced_density_matrix(ψ, vs; alg = "exact")

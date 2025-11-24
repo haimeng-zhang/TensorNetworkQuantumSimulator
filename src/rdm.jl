@@ -28,12 +28,12 @@ function reduced_density_matrix(ψ::Union{TensorNetworkState, BeliefPropagationC
 end
 
 function reduced_density_matrix(
-    alg::Algorithm"exact",
-    ψ::TensorNetworkState,
-    verts::Vector;
-    contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy()),
-    normalize = true
-)
+        alg::Algorithm"exact",
+        ψ::TensorNetworkState,
+        verts::Vector;
+        contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy()),
+        normalize = true
+    )
     ITensors.disable_warn_order()
     op_string_f = v -> v ∈ verts ? "ρ" : "I"
     ρ_tensors = norm_factors(ψ, collect(vertices(ψ)); op_strings = op_string_f)
@@ -47,11 +47,11 @@ end
 
 
 function reduced_density_matrix(
-    alg::Algorithm"bp",
-    cache::BeliefPropagationCache,
-    vs::Vector;
-    normalize = true
-)
+        alg::Algorithm"bp",
+        cache::BeliefPropagationCache,
+        vs::Vector;
+        normalize = true
+    )
     steiner_vs = length(vs) == 1 ? vs : collect(vertices(steiner_tree(network(cache), vs)))
     incoming_ms = incoming_messages(cache, steiner_vs)
 
@@ -70,12 +70,12 @@ function reduced_density_matrix(
 end
 
 function reduced_density_matrix(
-    alg::Algorithm"boundarymps",
-    cache::BoundaryMPSCache,
-    vs::Vector;
-    normalize = true,
-    bmps_messages_up_to_date = false,
-)
+        alg::Algorithm"boundarymps",
+        cache::BoundaryMPSCache,
+        vs::Vector;
+        normalize = true,
+        bmps_messages_up_to_date = false,
+    )
 
     op_string_f = v -> v ∈ vs ? "ρ" : "I"
     ρ, _ = path_contract(cache, vs, op_string_f; bmps_messages_up_to_date)
@@ -87,12 +87,12 @@ function reduced_density_matrix(
 end
 
 function reduced_density_matrix(
-    alg::Algorithm"bp",
-    ψ::TensorNetworkState,
-    verts::Vector;
-    cache_update_kwargs = default_bp_update_kwargs(ψ),
-    kwargs...,
-)
+        alg::Algorithm"bp",
+        ψ::TensorNetworkState,
+        verts::Vector;
+        cache_update_kwargs = default_bp_update_kwargs(ψ),
+        kwargs...,
+    )
     ψ_bpc = BeliefPropagationCache(ψ)
     ψ_bpc = update(ψ_bpc; cache_update_kwargs...)
 
@@ -100,14 +100,14 @@ function reduced_density_matrix(
 end
 
 function reduced_density_matrix(
-    alg::Algorithm"boundarymps",
-    ψ::TensorNetworkState,
-    verts::Vector;
-    cache_update_kwargs = default_bmps_update_kwargs(ψ),
-    mps_bond_dimension::Integer,
-    partition_by::String = boundarymps_partitioning(verts),
-    kwargs...,
-)
+        alg::Algorithm"boundarymps",
+        ψ::TensorNetworkState,
+        verts::Vector;
+        cache_update_kwargs = default_bmps_update_kwargs(ψ),
+        mps_bond_dimension::Integer,
+        partition_by::String = boundarymps_partitioning(verts),
+        kwargs...,
+    )
     ψ_bpc = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by)
     ψ_bpc = update(ψ_bpc; cache_update_kwargs...)
 

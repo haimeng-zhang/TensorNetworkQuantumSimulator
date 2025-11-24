@@ -604,8 +604,10 @@ function sorted_edges(pg::PartitionedGraph, pe::PartitionEdge)
     return sort(NamedEdge.(es); by = x -> findfirst(isequal(src(x)), src_vs))
 end
 
-function path_contract(cache::BoundaryMPSCache, vs::Vector{<:Any}, op_string_f::Function; bmps_messages_up_to_date = false,
-    calculate_denom = true)
+function path_contract(
+        cache::BoundaryMPSCache, vs::Vector{<:Any}, op_string_f::Function; bmps_messages_up_to_date = false,
+        calculate_denom = true
+    )
 
     #For boundary MPS, must stay in partition
     partitions = unique(partitionvertices(cache, vs))
