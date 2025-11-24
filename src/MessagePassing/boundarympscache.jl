@@ -603,3 +603,54 @@ function sorted_edges(pg::PartitionedGraph, pe::PartitionEdge)
     )
     return sort(NamedEdge.(es); by = x -> findfirst(isequal(src(x)), src_vs))
 end
+
+function path_contract(cache::BoundaryMPSCache, vs::Vector{<:Any}, op_string_f::Function; bmps_messages_up_to_date = false,
+    calculate_denom = true)
+
+    #For boundary MPS, must stay in partition
+    partitions = unique(partitionvertices(cache, vs))
+    length(partitions) > 1 && error("Observable support must be within a single partition (row/ column) of the graph for now.")
+    partition = only(partitions)
+    g = partition_graph(cache, partition)
+
+    if !bmps_messages_up_to_date
+        cache = update_partition(cache, partition)
+    end
+    denom = calculate_denom ? vertex_scalar(cache, first(vs)) : 0
+
+    if length(vs) > 1
+        lvs = leaf_vertices(g)
+        @assert length(lvs) == 2
+        lv1, lv2 = first(lvs), last(lvs)
+        path = a_star(g, lv1, lv2)
+        lv1_vns = neighbors(g, lv1)
+        prev_edge = length(lv1_vns) == 1 ? nothing : NamedEdge(setdiff(lv1_vns, [lv2]) => lv1)
+        m = length(lv1_vns) == 1 ? nothing : message(cache, prev_edge)
+        for e in path
+            ignore_edges = prev_edge == nothing ? typeof(e)[reverse(e)] : typeof(e)[reverse(e), prev_edge]
+            incoming_ms = incoming_messages(cache, src(e); ignore_edges)
+            contract_list = norm_factors(network(cache), [src(e)]; op_strings = op_string_f)
+            append!(contract_list, incoming_ms)
+            m != nothing && push!(contract_list, m)
+
+            sequence = contraction_sequence(contract_list; alg = "optimal")
+            m = contract(contract_list; sequence)
+            prev_edge = e
+        end
+
+        contract_list = norm_factors(network(cache), [lv2]; op_strings = op_string_f)
+        incoming_ms = incoming_messages(cache, lv2; ignore_edges = typeof(last(path))[last(path)])
+        append!(contract_list, incoming_ms)
+        push!(contract_list, m)
+        sequence = contraction_sequence(contract_list; alg = "optimal")
+        numer = contract(contract_list; sequence)
+    else
+        contract_list = norm_factors(network(cache), vs; op_strings = op_string_f)
+        incoming_ms = incoming_messages(cache, only(vs))
+        append!(contract_list, incoming_ms)
+        sequence = contraction_sequence(contract_list; alg = "optimal")
+        numer = contract(contract_list; sequence)
+    end
+
+    return numer, denom
+end

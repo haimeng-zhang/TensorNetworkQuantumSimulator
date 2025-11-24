@@ -48,6 +48,8 @@ function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Functi
         if op_strings(v) == "I"
             tnv_dag = replaceinds(tnv_dag, prime.(sinds), sinds)
             append!(factors, ITensor[tnv, tnv_dag])
+        elseif op_strings(v) == "ρ"
+            append!(factors, ITensor[tnv, tnv_dag])
         else
             op = adapt(datatype(tnv))(ITensors.op(op_strings(v), only(sinds)))
             append!(factors, ITensor[tnv, tnv_dag, op])
