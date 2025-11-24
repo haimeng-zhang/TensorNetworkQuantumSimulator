@@ -66,7 +66,6 @@ function default_message(tns::TensorNetworkState, edge::AbstractEdge)
     return adapt(datatype(tns))(denseblocks(delta(vcat(linds, prime(dag(linds))))))
 end
 
-#TODO: Default to spin 1/2
 """
     random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Integer = 1)
     Generate a random TensorNetworkState on graph `g` with local state indices given by the dictionary `siteinds`.

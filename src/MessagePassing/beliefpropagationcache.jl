@@ -12,7 +12,6 @@ struct BeliefPropagationCache{V, N <: AbstractTensorNetwork{V}, M <: Union{ITens
     messages::Dictionary{NamedEdge, M}
 end
 
-#TODO: Take `dot` without precontracting the messages to allow scaling to more complex messages
 function message_diff(message_a::ITensor, message_b::ITensor)
     n_a, n_b = norm(message_a), norm(message_b)
     f = abs2(dot(message_a, message_b) / (n_a * n_b))
