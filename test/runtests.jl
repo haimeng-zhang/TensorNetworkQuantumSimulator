@@ -9,4 +9,5 @@ using Test
     include("test_beliefpropagation.jl")
     include("test_apply.jl")
     include("test_sampling.jl")
+    include("test_truncate.jl")
 end

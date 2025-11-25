@@ -59,6 +59,10 @@ function build_graph_from_gates(circ::Vector{<:Any})
             !has_edge(g, NamedEdge(v1 => v2)) && add_edge!(g, NamedEdge(v1 => v2))
         end
     end
+
+
+    !is_connected(g) && error("The circuit graph is not connected, meaning the resulting tensor network will be disconnected which we do not support.
+    Considering simulating the connected components separately, as no entanglement will be generated between them.")
     return g
 end
 

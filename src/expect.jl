@@ -91,55 +91,10 @@ function expect(
     op_strings, obs_vs, coeff = collectobservable(obs, graph(cache))
     iszero(coeff) && return 0
 
-    #For boundary MPS, must stay in partition
-    partitions = unique(partitionvertices(cache, obs_vs))
-    length(partitions) > 1 && error("Observable support must be within a single partition (row/ column) of the graph for now.")
-    partition = only(partitions)
-    g = partition_graph(cache, partition)
-
-    if !bmps_messages_up_to_date
-        cache = update_partition(cache, partition)
-    end
-    denom = vertex_scalar(cache, first(obs_vs))
-
     op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
 
-    if length(obs_vs) > 1
-        lvs = leaf_vertices(g)
-        @assert length(lvs) == 2
-        lv1, lv2 = first(lvs), last(lvs)
-        path = a_star(g, lv1, lv2)
-        lv1_vns = neighbors(g, lv1)
-        prev_edge = length(lv1_vns) == 1 ? nothing : NamedEdge(setdiff(lv1_vns, [lv2]) => lv1)
-        m = length(lv1_vns) == 1 ? nothing : message(cache, prev_edge)
-        for e in path
-            ignore_edges = prev_edge == nothing ? typeof(e)[reverse(e)] : typeof(e)[reverse(e), prev_edge]
-            incoming_ms = incoming_messages(cache, src(e); ignore_edges)
-            contract_list = norm_factors(network(cache), [src(e)]; op_strings = op_string_f)
-            append!(contract_list, incoming_ms)
-            m != nothing && push!(contract_list, m)
-
-            sequence = contraction_sequence(contract_list; alg = "optimal")
-            m = contract(contract_list; sequence)
-            prev_edge = e
-        end
-
-        contract_list = norm_factors(network(cache), [lv2]; op_strings = op_string_f)
-        incoming_ms = incoming_messages(cache, lv2; ignore_edges = typeof(last(path))[last(path)])
-        append!(contract_list, incoming_ms)
-        push!(contract_list, m)
-        sequence = contraction_sequence(contract_list; alg = "optimal")
-        numer = contract(contract_list; sequence)[]
-    else
-        contract_list = norm_factors(network(cache), obs_vs; op_strings = op_string_f)
-        incoming_ms = incoming_messages(cache, only(obs_vs))
-        append!(contract_list, incoming_ms)
-        sequence = contraction_sequence(contract_list; alg = "optimal")
-        numer = contract(contract_list; sequence)[]
-    end
-
-
-    return coeff * numer / denom
+    numer, denom = path_contract(cache, obs_vs, op_string_f; bmps_messages_up_to_date)
+    return coeff * numer[] / denom
 end
 
 function expect(

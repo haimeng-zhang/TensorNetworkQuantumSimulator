@@ -30,6 +30,7 @@ include("normalize.jl")
 include("sampling.jl")
 include("symmetric_gauge.jl")
 include("truncate.jl")
+include("rdm.jl")
 
 
 export
@@ -104,5 +105,7 @@ export
     heavy_hexagonal_lattice,
     rescale,
     entanglement,
-    build_graph_from_circuit
+    build_graph_from_circuit,
+    reduced_density_matrix,
+    rdm
 end

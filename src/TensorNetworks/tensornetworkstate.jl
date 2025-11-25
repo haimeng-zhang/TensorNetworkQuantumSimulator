@@ -48,6 +48,8 @@ function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Functi
         if op_strings(v) == "I"
             tnv_dag = replaceinds(tnv_dag, prime.(sinds), sinds)
             append!(factors, ITensor[tnv, tnv_dag])
+        elseif op_strings(v) == "ρ"
+            append!(factors, ITensor[tnv, tnv_dag])
         else
             op = adapt(datatype(tnv))(ITensors.op(op_strings(v), only(sinds)))
             append!(factors, ITensor[tnv, tnv_dag, op])
@@ -64,7 +66,6 @@ function default_message(tns::TensorNetworkState, edge::AbstractEdge)
     return adapt(datatype(tns))(denseblocks(delta(vcat(linds, prime(dag(linds))))))
 end
 
-#TODO: Default to spin 1/2
 """
     random_tensornetworkstate(eltype, g::AbstractGraph, siteinds::Dictionary; bond_dimension::Integer = 1)
     Generate a random TensorNetworkState on graph `g` with local state indices given by the dictionary `siteinds`.

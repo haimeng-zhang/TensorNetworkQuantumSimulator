@@ -1,5 +1,5 @@
 @eval module $(gensym())
-using ITensors: datatype
+using ITensors: datatype, norm
 using Random
 using TensorNetworkQuantumSimulator
 using Test: @testset, @test
@@ -40,6 +40,13 @@ using Test: @testset, @test
         z_bmps = partitionfunction(ψ_BMPS)
         @test z_bmps ≈ norm_sqr(ψ; alg = "exact")
         @test z_bmps ≈ norm_sqr(ψ; alg = "boundarymps", mps_bond_dimension = 4)
+
+        vs = [(2, 1), (2, 3)]
+        ρ_bmps_1 = rdm(ψ_BMPS, vs)
+        ρ_bmps_2 = reduced_density_matrix(ψ, vs; alg = "boundarymps", mps_bond_dimension = 4)
+        ρ_exact = reduced_density_matrix(ψ, vs; alg = "exact")
+        @test norm(ρ_bmps_1 - ρ_bmps_2) <= 10 * eps(real(eltype))
+        @test norm(ρ_bmps_1 - ρ_exact) <= 10 * eps(real(eltype))
     end
 end
 
