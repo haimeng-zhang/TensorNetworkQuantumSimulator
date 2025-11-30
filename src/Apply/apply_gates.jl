@@ -30,7 +30,8 @@ function apply_gates(
     g = graph(ψ_bpc)
     circuit = toitensor(circuit, g, siteinds(network(ψ_bpc)))
     gate_vertices = [gate[2] for gate in circuit]
-    return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
+    itensors = [gate[1] for gate in circuit]
+    return apply_gates(itensors, ψ_bpc; gate_vertices, kwargs...)
 end
 
 function adapt_gate(gate::ITensor, ψ_bpc::BeliefPropagationCache)

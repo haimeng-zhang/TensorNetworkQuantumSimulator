@@ -37,7 +37,7 @@ function toitensor(gate::Tuple, g::NamedGraph, siteinds::Dictionary)
     s_inds = [only(siteinds[v]) for v in gate_verts]
 
     all(map(sind -> hastags(sind, "Pauli"), s_inds)) &&
-        return toitensor_heisenberg(gate_symbol, gate[3], s_inds)
+        return toitensor_heisenberg(gate_symbol, gate[3], s_inds), gate_verts
 
     if _ispaulistring(gate_symbol)
         gate =
