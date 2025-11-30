@@ -27,8 +27,9 @@ function apply_gates(
         ψ_bpc::BeliefPropagationCache;
         kwargs...,
     )
-    gate_vertices = [collect_vertices(gate[2], graph(ψ_bpc)) for gate in circuit]
-    circuit = toitensor(circuit, siteinds(network(ψ_bpc)))
+    g = graph(ψ_bpc)
+    circuit = toitensor(circuit, g, siteinds(network(ψ_bpc)))
+    gate_vertices = [gate[2] for gate in circuit]
     return apply_gates(circuit, ψ_bpc; gate_vertices, kwargs...)
 end
 
@@ -93,7 +94,7 @@ end
 function apply_gate!(
         gate::ITensor,
         ψ_bpc::BeliefPropagationCache;
-        v⃗ = vertices(ψ_bpc, gate),
+        v⃗ = vertices(gate, network(ψ_bpc)),
         apply_kwargs = _default_apply_kwargs
     )
     envs = length(v⃗) == 1 ? nothing : incoming_messages(ψ_bpc, v⃗)
