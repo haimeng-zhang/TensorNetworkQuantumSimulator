@@ -1,8 +1,8 @@
 using ITensors: hastags
 
 # conversion of a tuple circuit to an ITensor circuit
-function toitensor(circuit::Vector, sinds::Dictionary)
-    return [toitensor(gate, sinds) for gate in circuit]
+function toitensor(circuit::Vector, g::NamedGraph, sinds::Dictionary)
+    return [toitensor(gate, g, sinds) for gate in circuit]
 end
 
 #Determine if a string represents a pauli string
@@ -31,15 +31,13 @@ function param_rescaling(string::String, param::Number)
 end
 
 #Convert a gate to the corrresponding ITensor
-function toitensor(gate::Tuple, siteinds::Dictionary)
+function toitensor(gate::Tuple, g::NamedGraph, siteinds::Dictionary)
     gate_symbol = gate[1]
-    gate_inds = gate[2]
-    # if it is a NamedEdge, we need to convert it to a tuple
-    gate_inds = _ensuretuple(gate_inds)
-    s_inds = [only(siteinds[v]) for v in gate_inds]
+    gate_verts = collect_vertices(gate[2], g)
+    s_inds = [only(siteinds[v]) for v in gate_verts]
 
     all(map(sind -> hastags(sind, "Pauli"), s_inds)) &&
-        return toitensor_heisenberg(gate_symbol, gate[3], s_inds)
+        return toitensor_heisenberg(gate_symbol, gate[3], s_inds), gate_verts
 
     if _ispaulistring(gate_symbol)
         gate =
@@ -55,7 +53,7 @@ function toitensor(gate::Tuple, siteinds::Dictionary)
     else
         throw(ArgumentError("Wrong gate format"))
     end
-    return gate
+    return gate, gate_verts
 end
 
 
@@ -90,16 +88,6 @@ end
 #Return itself as the type is already correct
 function toitensor(gate::ITensor, sinds::Dictionary)
     return gate
-end
-
-#Conversion of the gate indices to a tuple
-function _ensuretuple(gate_inds::Union{Tuple, AbstractArray})
-    return gate_inds
-end
-
-#Conversion of a NamedEdge to a tuple
-function _ensuretuple(gate_inds::NamedEdge)
-    return (gate_inds.src, gate_inds.dst)
 end
 
 """

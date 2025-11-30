@@ -36,7 +36,7 @@ using Test: @testset, @test
     #Build a layer of the circuit. Pauli rotations are tuples like `(pauli_string, [site_labels], parameter)`
     layer = []
     append!(layer, ("Rx", [v], 2 * hx * dt) for v in vertices(g))
-    append!(layer, ("Rz", [v], 2 * hz * dt) for v in vertices(g))
+    append!(layer, ("Rz", v, 2 * hz * dt) for v in vertices(g))
 
     #For two site gates do an edge coloring to Trotterise the circuit
     ec = edge_color(g, 4)
