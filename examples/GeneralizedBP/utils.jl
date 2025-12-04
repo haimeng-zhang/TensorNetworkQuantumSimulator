@@ -5,6 +5,19 @@ using ITensors: Index
 using Graphs: topological_sort
 using Graphs.SimpleGraphs: SimpleDiGraph
 
+function special_multiply(t1::ITensor, t2::ITensor)
+    cinds = commoninds(t1, t2)
+    ds = []
+    for cind in cinds
+        t1 = replaceind(t1, cind, cind')
+        t2 = replaceind(t2, cind, cind'')
+        push!(ds, delta([cind, cind', cind'']))
+    end
+
+    t = reduce(*, [[t1, t2 ]; ds])
+    return t    
+end
+
 
 function construct_bp_bs(t::AbstractTensorNetwork)
     return collect([[i for i in inds(t[v])] for v in vertices(t)])
@@ -88,9 +101,6 @@ function mobius_numbers(ms, ps)
         end
     end
 
-    @show length(ms)
-    @show ms[1], ms[2], ms[3]
-    @show ps[3]
     g = SimpleDiGraph(mat)
     ts = topological_sort(g)
     ts = reverse(ts)
@@ -105,15 +115,64 @@ function mobius_numbers(ms, ps)
         end
     end
 
-    @show mobius_numbers
     return mobius_numbers
 end
 
-# function initialize_messages(ms)
-#     messages = []
-#     for m in ms
-#         msg = ITensor(1.0, m)
-#         push!(messages, msg)
-#     end
-#     return messages
-# end
+function prune_ms_ps(ms, ps, mobius_nos)
+    nonzero_mobius = findall(x -> x != 0, mobius_nos)
+    return ms[nonzero_mobius], ps[nonzero_mobius], mobius_nos[nonzero_mobius]
+end
+
+function children(ms, ps, bs)
+    cs = []
+    for i in 1:length(bs)
+        children = []
+        for j in 1:length(ms)
+            for k in ps[j]
+                if k == i
+                    push!(children, j)
+                end
+            end
+        end
+        push!(cs, children)
+    end
+    return cs
+end
+
+function calculate_b_nos(ms, ps, mobius_nos)
+    return [-(length(ps[i])-1)/mobius_nos[i] for i in 1:length(ms)]
+end
+
+function get_psis(bs, T::TensorNetwork)
+    potentials = []
+    for b in bs
+        pot = ITensor(1.0, b)
+        for v in vertices(T)
+            inds_v = inds(T[v])
+            if issubset(Set(inds_v), Set(b))
+                pot = special_multiply(pot, T[v])
+            end
+        end
+        push!(potentials, pot)
+    end
+    return potentials
+end
+
+function initialize_messages(ms, bs, ps)
+    ms_dict = Dictionary{Tuple{Int, Int}, ITensor}()
+    for (i, m) in enumerate(ms)
+        for p in ps[i]
+            set!(ms_dict, (p, i), ITensor(1.0, m))
+        end       
+    end
+    return ms_dict
+end
+
+function initialize_beliefs(psis)
+    beliefs = []
+    for psi in psis
+        z = real(sum(psi))
+        push!(beliefs, psi / z)
+    end
+    return beliefs
+end
