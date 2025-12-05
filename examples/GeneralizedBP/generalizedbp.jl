@@ -73,6 +73,28 @@ function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos,
     return f
 end
 
+
+function classical_kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, mobius_nos)
+    f = 0
+    for alpha in 1:length(bs)
+        b = b_alpha(alpha, psi_alphas[alpha], msgs, cs, ps)
+        R = pointwise_division_raise(b, psi_alphas[alpha])
+        R = elementwise_operation(x -> real(x) > 1e-14 ? log(real(x)) : 0, R)
+        R = special_multiply(R, b)
+        f += sum(R)
+    end
+
+    for beta in 1:length(ms)
+        b = b_beta(beta, psi_betas[beta], msgs, ps, b_nos)
+        R = pointwise_division_raise(b, psi_betas[beta])
+        R = elementwise_operation(x -> real(x) > 1e-14 ? log(real(x)) : 0, R)
+        R = special_multiply(R, b)
+        f += mobius_nos[beta] * sum(R)
+    end
+
+    return f
+end
+
 #This is the quantum version (allows for complex numbers in messages, agrees with the standard textbook Kicuchi for real positive messages)
 function kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, mobius_nos)
     f = 0
