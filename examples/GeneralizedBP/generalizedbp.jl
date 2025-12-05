@@ -53,20 +53,19 @@ function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos,
     for i in 1:niters
         new_msgs, diff = update_messages(msgs, psi_alphas, psi_betas, b_nos, ps, cs; normalize = true, rate)
 
-        if i % 10 == 0
-            println("Iteration $i")
+        if i % niters == 0
             println("Average difference in messages following most recent GBP update: $diff")
         end
 
         msgs = new_msgs
     end
 
-    f = kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, mobius_nos)
+    f = kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, cs, b_nos, ps, mobius_nos)
     return f
 end
 
 
-function classical_kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, mobius_nos)
+function classical_kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, cs, b_nos, ps, mobius_nos)
     f = 0
     for alpha in 1:length(bs)
         b = b_alpha(alpha, psi_alphas[alpha], msgs, cs, ps)
@@ -88,7 +87,7 @@ function classical_kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, mobi
 end
 
 #This is the quantum version (allows for complex numbers in messages, agrees with the standard textbook Kicuchi for real positive messages)
-function kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, mobius_nos)
+function kikuchi_free_energy(ms, bs, msgs, psi_alphas, psi_betas, cs, b_nos, ps, mobius_nos)
     f = 0
     for alpha in 1:length(bs)
         b = b_alpha(alpha, psi_alphas[alpha], msgs, cs, ps; normalize = false)
