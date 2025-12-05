@@ -35,31 +35,23 @@ end
 
 function update_messages(msgs, psi_alphas, psi_betas, b_nos, ps, cs; kwargs...)
     new_msgs = copy(msgs)
+    diff = 0
     for (alpha, beta) in keys(msgs)
+        #Parallel or sequential?
         new_msg = update_message(alpha, beta, msgs, psi_alphas, psi_betas, b_nos, ps, cs; kwargs...)
+        diff += message_diff(new_msg, msgs[(alpha, beta)])
         set!(new_msgs, (alpha, beta), new_msg)
     end
-    return new_msgs
+    return new_msgs, diff / length(keys(msgs))
 end
 
-function message_diffs(msgs1, msgs2)
-    @assert keys(msgs1) == keys(msgs2)
-    diff = 0
-    for key in keys(msgs1)
-        diff += message_diff(msgs1[key], msgs2[key])
-    end
-    return diff / length(keys(msgs1))
-end
-
-function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos, mobius_nos; niters::Int, rate::Number)
+function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos, mobius_nos; niters::Int, rate::Number, simple_bp_messages = nothing)
     psi_alphas = get_psis(bs, T)
     psi_betas = get_psis(ms, T; include_factors = true)
-    msgs = initialize_messages(ms, bs, ps, T)
+    msgs = initialize_messages(ms, bs, ps, T; simple_bp_messages)
 
     for i in 1:niters
-        new_msgs = update_messages(msgs, psi_alphas, psi_betas, b_nos, ps, cs; normalize = true, rate)
-
-        diff = message_diffs(new_msgs, msgs)
+        new_msgs, diff = update_messages(msgs, psi_alphas, psi_betas, b_nos, ps, cs; normalize = true, rate)
 
         if i % 10 == 0
             println("Iteration $i")
