@@ -37,14 +37,6 @@ function pointwise_division_raise(a::ITensor, b::ITensor; power = 1)
     return out
 end
 
-function raise(tensor::ITensor, power::Number)
-    out = ITensor(eltype(tensor), 1.0, inds(tensor))
-    for iv in eachindval(out)
-        out[iv...] = tensor[iv...]^power
-    end
-    return out
-end
-
 
 function construct_bp_bs(t::AbstractTensorNetwork)
     return collect([[i for i in inds(t[v])] for v in vertices(t)])

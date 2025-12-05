@@ -18,8 +18,8 @@ include("utils.jl")
 include("update_rules.jl")
 include("exact_marginals.jl")
 
-n = 4
-g = named_grid((n,n); periodic = true)
+n = 6
+g = named_grid((n,n); periodic = false)
 #g = named_hexagonal_lattice_graph(3,3 )
 #Build physical site indices for spin-1/2 degrees of freedom
 s = siteinds("S=1/2", g)
@@ -46,7 +46,7 @@ ms, ps, mobius_nos = prune_ms_ps(ms, ps, mobius_nos)
 cs = children(ms, ps, bs)
 b_nos = calculate_b_nos(ms, ps, mobius_nos)
 
-gbp_f = generalized_belief_propagation(T, bs, ms, ps, cs, b_nos, mobius_nos; niters = 300, rate = 0.3)
+gbp_f = generalized_belief_propagation_V2(T, bs, ms, ps, cs, b_nos, mobius_nos; niters = 300, rate = 0.3)
 bp_f = -log(contract(T; alg = "bp"))
 
 println("GBP free energy: ", gbp_f)
