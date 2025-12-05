@@ -18,6 +18,33 @@ function special_multiply(t1::ITensor, t2::ITensor)
     return t    
 end
 
+function elementwise_operation(f::Function, t::ITensor)
+    new_t = copy(t)
+    for i in eachindval(t)
+        new_t[i...] = f(t[i...])
+    end
+    return new_t
+end
+
+function pointwise_division_raise(a::ITensor, b::ITensor; power = 1)
+    @assert Set(inds(a)) == Set(inds(b))
+    out = ITensor(eltype(a), 1.0, inds(a))
+    indexes = inds(a)
+    for iv in eachindval(out)
+        out[iv...] = (a[iv...] / b[iv...])^(power)
+    end
+
+    return out
+end
+
+function raise(tensor::ITensor, power::Number)
+    out = ITensor(eltype(tensor), 1.0, inds(tensor))
+    for iv in eachindval(out)
+        out[iv...] = tensor[iv...]^power
+    end
+    return out
+end
+
 
 function construct_bp_bs(t::AbstractTensorNetwork)
     return collect([[i for i in inds(t[v])] for v in vertices(t)])
@@ -88,7 +115,6 @@ function all_parents(ms, bs)
     return ms_parents
 end
 
-#TODO: Figure this out
 function mobius_numbers(ms, ps)
     #First get the subset matrix
     mat = zeros(Int, length(ms), length(ms))
@@ -146,7 +172,7 @@ end
 function get_psis(bs, T::TensorNetwork)
     potentials = []
     for b in bs
-        pot = ITensor(1.0, b)
+        pot = ITensor(scalartype(T), 1.0, b)
         for v in vertices(T)
             inds_v = inds(T[v])
             if issubset(Set(inds_v), Set(b))
@@ -158,11 +184,11 @@ function get_psis(bs, T::TensorNetwork)
     return potentials
 end
 
-function initialize_messages(ms, bs, ps)
+function initialize_messages(ms, bs, ps, T)
     ms_dict = Dictionary{Tuple{Int, Int}, ITensor}()
     for (i, m) in enumerate(ms)
         for p in ps[i]
-            set!(ms_dict, (p, i), ITensor(1.0, m))
+            set!(ms_dict, (p, i), ITensor(scalartype(T), 1.0, m))
         end       
     end
     return ms_dict

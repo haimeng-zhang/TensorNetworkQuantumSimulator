@@ -1,25 +1,6 @@
 using ITensors: inds, uniqueinds, eachindval, norm
-using Dictionaries: set!
+using Dictionaries: set!, AbstractDictionary
 using TensorNetworkQuantumSimulator: message_diff
-
-function pointwise_division_raise(a::ITensor, b::ITensor; power = 1)
-    @assert Set(inds(a)) == Set(inds(b))
-    out = ITensor(1.0, inds(a))
-    indexes = inds(a)
-    for iv in eachindval(out)
-        out[iv...] = (a[iv...] / b[iv...])^(power)
-    end
-
-    return out
-end
-
-function raise(tensor::ITensor, power::Number)
-    out = ITensor(1.0, inds(tensor))
-    for iv in eachindval(out)
-        out[iv...] = tensor[iv...]^power
-    end
-    return out
-end
 
 function update_n_message(alpha, beta, message, belief_alpha, belief_beta, b_beta; rate = 1.0)
     marginalized_alpha = copy(belief_alpha)
@@ -104,7 +85,7 @@ function message_diffs(msgs1, msgs2)
     return diff / length(keys(msgs1))
 end
 
-function normalize(msgs)
+function TensorNetworkQuantumSimulator.normalize(msgs::AbstractDictionary)
     new_msgs = copy(msgs)
     for key in keys(msgs)
         z = real(sum(msgs[key]))
@@ -113,11 +94,10 @@ function normalize(msgs)
     return new_msgs
 end
 
-function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos; niters::Int, rate::Number)
-    println("Running Generalized Belief Propagation on the norm of a 10 x 10 random Tensor Network State")
+function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos, mobius_nos; niters::Int, rate::Number)
     psi_alphas = get_psis(bs, T)
     psi_betas = get_psis(ms, T)
-    m_msgs = initialize_messages(ms, bs, ps)
+    m_msgs = initialize_messages(ms, bs, ps, T)
     n_msgs = copy(m_msgs)
     b_alphas = initialize_beliefs(psi_alphas)
     b_betas = initialize_beliefs(psi_betas)
@@ -132,8 +112,8 @@ function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos;
         n_diff = message_diffs(new_n_msgs, n_msgs)
         m_diff = message_diffs(new_m_msgs, m_msgs)
 
-        if i % 25 == 0 || i == 2
-            println("On GBP iteration $i")
+        if i % niters == 0
+            println("Finished running GBP")
             println("Average difference in messages following update - n_msgs: $n_diff, m_msgs: $m_diff")
         end
 
@@ -142,4 +122,7 @@ function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos;
         b_alphas = update_alpha_beliefs(psi_alphas, bs, m_msgs, cs)
         b_betas = update_beta_beliefs(psi_betas, ms, n_msgs, ps, b_nos)
     end
+
+    f = kikuchi_free_energy(ms, bs, b_alphas, b_betas, psi_alphas, psi_betas, mobius_nos)
+    return f
 end
