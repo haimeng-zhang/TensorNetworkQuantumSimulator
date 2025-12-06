@@ -29,7 +29,7 @@ function main()
 
     println("Running Generalized Belief Propagation on the norm of a $n x $n random Tensor Network State")
 
-    nsamples = 10
+    nsamples = 1
     err_bp, err_gbp, err_lc = 0.0, 0.0, 0.0
     for i in 1:nsamples
         println("-------------------------------------")
@@ -37,7 +37,7 @@ function main()
 
         tensors = Dictionary(vertices(g), [uniform_random_itensor(Float64, inds(ψ[v])) for v in vertices(g)])
         ψ = TensorNetworkState(TensorNetwork(tensors, graph(ψ)), siteinds(ψ))
-        
+
         ψ = normalize(ψ; alg = "bp")
         ψdag = map_virtualinds(prime, map_tensors(dag, ψ))
 

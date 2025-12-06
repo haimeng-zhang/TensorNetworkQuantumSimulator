@@ -18,6 +18,43 @@ function special_multiply(t1::ITensor, t2::ITensor)
     return t    
 end
 
+#Element wise multiplication of all tensors and sum over specified indices. For efficient message updating.
+function hyper_multiply(ts:Vector{<:ITensor}, inds_to_sum_over =[])
+    all_inds = reduce(vcat, [inds(t) for t in ts])
+    unique_inds = unique(all_inds)
+    index_counts = [count(i -> i == ui, all_inds) for ui in unique_inds]
+
+    #Any index that appears more than wise. Sim it amongst all tensors. 
+    #If not being summed over, add in a copy with an index, if it is add in a hyper tensor without one.
+
+    for (i, ui) in enumerate(unique_inds)
+        if index_counts[i] > 1
+            sim_inds = [sim(ui, j) for j in 1:index_counts[i]]
+            cnt = 1
+            for (j, t) in enumerate(ts)
+                if ui ∈ inds(t)
+                    t = replaceind(t, ui, sim_inds[cnt])
+                    ts[j] = t
+                    cnt += 1
+                end
+            end
+
+            hyper_tensor = ITensor(1.0)
+            for si in sim_inds
+                hyper_tensor = hyper_tensor * delta(si)
+            end
+            if ui ∈ inds_to_sum_over
+                hyper_tensor *= delta(ui)
+            end
+            push!(ts, hyper_tensor)
+            
+        end
+    end
+
+    seq = contraction_sequence(ts; alg = "optimal")
+    return contract(ts; sequence = seq)
+end
+
 function elementwise_operation(f::Function, t::ITensor)
     new_t = copy(t)
     for i in eachindval(t)

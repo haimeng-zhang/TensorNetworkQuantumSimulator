@@ -4,7 +4,9 @@ using TensorNetworkQuantumSimulator: message_diff
 
 function update_message(alpha, beta, msgs, psi_alphas, psi_betas, b_nos, ps, cs; rate = 1.0, normalize = true)
     psi_alpha = psi_alphas[alpha]
+    psi_beta = psi_betas[beta]
 
+    #TODO: This can be optimized by correct tensor contraction
     for beta in cs[alpha]
         for parent_alpha in ps[beta]
             if parent_alpha != alpha
@@ -12,17 +14,18 @@ function update_message(alpha, beta, msgs, psi_alphas, psi_betas, b_nos, ps, cs;
             end
         end
     end
+    inds = uniqueinds(psi_alpha, psi_beta)
+    for ind in inds
+        psi_alpha = psi_alpha * ITensor(1.0, ind)
+    end
 
-    psi_beta = psi_betas[beta]
+
     for alpha in ps[beta]
         n = elementwise_operation(x -> x^(b_nos[beta]), msgs[(alpha, beta)])
         psi_beta = special_multiply(psi_beta, n)
     end
 
-    inds = uniqueinds(psi_alpha, psi_beta)
-    for ind in inds
-        psi_alpha = psi_alpha * ITensor(1.0, ind)
-    end
+
 
     ratio = pointwise_division_raise(psi_alpha, psi_beta; power = rate /b_nos[beta])
     m = special_multiply(ratio, msgs[(alpha, beta)])
