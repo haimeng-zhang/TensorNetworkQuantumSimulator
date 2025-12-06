@@ -47,7 +47,7 @@ end
 
 function generalized_belief_propagation(T::TensorNetwork, bs, ms, ps, cs, b_nos, mobius_nos; niters::Int, rate::Number, simple_bp_messages = nothing)
     psi_alphas = get_psis(bs, T)
-    psi_betas = get_psis(ms, T; include_factors = true)
+    psi_betas = get_psis(ms, T)
     msgs = initialize_messages(ms, bs, ps, T; simple_bp_messages)
 
     for i in 1:niters

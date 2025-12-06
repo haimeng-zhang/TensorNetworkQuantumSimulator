@@ -9,7 +9,7 @@ using Random
 function uniform_random_itensor(eltype, inds)
     t = ITensor(eltype, 1.0, inds)
     for iv in eachindval(t)
-        t[iv...] = rand() - 0.2
+        t[iv...] = rand()
     end
     return t
 end
@@ -21,7 +21,7 @@ function main()
 
     Random.seed!(1854)
 
-    n =3
+    n = 3
     g = named_grid((n,n); periodic = false)
     loop_size = 4
     #Build physical site indices for spin-1/2 degrees of freedom
@@ -32,7 +32,12 @@ function main()
     nsamples = 10
     err_bp, err_gbp, err_lc = 0.0, 0.0, 0.0
     for i in 1:nsamples
-        ψ = random_tensornetworkstate(ComplexF64, g, s; bond_dimension = 2)
+        println("-------------------------------------")
+        ψ = random_tensornetworkstate(Float64, g, s; bond_dimension = 2)
+
+        tensors = Dictionary(vertices(g), [uniform_random_itensor(Float64, inds(ψ[v])) for v in vertices(g)])
+        ψ = TensorNetworkState(TensorNetwork(tensors, graph(ψ)), siteinds(ψ))
+        
         ψ = normalize(ψ; alg = "bp")
         ψdag = map_virtualinds(prime, map_tensors(dag, ψ))
 
@@ -60,7 +65,6 @@ function main()
         err_bp += abs(bp_f - f_exact)
         err_gbp += abs(gbp_f - f_exact)
         err_lc += abs(f_lc - f_exact)
-        println("-------------------------------------")
         println("Simple BP absolute error on free energy: ", abs(bp_f - f_exact))
         println("Generalized BP absolute error on free energy: ", abs(gbp_f - f_exact))
         println("Loop corrected BP absolute error on free energy: ", abs(f_lc - f_exact))

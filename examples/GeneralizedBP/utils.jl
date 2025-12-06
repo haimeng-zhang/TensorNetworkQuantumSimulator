@@ -37,26 +37,38 @@ function pointwise_division_raise(a::ITensor, b::ITensor; power = 1)
     return out
 end
 
-
+#All factors and their 4 variables (edges) form the parent regions for simple BP
 function construct_bp_bs(t::AbstractTensorNetwork)
     es = edges(t)
-    return [[NamedEdge(v => vn) ∈ es ? NamedEdge(v => vn) : NamedEdge(vn => v)  for vn in neighbors(t, v)] for v in vertices(t)]
+
+    regions = Set[]
+    for v in vertices(t)
+        region = Set{Any}([v])
+        for vn in neighbors(t, v)
+            e = NamedEdge(v => vn) ∈ es ? NamedEdge(v => vn) : NamedEdge(vn => v)
+            @assert e ∈ es
+            push!(region, NamedEdge(e))
+        end
+        push!(regions, region)
+    end
+    return regions
 end
 
+#Here we take all factors and their 4 variables (edges), plus all loops of variables only to form the parent regions for GBP
 function construct_gbp_bs(t::AbstractTensorNetwork, loop_length::Int)
     t_edges = edges(t)
     bs = construct_bp_bs(t)
     cycles = unique_simplecycles_limited_length(t, loop_length)
     gbp_bs = copy(bs)
     for cycle in cycles
-        es = NamedEdge[]
+        region = Set()
         for (i, v) in enumerate(cycle)
             e = i != length(cycle) ? NamedEdge(v => cycle[i+1]) : NamedEdge(v => cycle[1])
             e = e ∈ t_edges ? e : reverse(e)
             @assert e ∈ t_edges
-            push!(es, e)
+            push!(region, e)
         end
-        push!(gbp_bs, es)  # Add first vertex to close the loop
+        push!(gbp_bs, region)  # Add first vertex to close the loop
     end
 
     return gbp_bs
@@ -65,7 +77,7 @@ end
 function intersections(ms)
     intersects = []
     for i in 1:length(ms), j in i+1:length(ms)
-        s = intersect(Set(ms[i]), Set(ms[j]))
+        s = intersect(ms[i], ms[j])
         if !isempty(s) && s ∉ intersects
             push!(intersects, s)
         end
@@ -79,8 +91,8 @@ function construct_ms(bs)
 
     while !isempty(current_ms)
         for m in current_ms
-            if Set(m) ∉ all_ms
-                push!(all_ms, Set(m))
+            if m ∉ all_ms
+                push!(all_ms,m)
             end
         end
         current_ms = intersections(current_ms)
@@ -92,7 +104,7 @@ end
 function parents(m, bs)
     parents = []
     for (i, b) in enumerate(bs)
-        if issubset(Set(m), Set(b))
+        if issubset(m, b)
             push!(parents, i)
         end
     end
@@ -111,10 +123,10 @@ function mobius_numbers(ms, ps)
     #First get the subset matrix
     mat = zeros(Int, length(ms), length(ms))
     for (i, m1) in enumerate(ms), (j, m2) in enumerate(ms[(i + 1):end])
-        if issubset(Set(m1), Set(m2))
+        if issubset(m1, m2)
             mat[i, j + i] = 1
         end
-        if i != j && issubset(Set(m2), Set(m1))
+        if issubset(m2, m1)
             mat[j + i, i] = 1
         end
     end
@@ -161,16 +173,13 @@ function calculate_b_nos(ms, ps, mobius_nos)
     return [-(length(ps[i])-1)/mobius_nos[i] for i in 1:length(ms)]
 end
 
-function get_psis(bs, T::TensorNetwork; include_factors = true)
+function get_psis(bs, T::TensorNetwork)
     potentials = []
     for b in bs
-        e_inds = reduce(vcat, [virtualinds(T, e) for e in b])
+        e_inds = reduce(vcat, [virtualinds(T, e) for e in filter(x -> x isa NamedEdge, b)])
         pot = ITensor(scalartype(T), 1.0, e_inds)
-        for v in vertices(T)
-            inds_v = inds(T[v])
-            if issubset(Set(inds_v), Set(e_inds)) && include_factors
-                pot = special_multiply(pot, T[v])
-            end
+        for v in filter(x -> !(x isa NamedEdge), b)
+            pot = special_multiply(pot, T[v])
         end
         push!(potentials, pot)
     end
@@ -181,7 +190,7 @@ function initialize_messages(ms, bs, ps, T; simple_bp_messages = nothing)
     ms_dict = Dictionary{Tuple{Int, Int}, ITensor}()
     for (i, m) in enumerate(ms)
         for p in ps[i]
-            inds = reduce(vcat, [virtualinds(T, e) for e in m])
+            inds = reduce(vcat, [virtualinds(T, e) for e in filter(x -> x isa NamedEdge, m)])
             msg = ITensor(scalartype(T), 1.0, inds)
             if !isnothing(simple_bp_messages)
                 for e in m
