@@ -140,7 +140,8 @@ function BoundaryMPSCache(
         tn::Union{TensorNetworkState, TensorNetwork, BilinearForm, QuadraticForm},
         mps_bond_dimension::Integer;
         partition_by = "row",
-        gauge_state = false
+        gauge_state = false,
+        set_messages = true,
     )
     grouping_function = partition_by == "row" ? v -> first(v) : v -> last(v)
     group_sorting_function = partition_by == "row" ? v -> last(v) : v -> first(v)
@@ -160,7 +161,7 @@ function BoundaryMPSCache(
     messages = default_messages()
     bmps_cache = BoundaryMPSCache(tn, messages, supergraph, sorted_es, mps_bond_dimension)
     @assert is_correct_format(bmps_cache)
-    set_interpartition_messages!(bmps_cache, pes)
+    set_messages && set_interpartition_messages!(bmps_cache, pes)
 
     return bmps_cache
 end
