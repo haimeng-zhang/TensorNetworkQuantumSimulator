@@ -17,20 +17,6 @@ function get_psi(T::BeliefPropagationCache, r)
     return psi
 end
 
-# function get_psis(bs, T::BeliefPropagationCache)
-#     potentials = []
-#     for b in bs
-#         e_inds = reduce(vcat, [virtualinds(T, e) for e in filter(x -> x isa NamedEdge, b)])
-#         pot = ITensor(scalartype(T), 1.0, e_inds)
-#         for v in filter(x -> !(x isa NamedEdge), b)
-#             pot = special_multiply(pot, T[v])
-#         end
-#         push!(potentials, pot)
-#     end
-#     return potentials
-# end
-
-#TODO: Get rid of psis, and pass the cache
 function update_message(T::BeliefPropagationCache, alpha, beta, msgs, b_nos, ps, cs, ms, bs; rate = 1.0, normalize = true)
     psi_alpha = get_psi(T, bs[alpha])
     psi_beta = get_psi(T, ms[beta])
@@ -55,6 +41,7 @@ function update_message(T::BeliefPropagationCache, alpha, beta, msgs, b_nos, ps,
 
     ratio = pointwise_division_raise(psi_alpha, psi_beta; power = rate /b_nos[beta])
     m = special_multiply(ratio, msgs[(alpha, beta)])
+
     if normalize
         m = ITensors.normalize(m)
     end
