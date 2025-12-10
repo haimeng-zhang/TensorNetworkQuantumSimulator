@@ -44,7 +44,7 @@ default_update_alg(bp_cache::BeliefPropagationCache) = "bp"
 default_message_update_alg(bp_cache::BeliefPropagationCache) = "contract"
 default_normalize(::Algorithm"contract") = true
 default_sequence_alg(::Algorithm"contract") = "optimal"
-default_enforce_hermicity(::Algorithm"contract", bp_cache::AbstractBeliefPropagationCache) = isa(network(bp_cache), TensorNetworkState) ? true : false
+default_enforce_hermicity(::Algorithm"contract", bp_cache::AbstractBeliefPropagationCache) = false
 function set_default_kwargs(alg::Algorithm"contract", bp_cache::AbstractBeliefPropagationCache)
     normalize = get(alg.kwargs, :normalize, default_normalize(alg))
     sequence_alg = get(alg.kwargs, :sequence_alg, default_sequence_alg(alg))

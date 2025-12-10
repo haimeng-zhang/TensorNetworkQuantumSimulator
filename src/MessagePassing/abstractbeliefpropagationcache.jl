@@ -158,9 +158,10 @@ function updated_message(
     end
 
     if alg.kwargs.normalize
-        message_norm = LinearAlgebra.norm(updated_message)
+        @assert isreal(LinearAlgebra.norm(updated_message))
+        message_norm = sum(updated_message)
         if !iszero(message_norm)
-            updated_message /= message_norm
+            updated_message = updated_message / message_norm
         end
     end
 
@@ -204,6 +205,7 @@ function update(alg::Algorithm"bp", bpc::AbstractBeliefPropagationCache)
         error("You need to specify a number of iterations for BP!")
     end
     bpc = copy(bpc)
+    @show 1:alg.kwargs.maxiter
     for i in 1:alg.kwargs.maxiter
         diff = compute_error ? Ref(0.0) : nothing
         update_iteration!(alg, bpc, alg.kwargs.edge_sequence; (update_diff!) = diff)
