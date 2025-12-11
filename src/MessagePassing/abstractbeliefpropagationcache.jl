@@ -158,9 +158,9 @@ function updated_message(
     end
 
     if alg.kwargs.normalize
-        message_norm = LinearAlgebra.norm(updated_message)
+        message_norm = sum(updated_message)
         if !iszero(message_norm)
-            updated_message /= message_norm
+            updated_message = updated_message / message_norm
         end
     end
 
