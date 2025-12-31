@@ -2,46 +2,110 @@ module TensorNetworkQuantumSimulator
 
 
 include("imports.jl")
-include("Backend/beliefpropagation.jl")
-include("Backend/loopcorrection.jl")
-include("Backend/boundarymps.jl")
 
-# a helpful union types for the caches that we use
-const CacheNetwork = Union{AbstractBeliefPropagationCache,BoundaryMPSCache}
-const TensorNetwork = Union{AbstractITensorNetwork,CacheNetwork}
-
-
+include("siteinds.jl")
+include("TensorNetworks/abstracttensornetwork.jl")
+include("TensorNetworks/tensornetwork.jl")
+include("TensorNetworks/tensornetworkstate.jl")
+include("TensorNetworks/tensornetworkstate_constructors.jl")
+include("contraction_sequences.jl")
+include("contract.jl")
+include("Forms/bilinearform.jl")
+include("Forms/quadraticform.jl")
+include("MessagePassing/abstractbeliefpropagationcache.jl")
+include("MessagePassing/beliefpropagationcache.jl")
+include("MessagePassing/boundarympscache.jl")
+include("MessagePassing/loopcorrection.jl")
 include("graph_ops.jl")
 include("utils.jl")
-include("constructors.jl")
-include("gates.jl")
-include("apply.jl")
+
+include("Apply/apply_gates.jl")
+include("Apply/simple_update.jl")
+include("Apply/full_update.jl")
+include("Apply/gate_definitions.jl")
 include("expect.jl")
-include("sample.jl")
+include("norm_sqr.jl")
+include("inner.jl")
+include("normalize.jl")
+include("sampling.jl")
+include("symmetric_gauge.jl")
+include("truncate.jl")
+include("rdm.jl")
 
 
 export
-    updatecache,
-    build_bp_cache,
     vertices,
     edges,
-    apply,
+    add_edge,
+    degree,
+    apply_gates,
+    apply_circuit,
+    rem_vertex!,
     truncate,
     expect,
+    is_tree,
     expect_boundarymps,
     expect_loopcorrect,
-    fidelity,
-    fidelity_boundarymps,
-    fidelity_loopcorrect,
     make_hermitian,
-    build_boundarymps_cache,
+    ket_network,
     truncate,
-    maxlinkdim,
+    maxvirtualdim,
     siteinds,
     edge_color,
     zerostate,
-    getnqubits,
     named_grid,
-    sample
-
+    sample,
+    TensorNetworkState,
+    tensornetworkstate,
+    random_tensornetworkstate,
+    BeliefPropagationCache,
+    rescale!,
+    message,
+    network,
+    update,
+    symmetric_gauge,
+    symmetric_gauge!,
+    messages,
+    gauge_and_scale,
+    paulitensornetworkstate,
+    identitytensornetworkstate,
+    random_tensornetwork,
+    siteinds,
+    inner,
+    named_grid,
+    named_comb_tree,
+    named_hexagonal_lattice_graph,
+    named_path_graph,
+    neighbors,
+    center,
+    NamedGraph,
+    graph,
+    datatype,
+    scalartype,
+    BoundaryMPSCache,
+    TensorNetwork,
+    TensorNetworkState,
+    AbstractTensorNetwork,
+    partitionfunction,
+    contract,
+    norm_sqr,
+    map_virtualinds,
+    map_virtualinds!,
+    map_tensors,
+    map_tensors!,
+    rem_vertex!,
+    rem_vertex,
+    normalize,
+    QuadraticForm,
+    BilinearForm,
+    sample_certified,
+    sample_directly_certified,
+    vertextype,
+    nv,
+    heavy_hexagonal_lattice,
+    rescale,
+    entanglement,
+    build_graph_from_circuit,
+    reduced_density_matrix,
+    rdm
 end

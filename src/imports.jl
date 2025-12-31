@@ -3,7 +3,7 @@ using StatsBase
 
 using Dictionaries: Dictionary, set!
 
-using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree
+using Graphs: simplecycles_limited_length, has_edge, SimpleGraph, center, steiner_tree, is_tree, vertices, nv
 
 using SimpleGraphConverter
 using SimpleGraphAlgorithms: edge_color
@@ -12,6 +12,7 @@ using NamedGraphs
 using NamedGraphs:
     AbstractNamedGraph,
     AbstractGraph,
+    AbstractEdge,
     position_graph,
     rename_vertices,
     edges,
@@ -38,98 +39,22 @@ using NamedGraphs.GraphsExtensions:
     rem_edge,
     rem_vertex,
     add_edges,
-    rem_vertices
+    rem_vertices,
+    rem_vertex!
 
-using NamedGraphs.PartitionedGraphs:
-    PartitionedGraphs,
-    partitioned_vertices,
-    partitionedges,
-    unpartitioned_graph,
-    which_partition
-
-using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_graph
+using NamedGraphs.NamedGraphGenerators: named_grid, named_hexagonal_lattice_graph, named_comb_tree, named_path_graph
 
 using TensorOperations
 
-using ITensors
-using ITensors: Index, ITensor, inner, itensor, apply, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str
+using ITensors: ITensors
+using ITensors: Index, ITensor, hasqns, noncommonind, combinedind, combiner, replaceinds, sim, onehot, delta, plev, dense, unioninds, uniqueinds, commonind, commoninds, replaceind, datatype, inds, dag, noprime, factorize_svd, prime, hascommoninds, itensor, map_diag!, @Algorithm_str, scalar, @OpName_str, @SiteType_str, denseblocks, tags
 using ITensorMPS
 
-using ITensorNetworks
-using ITensorNetworks:
-    AbstractBeliefPropagationCache,
-    AbstractFormNetwork,
-    AbstractITensorNetwork,
-    AbstractIndsNetwork,
-    Indices,
-    BeliefPropagationCache,
-    QuadraticFormNetwork,
-    PartitionedGraph,
-    IndsNetwork,
-    ITensorNetwork,
-    inner_network,
-    PartitionVertex,
-    PartitionEdge,
-    Algorithm,
-    VidalITensorNetwork,
-    expect,
-    default_cache_construction_kwargs,
-    delete_messages!,
-    delete_messages,
-    cache,
-    norm_sqr_network,
-    update,
-    updated_message,
-    set_message,
-    set_message!,
-    set_messages!,
-    siteinds,
-    vertices,
-    dim,
-    apply,
-    neighbor_vertices,
-    environment,
-    incoming_messages,
-    partitionedge,
-    messages,
-    update_factor,
-    logscalar,
-    partitioned_tensornetwork,
-    tensornetwork,
-    operator_vertex,
-    ket_vertex,
-    update_factors,
-    scalar_factors_quotient,
-    partitionedges,
-    region_scalar,
-    rescale,
-    partitionvertices,
-    partitioned_graph,
-    powerset,
-    boundary_partitionedges,
-    message,
-    factors,
-    contraction_sequence,
-    group,
-    partitionedges,
-    linkinds,
-    generic_state,
-    setindex_preserve_graph!,
-    edge_tag,
-    default_edge_sequence,
-    default_bp_maxiter,
-    default_message_update,
-    tree_orthogonalize,
-    gauge_walk,
-    maxlinkdim,
-    default_cache_construction_kwargs
-
-
-
-
-using ITensorNetworks.ITensorsExtensions: map_eigvals
+using Adapt: adapt
 
 using EinExprs: Greedy
 
 import PauliPropagation
 const PP = PauliPropagation
+
+using TypeParameterAccessors: unspecify_type_parameters

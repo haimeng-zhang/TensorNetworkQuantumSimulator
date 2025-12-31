@@ -1,181 +1,195 @@
-default_expect_alg() = "bp"
+function expect(
+        alg::Algorithm"exact",
+        ψ::TensorNetworkState,
+        observables::Vector{<:Tuple};
+        contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy())
+    )
+    ITensors.disable_warn_order()
 
-"""
-    ITensorNetworks.expect(alg::Algorithm"exact", ψ::AbstractITensorNetwork, observables::Vector{<:Tuple}, contraction_sequence_kwargs = (; alg = "einexpr", optimizer = Greedy()))
-
-Function for computing expectation values for any vector of pauli strings via exact contraction.
-This will be infeasible for larger networks with high bond dimension.
-"""
-function ITensorNetworks.expect(
-    alg::Algorithm"exact",
-    ψ::AbstractITensorNetwork,
-    observables::Vector{<:Tuple};
-    contraction_sequence_kwargs=(; alg="einexpr", optimizer=Greedy()),
-)
-
-    s = siteinds(ψ)
-    ψIψ = QuadraticFormNetwork(ψ)
-
+    denom = norm_sqr(alg, ψ; contraction_sequence_kwargs)
     out = []
     for obs in observables
-        op_strings, vs, coeff = collectobservable(obs)
+        op_strings, vs, coeff = collectobservable(obs, graph(ψ))
         if iszero(coeff)
-            push!(out, 0.0)
+            push!(out, 0)
             continue
         end
-        ψOψ = copy(ψIψ)
-        for (op_string, v) in zip(op_strings, vs)
-            ψOψ[(v, "operator")] = ITensors.op(op_string, s[v])
-        end
-
-        numer_seq = contraction_sequence(ψOψ; contraction_sequence_kwargs...)
-        denom_seq = contraction_sequence(ψIψ; contraction_sequence_kwargs...)
-        numer, denom =
-            contract(ψOψ; sequence=numer_seq)[], contract(ψIψ; sequence=denom_seq)[]
+        op_string_f = v -> v ∈ vs ? op_strings[findfirst(x -> x == v, vs)] : "I"
+        ψOψ_tensors = norm_factors(ψ, collect(vertices(ψ)); op_strings = op_string_f)
+        numer_seq = contraction_sequence(ψOψ_tensors; contraction_sequence_kwargs...)
+        numer = contract(ψOψ_tensors; sequence = numer_seq)[]
         push!(out, numer / denom)
     end
     return out
 end
 
-function ITensorNetworks.expect(alg::Algorithm"exact",
-    ψ::AbstractITensorNetwork,
-    observable::Tuple;
-    kwargs...
-)
+function expect(
+        alg::Algorithm"exact",
+        ψ::TensorNetworkState,
+        observable::Tuple;
+        kwargs...
+    )
     return only(expect(alg, ψ, [observable]; kwargs...))
 end
 
-
 """
-    ITensorNetworks.expect(alg::Algorithm, ψ::AbstractITensorNetwork, observables::Vector{<:Tuple}; (cache!) = nothing,
-    update_cache = isnothing(cache!), cache_update_kwargs = alg == Algorithm("bp") ? default_posdef_bp_update_kwargs() : ITensorNetworks.default_cache_update_kwargs(alg),
-    cache_construction_kwargs = default_cache_construction_kwargs(alg, QuadraticFormNetwork(ψ), ), kwargs...)
+    expect(ψ, observable; alg="exact", kwargs...) -> Number or Vector{Number}
 
-Function for computing expectation values for any vector of pauli strings via different cached based algorithms. 
-Support: alg = "bp" and alg = "boundarymps".
+Arguments:
+- `ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}`: The TensorNetworkState (TNS) or cache wrapping the TNS to measure the observable(s) on.
+- `observable::Union{Tuple, Vector{<:Tuple}}`: The observable(s) to measure. Should be a tuple or vector of tuples of the form `(ops, vertices, coeff=1)`.
+- `alg::Union{String, Nothing}`: The algorithm to use for the measurement. 
+
+Keyword Arguments:
+- `cache_update_kwargs...`: Keyword arguments passed to the `update` function when using `bp` or `boundarymps` algorithms.
+Returns:
+- A single number if measuring one observable, or a vector of numbers if measuring multiple observables.
+
+Supported algorithms:
+- `"exact"`: Exact contraction of the tensor network.
+- `"bp"`: Belief propagation approximation.
+- `"boundarymps"`: Boundary MPS approximation (requires `mps_bond_dimension` kwarg).
 """
-function ITensorNetworks.expect(
-    alg::Algorithm,
-    ψ::AbstractITensorNetwork,
-    observables::Vector{<:Tuple};
-    (cache!)=nothing,
-    update_cache=isnothing(cache!),
-    cache_update_kwargs=alg == Algorithm("bp") ? default_posdef_bp_update_kwargs(; cache_is_tree = is_tree(ψ)) : ITensorNetworks.default_cache_update_kwargs(alg),
-    cache_construction_kwargs= (;),
-    message_rank = nothing,
-    kwargs...,
-)
+function expect(ψ::Union{TensorNetworkState, BeliefPropagationCache, BoundaryMPSCache}, observable; alg::Union{String, Nothing} = default_alg(ψ), kwargs...)
+    algorithm_check(ψ, "expect", alg)
+    return expect(Algorithm(alg), ψ, observable; kwargs...)
+end
 
-    if alg == Algorithm("boundarymps") && !isnothing(message_rank)
-        cache_construction_kwargs = merge(cache_construction_kwargs, (; message_rank))
+function expect(
+        alg::Algorithm"bp",
+        cache::BeliefPropagationCache,
+        obs::Tuple
+    )
+    op_strings, obs_vs, coeff = collectobservable(obs, graph(cache))
+    iszero(coeff) && return 0
+
+    steiner_vs = length(obs_vs) == 1 ? obs_vs : collect(vertices(steiner_tree(network(cache), obs_vs)))
+
+    incoming_ms = incoming_messages(cache, steiner_vs)
+    ψIψ_tensors = norm_factors(network(cache), steiner_vs)
+    append!(ψIψ_tensors, incoming_ms)
+    denom_seq = contraction_sequence(ψIψ_tensors; alg = "optimal", prune_tensors = true)
+    denom = contract(ψIψ_tensors; sequence = denom_seq)[]
+
+    op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
+
+    #TODO: If there are a lot of tensors here, (more than 100 say), we need to think about defining a custom sequence as optimal may be too slow
+    ψOψ_tensors = norm_factors(network(cache), steiner_vs; op_strings = op_string_f)
+    append!(ψOψ_tensors, incoming_ms)
+    numer_seq = contraction_sequence(ψOψ_tensors; alg = "optimal", prune_tensors = true)
+    numer = contract(ψOψ_tensors; sequence = numer_seq)[]
+
+    return coeff * numer / denom
+end
+
+function expect(
+        alg::Algorithm"boundarymps",
+        cache::BoundaryMPSCache,
+        obs::Tuple;
+        bmps_messages_up_to_date = false,
+    )
+    op_strings, obs_vs, coeff = collectobservable(obs, graph(cache))
+    iszero(coeff) && return 0
+
+    op_string_f = v -> v ∈ obs_vs ? op_strings[findfirst(x -> x == v, obs_vs)] : "I"
+
+    numer, denom = path_contract(cache, obs_vs, op_string_f; bmps_messages_up_to_date)
+    return coeff * numer[] / denom
+end
+
+function expect(
+        alg::Algorithm"boundarymps",
+        cache::BoundaryMPSCache,
+        observables::Vector{<:Tuple};
+        bmps_messages_up_to_date = false,
+        kwargs...,
+    )
+    obs_vs = observables_vertices(observables, graph(cache))
+    if !bmps_messages_up_to_date
+        cache = update_partitions(cache, obs_vs)
     end
-    if isnothing(cache!)
-        ψIψ = QuadraticFormNetwork(ψ)
-        cache! = Ref(cache(alg, ψIψ; cache_construction_kwargs...))
-    end
-
-    if update_cache
-        cache![] = update(cache![]; cache_update_kwargs...)
-    end
-
-    return expect(cache![], observables; alg, kwargs...)
+    out = map(obs -> expect(alg, cache, obs; bmps_messages_up_to_date = true, kwargs...), observables)
+    return out
 end
 
-# Here we turn a single tuple observable into a vector of tuples -- the expected format in ITensorNetworks
-function ITensorNetworks.expect(
-    alg::Algorithm,
-    ψ::AbstractITensorNetwork,
-    observable::Tuple;
-    kwargs...,
-)
-    return only(expect(alg, ψ, [observable]; kwargs...))
+function expect(
+        alg::Algorithm"bp",
+        cache::BeliefPropagationCache,
+        observables::Vector{<:Tuple};
+        kwargs...,
+    )
+    return map(obs -> expect(alg, cache, obs; kwargs...), observables)
 end
 
+function expect(
+        alg::Algorithm"bp",
+        ψ::TensorNetworkState,
+        observable::Union{Tuple, Vector{<:Tuple}};
+        cache_update_kwargs = default_bp_update_kwargs(ψ),
+        kwargs...,
+    )
 
-"""
-    expect(ψ::AbstractITensorNetwork, obs; alg="bp", kwargs...)
+    ψ_bpc = BeliefPropagationCache(ψ)
+    ψ_bpc = update(ψ_bpc; cache_update_kwargs...)
 
-Calculate the expectation value of an `ITensorNetwork` `ψ` with an observable or vector of observables `obs` using the desired algorithm `alg`.
-Currently supported: alg = "bp", "boundarymps" or "exact".
-"bp" will be imprecise for networks with strong loop correlations, but is otherwise fast.
-"boundarymps" is more precise and slower, and can only be used if the network is planar with coordinate vertex labels like (1, 1), (1, 2), etc.
-"exact" will be infeasible for larger networks with high bond dimension.
-"""
-function ITensorNetworks.expect(
-    ψ::AbstractITensorNetwork,
-    obs::Union{Tuple, Vector{<:Tuple}};
-    alg=default_expect_alg(),
-    kwargs...,
-)
-    return expect(Algorithm(alg), ψ, obs; kwargs...)
+    return expect(alg, ψ_bpc, observable; kwargs...)
 end
 
-"""
-    expect(ψIψ::AbstractBeliefPropagationCache, obs::Tuple; kwargs...)
+function expect(
+        alg::Algorithm"boundarymps",
+        ψ::TensorNetworkState,
+        observable::Union{Tuple, Vector{<:Tuple}};
+        cache_update_kwargs = default_bmps_update_kwargs(ψ),
+        partition_by = boundarymps_partitioning(observable, graph(ψ)),
+        mps_bond_dimension::Integer,
+        gauge_state = true,
+        kwargs...,
+    )
 
-Foundational expectation function for a given (norm) cache network with an observable. 
-This can be a `BeliefPropagationCache` or a `BoundaryMPSCache`.
-Valid observables are tuples of the form `(op, qinds)` or `(op, qinds, coeff)`, 
-where `op` is a string or vector of strings, `qinds` is a vector of indices, and `coeff` is a coefficient (default 1.0).
-The `kwargs` are not used.
-"""
-function ITensorNetworks.expect(
-    ψIψ::AbstractBeliefPropagationCache,
-    obs::Tuple;
-    kwargs...
-)
+    ψ_bmps = BoundaryMPSCache(ψ, mps_bond_dimension; partition_by, gauge_state)
+    cache_update_kwargs = (; cache_update_kwargs..., maxiter = default_bp_maxiter(ψ_bmps))
+    ψ_bmps = update(ψ_bmps; cache_update_kwargs...)
 
-    op_strings, vs, coeff = collectobservable(obs)
-    iszero(coeff) && return 0.0
+    obs_vs = observables_vertices(observable, graph(ψ))
+    ψ_bmps = update_partitions(ψ_bmps, obs_vs)
 
-    ψOψ = insert_observable(ψIψ, obs)
-
-    numerator = region_scalar(ψOψ, [(v, "ket") for v in vs])
-    denominator = region_scalar(ψIψ, [(v, "ket") for v in vs])
-
-    return coeff * numerator / denominator
-end
-
-function ITensorNetworks.expect(
-    ψIψ::AbstractBeliefPropagationCache,
-    observables::Vector{<:Tuple};
-    kwargs...,
-)
-    return map(obs -> expect(ψIψ, obs; kwargs...), observables)
-end
-
-"""
-    insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
-
-Insert an obervable O into ψIψ to create the cache containing ψOψ. 
-Drops the coefficient of the observable in the third slot of the obs tuple.
-Example: obs = ("X", [1, 2]) or obs = ("XX", [1, 2], 0.5) -> ("XX", [1, 2])
-"""
-function insert_observable(ψIψ::AbstractBeliefPropagationCache, obs)
-    op_strings, verts, _ = collectobservable(obs)
-
-    ψIψ_vs = [ψIψ[(v, "operator")] for v in verts]
-    sinds =
-        [commonind(ψIψ[(v, "ket")], ψIψ_vs[i]) for (i, v) in enumerate(verts)]
-    operators = [ITensors.op(op_strings[i], sinds[i]) for i in eachindex(op_strings)]
-
-    ψOψ = update_factors(ψIψ, Dictionary([(v, "operator") for v in verts], operators))
-    return ψOψ
+    return expect(alg, ψ_bmps, observable; bmps_messages_up_to_date = true, kwargs...)
 end
 
 #Process an observable into more readable form
-function collectobservable(obs::Tuple)
-    # unpack
+function collectobservable(obs::Tuple, g::NamedGraph)
+
+    coeff = length(obs) == 2 ? 1 : last(obs)
+    verts = observables_vertices(obs, g)
     op = obs[1]
-    qinds = obs[2]
-    coeff = length(obs) == 2 ? 1.0 : last(obs)
 
-    @assert !(op == "" && isempty(qinds))
+    length(op) != length(verts) && error("Invalid observable: need as many operators as vertices passed.")
+    if op isa String
+        op_strings = [string(o) for o in op]
+    elseif op isa Vector{<:String}
+        op_strings = [o for o in op]
+    else
+        error("Invalid observable, did not recognize operator specification. Either a single string (one pauli character per vertex) or a vector of strings (one string per vertex) expected.")
+    end
 
-    op_vec = [string(o) for o in op]
-    qinds_vec = _tovec(qinds)
-    return op_vec, qinds_vec, coeff
+    return op_strings, verts, coeff
 end
 
-_tovec(qinds) = vec(collect(qinds))
-_tovec(qinds::NamedEdge) = [qinds.src, qinds.dst]
+observables_vertices(observable::Tuple, g::NamedGraph) = collect_vertices(observable[2], g)
+observables_vertices(observables::Vector{<:Tuple}, g::NamedGraph) = unique(reduce(vcat, [observables_vertices(obs, g) for obs in observables]))
+
+function boundarymps_partitioning(observable::Union{Tuple, Vector{<:Tuple}}, g::NamedGraph)
+    observables = observable isa Tuple ? [observable] : observable
+    partitioning = nothing
+    for o in observables
+        vs = observables_vertices(o, g)
+        if allequal(first.(vs)) && (partitioning == "row" || partitioning == nothing)
+            partitioning = "row"
+        elseif allequal(last.(vs)) && (partitioning == "col" || partitioning == nothing)
+            partitioning = "col"
+        else
+            error("Observables must all be aligned in either the same column or the same row to do BoundaryMPS measurements.")
+        end
+    end
+    return partitioning
+end
