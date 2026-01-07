@@ -71,7 +71,7 @@ function parse_qubit_index(qubit_index::Int64, mapping::Dict{Int,Tuple{Int,Int}}
     end
 end
 
-function parse_gate(d::Dict{String,Any})
+function parse_gate(d::AbstractDict{String,Any})
     name = format_gate_name(d["name"])
     # parse qubit indices
     qubits = Vector{Int}(d["qubits"])
@@ -99,7 +99,7 @@ end
 function parse_layer(data_dict::Vector; exclude_gates::Vector{String}=[])
     layer = []
     for d in data_dict
-        if !isa(d, Dict)
+        if !isa(d, AbstractDict)
             error("Expect Dict, got $(typeof(d))")
         end
 
@@ -128,15 +128,17 @@ layer = parse_layer(data[2:end]; exclude_gates=["global_phase", "measure", "barr
 apply_kwargs = (; cutoff=1e-12, maxdim=χ)
 
 # define initial state
-ψt = ITensorNetwork(v -> "↑", s)
+# ψt = ITensorNetwork(v -> "↑", s)
+ψt = tensornetworkstate(ComplexF32, v -> "↑", g, "S=1/2")
 #BP cache for norm of the network
-ψψ = build_bp_cache(ψt)
+ψψ = BeliefPropagationCache(ψt)
 
 # evolve the state
-ψt, ψψ, errs = apply(layer, ψt, ψψ; apply_kwargs)
+ψψ, errs = apply_gates(layer, ψψ; apply_kwargs)
 fidelity = prod(1.0 .- errs)
-nsamples = 100
-bitstrings = TN.sample_directly_certified(ψt, nsamples; norm_message_rank=8)
+nsamples = 500
+mps_bond_dimension = 20
+bitstrings = TN.sample_directly_certified(ψt, nsamples; alg = "boundarymps", norm_mps_bond_dimension = mps_bond_dimension)
 println("χ = $(χ), estimated fidelity = $(fidelity)")
 open("examples/bitstrings.json", "w") do file
     JSON.print(file, bitstrings)
