@@ -45,10 +45,10 @@ function norm_factors(tns::TensorNetworkState, verts::Vector; op_strings::Functi
         sinds = siteinds(tns, v)
         tnv = tns[v]
         tnv_dag = dag(prime(tnv))
-        if op_strings(v) == "I"
-            tnv_dag = replaceinds(tnv_dag, prime.(sinds), sinds)
+        if op_strings(v) == "ρ" || isempty(sinds)
             append!(factors, ITensor[tnv, tnv_dag])
-        elseif op_strings(v) == "ρ"
+        elseif op_strings(v) == "I"
+            tnv_dag = replaceinds(tnv_dag, prime.(sinds), sinds)
             append!(factors, ITensor[tnv, tnv_dag])
         else
             op = adapt(datatype(tnv))(ITensors.op(op_strings(v), only(sinds)))
