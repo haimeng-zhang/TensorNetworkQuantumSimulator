@@ -23,6 +23,7 @@ NamedGraphs.vertextype(tn::AbstractTensorNetwork) = NamedGraphs.vertextype(graph
 NamedGraphs.steiner_tree(tn::AbstractTensorNetwork, vs) = NamedGraphs.steiner_tree(graph(tn), vs)
 
 virtualinds(tn::AbstractTensorNetwork, e::NamedEdge) = ITensors.commoninds(tn[src(e)], tn[dst(e)])
+virtualind(tn::AbstractTensorNetwork, e::NamedEdge) = only(virtualinds(tn, e))
 
 function maxvirtualdim(tn::AbstractTensorNetwork)
     return maximum(maximum.([dim.(virtualinds(tn, e)) for e in edges(tn)]))
