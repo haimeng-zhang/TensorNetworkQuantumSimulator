@@ -73,7 +73,7 @@ function Adapt.adapt_structure(to, tn::AbstractTensorNetwork)
     return map_tensors(x -> adapt(to)(x), tn)
 end
 
-function insert_virtualinds!(tn::AbstractTensorNetwork; bond_dimension::Int = 1)
+function insert_virtualinds!(tn::AbstractTensorNetwork; bond_dimension::Integer = 1)
     dtype = datatype(tn)
     for e in edges(tn)
         if isempty(ITensors.commoninds(tn[src(e)], tn[dst(e)]))
