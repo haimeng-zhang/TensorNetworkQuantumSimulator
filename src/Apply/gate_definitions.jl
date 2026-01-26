@@ -26,7 +26,7 @@ end
 
 #Gates which need to have parameter rescaled to match qiskit convention
 function param_rescaling(string::String, param::Number)
-    string ∈ ["Rxx", "Ryy", "Rzz", "Rxxyy", "Rxxyyzz"] && return param / 2
+    string ∈ ["Rxx", "Ryy", "Rzz"] && return param / 2
     return param
 end
 
@@ -109,17 +109,9 @@ end
 
 Gate for rotation by XXYY at a given angle
 """
-function ITensors.op(
-        ::OpName"Rxxyy", ::SiteType"S=1/2"; θ::Number
-    )
-    mat = zeros(ComplexF64, 4, 4)
-    mat[1, 1] = 1
-    mat[4, 4] = 1
-    mat[2, 2] = cos(θ)
-    mat[2, 3] = -1.0 * im * sin(θ)
-    mat[3, 2] = -1.0 * im * sin(θ)
-    mat[3, 3] = cos(θ)
-    return mat
+function ITensors.op(::OpName"Rxxyy", ::SiteType"S=1/2", s1::Index, s2::Index; θ =1)
+    h = 0.5*(op("X", s1) * op("X", s2) + op("Y",s1) * op("Y", s2))
+    return exp( -im * θ * h)
 end
 
 """
@@ -127,18 +119,9 @@ end
 
 Gate for rotation by XXYYZZ at a given angle
 """
-function ITensors.op(
-        ::OpName"Rxxyyzz", ::SiteType"S=1/2"; θ::Number
-    )
-    a = exp(im * θ * 0.5)
-    mat = zeros(ComplexF64, 4, 4)
-    mat[1, 1] = conj(a)
-    mat[2, 2] = cos(θ) * a
-    mat[2, 3] = -1.0 * im * a * sin(θ)
-    mat[3, 2] = -1.0 * im * a * sin(θ)
-    mat[3, 3] = cos(θ) * a
-    mat[4, 4] = conj(a)
-    return mat
+function ITensors.op(::OpName"Rxxyyzz", ::SiteType"S=1/2", s1::Index, s2::Index; θ =1)
+    h = 0.5*(op("X", s1) * op("X", s2) + op("Y",s1) * op("Y", s2) + op("Z", s1) * op("Z", s2))
+    return exp( -im * θ * h)
 end
 
 ITensors.op(o::OpName"Rxxyy", ::SiteType"Qubit"; θ::Number) = ITensors.op(o, ITensorMPS.SiteType("S=1/2"); θ)
