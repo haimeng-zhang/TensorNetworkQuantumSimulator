@@ -101,6 +101,8 @@ export
     sample_certified,
     sample_directly_certified,
     vertextype,
+    virtualind,
+    virtualinds,
     nv,
     heavy_hexagonal_lattice,
     rescale,

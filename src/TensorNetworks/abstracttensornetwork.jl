@@ -23,6 +23,7 @@ NamedGraphs.vertextype(tn::AbstractTensorNetwork) = NamedGraphs.vertextype(graph
 NamedGraphs.steiner_tree(tn::AbstractTensorNetwork, vs) = NamedGraphs.steiner_tree(graph(tn), vs)
 
 virtualinds(tn::AbstractTensorNetwork, e::NamedEdge) = ITensors.commoninds(tn[src(e)], tn[dst(e)])
+virtualind(tn::AbstractTensorNetwork, e::NamedEdge) = only(virtualinds(tn, e))
 
 function maxvirtualdim(tn::AbstractTensorNetwork)
     return maximum(maximum.([dim.(virtualinds(tn, e)) for e in edges(tn)]))
@@ -72,11 +73,11 @@ function Adapt.adapt_structure(to, tn::AbstractTensorNetwork)
     return map_tensors(x -> adapt(to)(x), tn)
 end
 
-function insert_virtualinds!(tn::AbstractTensorNetwork)
+function insert_virtualinds!(tn::AbstractTensorNetwork; bond_dimension::Integer = 1)
     dtype = datatype(tn)
     for e in edges(tn)
         if isempty(ITensors.commoninds(tn[src(e)], tn[dst(e)]))
-            l = Index(1)
+            l = Index(bond_dimension)
             p = adapt(dtype)(onehot(l => 1))
             setindex_preserve!(tn, tn[src(e)] * p, src(e))
             setindex_preserve!(tn, tn[dst(e)] * p, dst(e))
@@ -85,9 +86,9 @@ function insert_virtualinds!(tn::AbstractTensorNetwork)
     return tn
 end
 
-function insert_virtualinds(tn::AbstractTensorNetwork)
+function insert_virtualinds(tn::AbstractTensorNetwork; kwargs...)
     tn = copy(tn)
-    return insert_virtualinds!(tn)
+    return insert_virtualinds!(tn; kwargs...)
 end
 
 function map_virtualinds!(f::Function, tn::AbstractTensorNetwork)
