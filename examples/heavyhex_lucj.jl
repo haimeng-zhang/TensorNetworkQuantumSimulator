@@ -125,7 +125,7 @@ end
 layer = parse_layer(data[2:end]; exclude_gates=["global_phase", "measure", "barrier"]) # skip the first row which is qubit indices
 
 χ = 16
-apply_kwargs = (; cutoff=1e-12, maxdim=χ)
+apply_kwargs = (; cutoff=1e-12, maxdim=χ, normalize_tensors = true)
 
 # define initial state
 # ψt = ITensorNetwork(v -> "↑", s)
@@ -134,15 +134,18 @@ apply_kwargs = (; cutoff=1e-12, maxdim=χ)
 ψψ = BeliefPropagationCache(ψt)
 
 # evolve the state
-ψψ, errs = apply_gates(layer, ψψ; apply_kwargs)
+ψψ, errs = apply_gates(layer, ψt; apply_kwargs)
 fidelity = prod(1.0 .- errs)
 nsamples = 500
 mps_bond_dimension = 20
-bitstrings = TN.sample_directly_certified(ψt, nsamples; alg = "boundarymps", norm_mps_bond_dimension = mps_bond_dimension)
+bitstrings = TN.sample_directly_certified(ψψ, nsamples; alg = "boundarymps", norm_mps_bond_dimension = mps_bond_dimension)
 println("χ = $(χ), estimated fidelity = $(fidelity)")
-open("examples/bitstrings.json", "w") do file
-    JSON.print(file, bitstrings)
-end
+st_dev = Statistics.std(first.(bitstrings))
+println("Standard deviation of p(x) / q(x) is $(st_dev)")
+
+# open("examples/bitstrings.json", "w") do file
+#     JSON.print(file, bitstrings)
+# end
 # now I have the bitstring, how do I check if it is correct?
 # TODO: compare the state vector coefficients
 # view count distribution
